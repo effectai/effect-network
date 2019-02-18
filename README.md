@@ -61,18 +61,19 @@ cleos push action effect.token transfer '[ "peter", "josh", "23.0000 EFX", "m" ]
 
 ### Current contract
 
-#### `token::transferFrom (originator: name, from: name, to: name, value: uint64_t)`
+#### `token::transferFrom (originator: name, from: name, to: name, quantity: asset)`
 Transfer tokens on behalf of `from` to `to`, requires allowance
 
-#### `token::approve (owner: name, spender: name, value: uint64_t)`
-Set the amount that `spender` can send on behalf of `owner` to `value`.
+#### `token::approve (owner: name, spender: name, quantity: asset)`
+Set the `quantity` that `spender` can send on behalf of `owner` to `quantity`.
 
 #### `token::getAllowance (owner: name, spender: name)`
-Get the amount that `spender` can send on behalf of `owner`.
+Get the `quantity` that `spender` can send on behalf of `owner`. Returns allowance for all symbols.
 
 Note:
 - This can probably be replaced with a `cleos get table`.
 - Also this should have been named `getAllowance` instead of `allowance`.
+- How do getters work anyway, there's a get_supply and get_balance in the header file.
 
 #### `token::getLockedBalance (owner: name, time: uint64_t)`
 Get the number of tokens locked for `address` at `time`.
@@ -80,14 +81,14 @@ Get the number of tokens locked for `address` at `time`.
 Note:
 - This can probably be replaced with a `cleos get table`.
 
-#### `token::lock (from: name, to: name, from: uint64_t, time: uint64_t)`
-Send `amount` of tokens to a user that are locked until `time`. The locked amount is stored in a seperate table. Any additional calls that have the same time should be added to the same record.
+#### `token::lock (from: name, to: name, quantity: asset, time: uint64_t)`
+Send `quantity` of tokens to a user that are locked until `time`. The locked amount is stored in a seperate table. Any additional calls that have the same time should be added to the same record.
 
 Note:
 - If you have allowance, can you also use them to lock tokens in the name of someone else?
 
 #### `token::unlock (to: name, time: uint64_t)`
-Unlock all tokens locked for `to` at `time`.
+Unlock all tokens locked for `to` at given `time`.
 
 ### Considerations
 Instead of giving others an allowance, could it be worth it to create a payment request. With the following options to be groomed:
@@ -98,3 +99,10 @@ Instead of giving others an allowance, could it be worth it to create a payment 
   - Allow higher values
   - Allow lower values
   - Allow any value > 0
+  - When a lower/different value is sent, should the payrequest be
+    - deleted
+    - modified to be lowered
+- Hell you can make an entire debt system like this.
+- Add interest rates over time because why not.
+
+Karma implements a lock that is true by default. This locks any transactions until these are unlocked by the issuer, is this something that we want?
