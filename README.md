@@ -24,3 +24,77 @@ Deploy the contract:
 ```bash
 cleos set contract effect.token contracts/effect.token -p effect.token@active
 ```
+
+## Specification
+
+#### `token::create (issuer: name, maximum_supply: asset)`
+Create the token with a given symbol.
+
+```bash
+cleos push action effect.token create '["eosio", "1000000000.0000 EFX"]' -p effect.token@active
+```
+
+#### `token::issue (to: name, quantity: asset, memo: string)`
+Issue tokens to a user.
+
+```bash
+cleos push action effect.token issue '["eosio", "50000.0000 EFX", "m" ]' -p eosio@active
+```
+
+#### `token::retire (quantity: asset, memo: string)`
+Allows the issuer of a token to remove tokens from circulation. The tokens must be owned by the issuer at the time they are retired. So it does not allow an issuer to retire tokens out of other people's wallets.
+
+```bash
+cleos push action effect.token retire '["2000.0000 EFX", "m"]' -p eosio@active
+```
+
+#### `token::transfer (from: name, to: name, quantity: asset, memo: string)`
+
+```bash
+cleos push action effect.token transfer '[ "peter", "josh", "23.0000 EFX", "m" ]' -p peter@active
+```
+
+#### `token::open`
+
+#### `token::close`
+
+
+### Current contract
+
+#### `token::transferFrom (originator: name, from: name, to: name, value: uint64_t)`
+Transfer tokens on behalf of `from` to `to`, requires allowance
+
+#### `token::approve (owner: name, spender: name, value: uint64_t)`
+Set the amount that `spender` can send on behalf of `owner` to `value`.
+
+#### `token::getAllowance (owner: name, spender: name)`
+Get the amount that `spender` can send on behalf of `owner`.
+
+Note:
+- This can probably be replaced with a `cleos get table`.
+- Also this should have been named `getAllowance` instead of `allowance`.
+
+#### `token::getLockedBalance (owner: name, time: uint64_t)`
+Get the number of tokens locked for `address` at `time`.
+
+Note:
+- This can probably be replaced with a `cleos get table`.
+
+#### `token::lock (from: name, to: name, from: uint64_t, time: uint64_t)`
+Send `amount` of tokens to a user that are locked until `time`. The locked amount is stored in a seperate table. Any additional calls that have the same time should be added to the same record.
+
+Note:
+- If you have allowance, can you also use them to lock tokens in the name of someone else?
+
+#### `token::unlock (to: name, time: uint64_t)`
+Unlock all tokens locked for `to` at `time`.
+
+### Considerations
+Instead of giving others an allowance, could it be worth it to create a payment request. With the following options to be groomed:
+- To be payed by a single person, or by everyone.
+- To expire the request in a given time, or to be valid infinitely.
+- To remove the payment request.
+- To allow the sender to send a different value other than the one in the payment request
+  - Allow higher values
+  - Allow lower values
+  - Allow any value > 0
