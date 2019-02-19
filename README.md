@@ -54,10 +54,19 @@ cleos push action effect.token retire '["2000.0000 EFX", "m"]' -p eosio@active
 cleos push action effect.token transfer '[ "peter", "josh", "23.0000 EFX", "m" ]' -p peter@active
 ```
 
-##### `token::open`
+##### `token::open (owner: name | symbol: symbol&, ram_payer: name)`
+Initiates an account with a balance of 0. The symbol is something weird, which consists of a [precision and a string](https://github.com/EOSIO/eos/blob/9094766556c0003bc6e59b15dab5b6c2b82bf088/contracts/eosiolib/symbol.hpp#L30).
 
-##### `token::close`
+```bash
+cleos push action effect.token open '[ "tony", "4,EFX", "eosio" ]' -p eosio@active
+```
 
+##### `token::close (owner: name | symbol: symbol&)`
+Closes the account by removing the account entry. This can only be done by the owner and the balance must be zero.
+
+```bash
+cleos push action effect.token close '[ "tony", "4,EFX" ]' -p tony@active
+```
 
 ### Current contract
 
