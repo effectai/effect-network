@@ -48,6 +48,16 @@ The transfer action transfers tokens from account "from" to account "to". This a
 cleos push action effect.token transfer '[ "peter", "josh", "23.0000 EFX", "m" ]' -p peter@active
 ```
 
+##### `token::approve (owner: name | spender: name | quantity: asset)`
+The approve action is used when the owner whishes to give spending priveleges to the spender. Sets the amount `quantity` that `spender` can send on behalf of `owner`. The amount that can be spent is stored in a seperate table `allowance`. The RAM allocated for these costs are payed by the `owner` and must be validated as such.
+
+```bash
+cleos push action effect.token approve '[ "peter", "josh", "50 EFX" ]' -p peter@active
+```
+
+##### `token::transferFrom (originator: name | from: name | to: name | quantity: asset)`
+The transferFrom action sends the tokens on your behalf from another account to someone else. There must be sufficient allowance provided to the originator. The command fails unless the "from" account has deliberately authorized the "spender" via the approve method. Note that if account "to" does not already possess a balance in the specified tokens, an accounts table must be created in its scope. In this case, the RAM allocation costs are payed by the spender.
+
 ##### `token::retire (quantity: asset | memo: string)`
 Allows the issuer of a token to remove tokens from circulation. The tokens must be owned by the issuer at the time they are retired. So it does not allow an issuer to retire tokens out of other people's wallets. Retired tokens will decrease the supply, allowing them to be issued by the issuer.
 
@@ -71,25 +81,6 @@ cleos push action effect.token close '[ "josh", "4,EFX" ]' -p josh@active
 
 ### Current contract
 
-##### `token::transferFrom (originator: name | from: name | to: name | quantity: asset)`
-Transfer tokens on behalf of `from` to `to`, requires allowance
-
-##### `token::approve (owner: name | spender: name | quantity: asset)`
-Set the `quantity` that `spender` can send on behalf of `owner` to `quantity`.
-
-##### `token::getAllowance (owner: name | spender: name)`
-Get the `quantity` that `spender` can send on behalf of `owner`. Returns allowance for all symbols.
-
-Note:
-- This can probably be replaced with a `cleos get table`.
-- Also this should have been named `getAllowance` instead of `allowance`.
-- How do getters work anyway, there's a get_supply and get_balance in the header file.
-
-##### `token::getLockedBalance (owner: name | time: uint64_t)`
-Get the number of tokens locked for `address` at `time`.
-
-Note:
-- This can probably be replaced with a `cleos get table`.
 
 ##### `token::lock (from: name | to: name | quantity: asset | time: uint64_t)`
 Send `quantity` of tokens to a user that are locked until `time`. The locked amount is stored in a seperate table. Any additional calls that have the same time should be added to the same record.
