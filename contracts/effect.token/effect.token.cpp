@@ -169,45 +169,45 @@ void token::approve( name   owner,
                      name   spender,
                      asset  quantity )
 {
-   check( owner != spender, "cannot allow self" );
-   require_auth( owner );
-   check( is_account( spender ), "spender account does not exist" );
+    check( owner != spender, "cannot allow self" );
+    require_auth( owner );
+    check( is_account( spender ), "spender account does not exist" );
 
-   auto sym = quantity.symbol;
-   auto sym_code_raw = sym.code().raw();
-   stats statstable( _self, sym_code_raw );
-   const auto &st = statstable.get( sym_code_raw );
+    auto sym = quantity.symbol;
+    auto sym_code_raw = sym.code().raw();
+    stats statstable( _self, sym_code_raw );
+    const auto &st = statstable.get( sym_code_raw );
 
-   // eosio::print("name: ", owner, " owner value: ", owner.value, " sym code: ", sym.code());
-   // eosio::print("amount:", quantity.amount);
+    // eosio::print("name: ", owner, " owner value: ", owner.value, " sym code: ", sym.code());
+    // eosio::print("amount:", quantity.amount);
 
-   // Notify both the sender and receiver upon action completion
-   require_recipient( owner );
-   require_recipient( spender );
+    // Notify both the sender and receiver upon action completion
+    require_recipient( owner );
+    require_recipient( spender );
 
-   check( quantity.is_valid(), "invalid quantity" );
-   check( quantity.amount >= 0, "must approve quantity of zero or more" );
-   check( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
+    check( quantity.is_valid(), "invalid quantity" );
+    check( quantity.amount >= 0, "must approve quantity of zero or more" );
+    check( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
 
-   // Making changes to allowed in owner scope
-   allowances allowedtable( _self, owner.value );
-   auto existing = allowedtable.find( spender.value + sym_code_raw );
-   if( existing == allowedtable.end()) {
-      if (quantity.amount > 0) {
-         allowedtable.emplace( owner, [&]( auto& a ) {
-            a.key = spender.value + sym_code_raw;
-            a.spender = spender;
+    // Making changes to allowed in owner scope
+    allowances allowedtable( _self, owner.value );
+    auto existing = allowedtable.find( spender.value + sym_code_raw );
+    if( existing == allowedtable.end()) {
+        if (quantity.amount > 0) {
+            allowedtable.emplace( owner, [&]( auto& a ) {
+                a.key = spender.value + sym_code_raw;
+                a.spender = spender;
+                a.quantity = quantity;
+            });
+        }
+    } else if (quantity.amount == 0) {
+        allowedtable.erase( existing );
+    } else {
+        const auto &at = *existing;
+        allowedtable.modify( at, owner, [&]( auto& a ) {
             a.quantity = quantity;
-         });
-      }
-   } else if (quantity.amount == 0) {
-      allowedtable.erase( existing );
-   } else {
-      const auto &at = *existing;
-      allowedtable.modify( at, owner, [&]( auto& a ) {
-         a.quantity = quantity;
-      });
-   }
+        });
+    }
 }
 
 } /// namespace eosio
