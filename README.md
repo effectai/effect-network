@@ -110,5 +110,7 @@ Instead of giving others an allowance, could it be worth it to create a payment 
 
 Karma implements a lock that is true by default. This locks any transactions until these are unlocked by the issuer, is this something that we want?
 
+Who pays for the RAM after spending on someone elses behalf?
+
 In the basic contract, the account is removed when it's quantity is set to zero. With allowance that's what we want, but for the account maybe not. We could build the option to let other people pay the RAM for an account by opening a transfer request. If we close the account automatically when it becomes zero then we can only keep sending tokens by transfer request.
 That becomes cumbersome if want to use allowance to create a transfer request. What?

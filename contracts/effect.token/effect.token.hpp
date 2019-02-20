@@ -46,6 +46,9 @@ namespace eosio {
          [[eosio::action]]
          void approve( name owner, name spender, asset quantity );
 
+         [[eosio::action]]
+         void transferfrom( name from, name to, name spender, asset quantity, string memo );
+
          static asset get_supply( name token_contract_account, symbol_code sym_code )
          {
             stats statstable( token_contract_account, sym_code.raw() );
@@ -67,6 +70,7 @@ namespace eosio {
          using open_action = eosio::action_wrapper<"open"_n, &token::open>;
          using close_action = eosio::action_wrapper<"close"_n, &token::close>;
          using approve_action = eosio::action_wrapper<"approve"_n, &token::approve>;
+         using transferfrom_action = eosio::action_wrapper<"transferfrom"_n, &token::transferfrom>;
       private:
          struct [[eosio::table]] account {
             asset    balance;
@@ -95,6 +99,7 @@ namespace eosio {
          typedef eosio::multi_index< "allowances"_n, allowance > allowances;
 
          void sub_balance( name owner, asset value );
+         void sub_balancefrom( name owner, name spender, asset value );
          void add_balance( name owner, asset value, name ram_payer );
    };
 

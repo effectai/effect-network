@@ -121,6 +121,18 @@ void token::sub_balance( name owner, asset value ) {
       });
 }
 
+// After we figure out who's paying for subsequent spends we could combine this with sub_balance.
+void token::sub_balancefrom( name owner, name spender, asset value ) {
+    accounts from_acnts( _self, owner.value );
+
+    const auto& from = from_acnts.get( value.symbol.code().raw(), "no balance object found" );
+    check( from.balance.amount >= value.amount, "overdrawn balance" );
+
+    from_acnts.modify( from, spender, [&]( auto& a ) {
+        a.balance -= value;
+    });
+}
+
 void token::add_balance( name owner, asset value, name ram_payer )
 {
    accounts to_acnts( _self, owner.value );
@@ -173,13 +185,9 @@ void token::approve( name   owner,
     require_auth( owner );
     check( is_account( spender ), "spender account does not exist" );
 
-    auto sym = quantity.symbol;
-    auto sym_code_raw = sym.code().raw();
+    auto sym_code_raw = quantity.symbol.code().raw();
     stats statstable( _self, sym_code_raw );
     const auto &st = statstable.get( sym_code_raw );
-
-    // eosio::print("name: ", owner, " owner value: ", owner.value, " sym code: ", sym.code());
-    // eosio::print("amount:", quantity.amount);
 
     // Notify both the sender and receiver upon action completion
     require_recipient( owner );
@@ -210,6 +218,47 @@ void token::approve( name   owner,
     }
 }
 
+void token::transferfrom( name    from,
+                          name    to,
+                          name    spender,
+                          asset   quantity,
+                          string  memo )
+{
+    check( from != to, "cannot transfer to self" );
+    check( is_account(from), "from account does not exist" );
+    check( is_account(to), "to account does not exist" );
+
+    auto sym_code_raw = quantity.symbol.code().raw();
+    stats statstable( _self, sym_code_raw );
+    const auto &st = statstable.get( sym_code_raw );
+
+    // Notify both the sender and receiver upon action completion
+    require_recipient( from );
+    require_recipient( to );
+
+    check( quantity.is_valid(), "invalid quantity" );
+    check( quantity.amount > 0, "must transfer positive quantity" );
+    check( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
+    check( memo.size() <= 256, "memo has more than 256 bytes" );
+
+    allowances allowedtable( _self, from.value );
+    auto existing = allowedtable.find( spender.value + sym_code_raw );
+    check( existing != allowedtable.end(), "spender not allowed" );
+    const auto &at = *existing;
+
+    require_auth( at.spender );
+    check( at.quantity.is_valid(), "invalid allowed quantity" );
+    check( at.quantity.amount > 0, "allowed must be a positive quantity" );
+    check( at.quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
+    check( at.quantity.amount >= quantity.amount, "Allowed quantity < Transfer Quantity" );
+
+    sub_balancefrom( from, at.spender, quantity );
+    add_balance( to, quantity, spender );
+    allowedtable.modify( at, at.spender, [&]( auto& a ) {
+        a.quantity -= quantity;
+    });
+}
+
 } /// namespace eosio
 
-EOSIO_DISPATCH( eosio::token, (create)(issue)(transfer)(open)(close)(retire)(approve) )
+EOSIO_DISPATCH( eosio::token, (create)(issue)(transfer)(open)(close)(retire)(approve)(transferfrom) )
