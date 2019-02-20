@@ -92,6 +92,8 @@ Note:
 Unlock all tokens locked for `to` at given `time`.
 
 ### Considerations
+Transfer by id, get the RAM back when a transfer is fulfilled.
+
 Instead of giving others an allowance, could it be worth it to create a payment request. With the following options to be groomed:
 - To be payed by a single person, or by everyone.
 - To expire the request in a given time, or to be valid infinitely.
