@@ -59,7 +59,7 @@ cleos push action effect.token approve '[ "peter", "josh", "50 EFX" ]' -p peter@
 The transferFrom action sends the tokens on your behalf from another account to someone else. There must be sufficient allowance provided to the originator. The command fails unless the "from" account has deliberately authorized the "spender" via the approve method. Note that if account "to" does not already possess a balance in the specified tokens, an accounts table must be created in its scope. In this case, the RAM allocation costs are payed by the spender.
 
 ##### `token::retire (quantity: asset | memo: string)`
-Allows the issuer of a token to remove tokens from circulation. The tokens must be owned by the issuer at the time they are retired. So it does not allow an issuer to retire tokens out of other people's wallets. Retired tokens will decrease the supply, allowing them to be issued by the issuer.
+Allows the issuer of a token to remove tokens from circulation. The tokens must be owned by the issuer at the time they are retired. So it does not allow an issuer to retire tokens out of other people's wallets. Retired tokens will decrease the supply, allowing them to be issued by the issuer again at a later stage.
 
 ```bash
 cleos push action effect.token retire '[ "2000.0000 EFX", "m" ]' -p effect@active
