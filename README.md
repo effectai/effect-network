@@ -55,7 +55,7 @@ The approve action is used when the owner whishes to give spending priveleges to
 cleos push action effect.token approve '[ "peter", "josh", "50 EFX" ]' -p peter@active
 ```
 
-##### `token::transferFrom (originator: name | from: name | to: name | quantity: asset)`
+##### `token::transferFrom (from: name | to: name | spender: name | quantity: asset)`
 The transferFrom action sends the tokens on your behalf from another account to someone else. There must be sufficient allowance provided to the originator. The command fails unless the "from" account has deliberately authorized the "spender" via the approve method. Note that if account "to" does not already possess a balance in the specified tokens, an accounts table must be created in its scope. In this case, the RAM allocation costs are payed by the spender.
 
 ##### `token::retire (quantity: asset | memo: string)`

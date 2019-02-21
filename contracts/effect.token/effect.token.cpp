@@ -94,7 +94,7 @@ void token::transfer( name    from,
     check( is_account( to ), "to account does not exist");
     auto sym = quantity.symbol.code();
     stats statstable( _self, sym.raw() );
-    const auto& st = statstable.get( sym.raw() );
+    const auto& st = statstable.get( sym.raw(), "symbol does not exist" );
 
     require_recipient( from );
     require_recipient( to );
@@ -187,7 +187,7 @@ void token::approve( name   owner,
 
     auto sym_code_raw = quantity.symbol.code().raw();
     stats statstable( _self, sym_code_raw );
-    const auto &st = statstable.get( sym_code_raw );
+    const auto& st = statstable.get( sym_code_raw, "symbol does not exist" );
 
     // Notify both the sender and receiver upon action completion
     require_recipient( owner );
@@ -200,7 +200,7 @@ void token::approve( name   owner,
     // Making changes to allowed in owner scope
     allowances allowedtable( _self, owner.value );
     auto existing = allowedtable.find( spender.value + sym_code_raw );
-    if( existing == allowedtable.end()) {
+    if ( existing == allowedtable.end() ) {
         if (quantity.amount > 0) {
             allowedtable.emplace( owner, [&]( auto& a ) {
                 a.key = spender.value + sym_code_raw;
@@ -208,13 +208,15 @@ void token::approve( name   owner,
                 a.quantity = quantity;
             });
         }
-    } else if (quantity.amount == 0) {
-        allowedtable.erase( existing );
     } else {
         const auto &at = *existing;
-        allowedtable.modify( at, owner, [&]( auto& a ) {
-            a.quantity = quantity;
-        });
+        if (quantity.amount == 0) {
+            allowedtable.erase( at );
+        } else {
+            allowedtable.modify( at, owner, [&]( auto& a ) {
+                a.quantity = quantity;
+            });
+        }
     }
 }
 
@@ -230,7 +232,7 @@ void token::transferfrom( name    from,
 
     auto sym_code_raw = quantity.symbol.code().raw();
     stats statstable( _self, sym_code_raw );
-    const auto &st = statstable.get( sym_code_raw );
+    const auto& st = statstable.get( sym_code_raw, "symbol does not exist" );
 
     // Notify both the sender and receiver upon action completion
     require_recipient( from );
@@ -242,9 +244,7 @@ void token::transferfrom( name    from,
     check( memo.size() <= 256, "memo has more than 256 bytes" );
 
     allowances allowedtable( _self, from.value );
-    auto existing = allowedtable.find( spender.value + sym_code_raw );
-    check( existing != allowedtable.end(), "spender not allowed" );
-    const auto &at = *existing;
+    const auto& at = allowedtable.get( spender.value + sym_code_raw, "spender not allowed" );
 
     require_auth( at.spender );
     check( at.quantity.is_valid(), "invalid allowed quantity" );
@@ -254,9 +254,15 @@ void token::transferfrom( name    from,
 
     sub_balancefrom( from, at.spender, quantity );
     add_balance( to, quantity, spender );
-    allowedtable.modify( at, at.spender, [&]( auto& a ) {
-        a.quantity -= quantity;
-    });
+
+    // Remove the allowed entry if it is the same amount as the amount being transferred.
+    if ( at.quantity.amount == quantity.amount ) {
+        allowedtable.erase( at );
+    } else {
+        allowedtable.modify( at, at.spender, [&]( auto& a ) {
+            a.quantity -= quantity;
+        });
+    }
 }
 
 } /// namespace eosio
