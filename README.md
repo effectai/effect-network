@@ -25,7 +25,7 @@ Deploy the contract:
 cleos set contract effect.token contracts/effect.token -p effect.token@active
 ```
 
-## Specification
+## Action Specification
 
 ##### `token::create (issuer: name | maximum_supply: asset)`
 Create the token with an issuer, given supply and symbol on the authority of the account on which the contract is deployed. The following example creates one million EFX tokens with a precision of four. The issuer is able to issue the initial tokens to other accounts. The RAM allocation for the different types of tokens is payed by the contract owner.
@@ -83,17 +83,22 @@ Closes the account by removing the account entry. This can only be done by the o
 cleos push action effect.token close '[ "josh", "4,EFX" ]' -p josh@active
 ```
 
-### Current contract
+##### `token::lock (from: name | to: name | quantity: asset | date: uint64_t)`
+Send `quantity` of tokens to a user that are locked until `time`. The locked amount is stored in a seperate table on the context of `to` with an incrementing primary key. The RAM is payed by `from`. The date must be `time_point_sec` compatible, meaning it should be an ISO formatted UTC string without timezone information. `to` can be a non existent account, which can be claimed once the account is created and the `time` is expired.
 
+```bash
+cleos push action effect.token lock '[ "peter", "sarah", "10.0000 EFX", "2019-03-14T11:55:23" ]' -p peter@active
+```
 
-##### `token::lock (from: name | to: name | quantity: asset | time: uint64_t)`
-Send `quantity` of tokens to a user that are locked until `time`. The locked amount is stored in a seperate table. Any additional calls that have the same time should be added to the same record.
+##### `token::unlock (to: name | lockId: uint64_t)`
+Unlock the locked tokens for `to` at a given `lockId`. This will remove the record from the locked table, freeing up RAM payed for by the `from` in the `lock` action.
 
-Note:
-- If you have allowance, can you also use them to lock tokens in the name of someone else?
+```bash
+cleos push action effect.token unlock '[ "sarah", 0 ]' -p sarah@active
 
-##### `token::unlock (to: name | time: uint64_t)`
-Unlock all tokens locked for `to` at given `time`.
+# All locked tokens for `to` can be requested with cleos:
+cleos get table effect.token sarah locks
+```
 
 ### Considerations
 Transfer by id, get the RAM back when a transfer is fulfilled.
