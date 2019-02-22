@@ -6,6 +6,7 @@
 
 #include <eosiolib/asset.hpp>
 #include <eosiolib/eosio.hpp>
+#include <eosiolib/time.hpp>
 
 #include <string>
 
@@ -49,6 +50,9 @@ namespace eosio {
          [[eosio::action]]
          void transferfrom( name from, name to, name spender, asset quantity, string memo );
 
+         [[eosio::action]]
+         void lock( name from, name to, asset quantity, time_point_sec lockTime );
+
          static asset get_supply( name token_contract_account, symbol_code sym_code )
          {
             stats statstable( token_contract_account, sym_code.raw() );
@@ -71,6 +75,7 @@ namespace eosio {
          using close_action = eosio::action_wrapper<"close"_n, &token::close>;
          using approve_action = eosio::action_wrapper<"approve"_n, &token::approve>;
          using transferfrom_action = eosio::action_wrapper<"transferfrom"_n, &token::transferfrom>;
+         using lock_action = eosio::action_wrapper<"lock"_n, &token::lock>;
       private:
          struct [[eosio::table]] account {
             asset    balance;
@@ -94,9 +99,19 @@ namespace eosio {
             uint64_t primary_key()const { return key; }
          };
 
+         struct [[eosio::table]] locked_stats {
+            uint64_t       key;
+            name           spender;
+            asset          quantity;
+            time_point_sec lockTime;
+
+            uint64_t primary_key()const { return key; }
+         };
+
          typedef eosio::multi_index< "accounts"_n, account > accounts;
          typedef eosio::multi_index< "stat"_n, currency_stats > stats;
          typedef eosio::multi_index< "allowances"_n, allowance > allowances;
+         typedef eosio::multi_index< "locks"_n, locked_stats > locks;
 
          void sub_balance( name owner, asset value );
          void sub_balancefrom( name owner, name spender, asset value );

@@ -227,8 +227,8 @@ void token::transferfrom( name    from,
                           string  memo )
 {
     check( from != to, "cannot transfer to self" );
-    check( is_account(from), "from account does not exist" );
-    check( is_account(to), "to account does not exist" );
+    check( is_account( from ), "from account does not exist" );
+    check( is_account( to ), "to account does not exist" );
 
     auto sym_code_raw = quantity.symbol.code().raw();
     stats statstable( _self, sym_code_raw );
@@ -265,6 +265,36 @@ void token::transferfrom( name    from,
     }
 }
 
+void token::lock( name from, name to, asset quantity, time_point_sec lockTime )
+{
+    require_auth( from );
+    check( lockTime >= time_point_sec(now()), "lock time must be in the future" );
+
+    auto sym_code_raw = quantity.symbol.code().raw();
+    stats statstable( _self, sym_code_raw );
+    const auto& st = statstable.get( sym_code_raw, "symbol does not exist" );
+
+    // Notify the sender, and the receiver if it exists.
+    require_recipient( from );
+    if ( is_account( to ) ) {
+        require_recipient( to );
+    }
+
+    check( quantity.is_valid(), "invalid quantity" );
+    check( quantity.amount > 0, "must lock positive quantity" );
+    check( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
+
+    sub_balance( from, quantity );
+
+    locks locktable( _self, to.value );
+    locktable.emplace( from, [&]( auto& a ) {
+        a.key = locktable.available_primary_key();
+        a.spender = to;
+        a.quantity = quantity;
+        a.lockTime = lockTime;
+    });
+}
+
 } /// namespace eosio
 
-EOSIO_DISPATCH( eosio::token, (create)(issue)(transfer)(open)(close)(retire)(approve)(transferfrom) )
+EOSIO_DISPATCH( eosio::token, (create)(issue)(transfer)(open)(close)(retire)(approve)(transferfrom)(lock) )
