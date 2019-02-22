@@ -53,6 +53,9 @@ namespace eosio {
          [[eosio::action]]
          void lock( name from, name to, asset quantity, time_point_sec lockTime );
 
+         [[eosio::action]]
+         void unlock( name to, uint64_t lockId );
+
          static asset get_supply( name token_contract_account, symbol_code sym_code )
          {
             stats statstable( token_contract_account, sym_code.raw() );
@@ -76,6 +79,7 @@ namespace eosio {
          using approve_action = eosio::action_wrapper<"approve"_n, &token::approve>;
          using transferfrom_action = eosio::action_wrapper<"transferfrom"_n, &token::transferfrom>;
          using lock_action = eosio::action_wrapper<"lock"_n, &token::lock>;
+         using unlock_action = eosio::action_wrapper<"unlock"_n, &token::unlock>;
       private:
          struct [[eosio::table]] account {
             asset    balance;

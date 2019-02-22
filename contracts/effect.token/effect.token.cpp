@@ -268,7 +268,7 @@ void token::transferfrom( name    from,
 void token::lock( name from, name to, asset quantity, time_point_sec lockTime )
 {
     require_auth( from );
-    check( lockTime >= time_point_sec(now()), "lock time must be in the future" );
+    check( lockTime.utc_seconds >= now(), "lock time must be in the future" );
 
     auto sym_code_raw = quantity.symbol.code().raw();
     stats statstable( _self, sym_code_raw );
@@ -295,6 +295,20 @@ void token::lock( name from, name to, asset quantity, time_point_sec lockTime )
     });
 }
 
+void token::unlock( name to, uint64_t lockId )
+{
+    require_auth( to );
+
+    locks locktable( _self, to.value );
+    const auto& lt = locktable.get( lockId, "lock does not exist" );
+
+    check( now() >= lt.lockTime.utc_seconds, "lock has not yet expired" );
+
+    add_balance( to, lt.quantity, to );
+
+    locktable.erase( lt );
+}
+
 } /// namespace eosio
 
-EOSIO_DISPATCH( eosio::token, (create)(issue)(transfer)(open)(close)(retire)(approve)(transferfrom)(lock) )
+EOSIO_DISPATCH( eosio::token, (create)(issue)(transfer)(open)(close)(retire)(approve)(transferfrom)(lock)(unlock) )
