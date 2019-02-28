@@ -22,7 +22,7 @@ public:
    eosio_token_tester() {
       produce_blocks( 2 );
 
-      create_accounts( { N(alice), N(bob), N(carol), N(eosio.token) } );
+      create_accounts( { N(alice), N(bob), N(carol), N(wendy), N(eosio.token) } );
       produce_blocks( 2 );
 
       set_code( N(eosio.token), contracts::token_wasm() );
@@ -135,6 +135,20 @@ public:
            ( "owner", owner )
            ( "spender", spender )
            ( "quantity", quantity )
+      );
+   }
+
+   action_result transferfrom( account_name from,
+                               account_name to,
+                               account_name spender,
+                               asset        quantity,
+                               string       memo ) {
+      return push_action( spender, N(transferfrom), mvo()
+           ( "from", from )
+           ( "to", to )
+           ( "spender", spender )
+           ( "quantity", quantity )
+           ( "memo", memo )
       );
    }
 
@@ -502,6 +516,94 @@ BOOST_FIXTURE_TEST_CASE( approve_tests, eosio_token_tester ) try {
    );
 
    BOOST_REQUIRE_EQUAL( success(), approve( N(alice), N(bob), asset::from_string("0.000 EFX") ) );
+   bob_allowance = get_allowance( N(alice), N(bob), "3,EFX" );
+   BOOST_REQUIRE_EQUAL(true, bob_allowance.is_null() );
+
+} FC_LOG_AND_RETHROW()
+
+BOOST_FIXTURE_TEST_CASE( transferfrom_tests, eosio_token_tester ) try {
+
+   auto token = create( N(alice), asset::from_string("1000.000 EFX"));
+   produce_blocks(1);
+
+   issue( N(alice), N(alice), asset::from_string("500.000 EFX"), "memo" );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "cannot transfer to self" ),
+      transferfrom( N(alice), N(alice), N(bob), asset::from_string("20.000 EFX"), "memo" )
+   );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "from account does not exist" ),
+      transferfrom( N(pete), N(wendy), N(bob), asset::from_string("20.000 EFX"), "memo" )
+   );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "to account does not exist" ),
+      transferfrom( N(wendy), N(pete), N(bob), asset::from_string("20.000 EFX"), "memo" )
+   );
+
+   // Test: "invalid quantity"?
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "must transfer positive quantity" ),
+      transferfrom( N(alice), N(wendy), N(bob), asset::from_string("-20.000 EFX"), "memo" )
+   );
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "must transfer positive quantity" ),
+      transferfrom( N(alice), N(wendy), N(bob), asset::from_string("0.000 EFX"), "memo" )
+   );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "symbol precision mismatch" ),
+      transferfrom( N(alice), N(wendy), N(bob), asset::from_string("10.0001 EFX"), "memo" )
+   );
+
+   // std::string short_memo(256, 'm');
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "memo has more than 256 bytes" ),
+      transferfrom( N(alice), N(wendy), N(bob), asset::from_string("20.000 EFX"), std::string(257, 'm') )
+   );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "spender not allowed" ),
+      transferfrom( N(alice), N(wendy), N(bob), asset::from_string("20.000 EFX"), "memo" )
+   );
+
+   approve( N(alice), N(bob), asset::from_string("40.000 EFX") );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "not enough allowance" ),
+      transferfrom( N(alice), N(wendy), N(bob), asset::from_string("50.000 EFX"), "memo" )
+   );
+
+   BOOST_REQUIRE_EQUAL( success(),
+      transferfrom( N(alice), N(wendy), N(bob), asset::from_string("30.000 EFX"), std::string(256, 'm') )
+   );
+
+   auto alice_balance = get_account(N(alice), "3,EFX");
+   REQUIRE_MATCHING_OBJECT( alice_balance, mvo()
+      ("balance", "470.000 EFX")
+   );
+
+   auto wendy_balance = get_account(N(wendy), "3,EFX");
+   REQUIRE_MATCHING_OBJECT( wendy_balance, mvo()
+      ("balance", "30.000 EFX")
+   );
+
+   auto bob_allowance = get_allowance( N(alice), N(bob), "3,EFX" );
+   REQUIRE_MATCHING_OBJECT( bob_allowance, mvo()
+      ("key", name("bob").value + get_symbol_code( "3,EFX" ))
+      ("spender", "bob")
+      ("quantity", "10.000 EFX")
+   );
+
+   BOOST_REQUIRE_EQUAL( success(),
+      transferfrom( N(alice), N(bob), N(bob), asset::from_string("10.000 EFX"), "memo" )
+   );
+
+   alice_balance = get_account(N(alice), "3,EFX");
+   REQUIRE_MATCHING_OBJECT( alice_balance, mvo()
+      ("balance", "460.000 EFX")
+   );
+
+   auto bob_balance = get_account(N(bob), "3,EFX");
+   REQUIRE_MATCHING_OBJECT( bob_balance, mvo()
+      ("balance", "10.000 EFX")
+   );
+
    bob_allowance = get_allowance( N(alice), N(bob), "3,EFX" );
    BOOST_REQUIRE_EQUAL(true, bob_allowance.is_null() );
 
