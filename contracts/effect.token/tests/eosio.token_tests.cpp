@@ -1,6 +1,7 @@
 #include <boost/test/unit_test.hpp>
 #include <eosio/chain/abi_serializer.hpp>
 #include <eosio/chain/resource_limits.hpp>
+#include <eosio/chain/name.hpp>
 #include <eosio/testing/tester.hpp>
 #include <fc/variant_object.hpp>
 #include <Runtime/Runtime.h>
@@ -46,36 +47,46 @@ public:
       return base_tester::push_action( std::move(act), uint64_t(signer));
    }
 
+   uint64_t get_symbol_code( const string& symbolname )
+   {
+      return eosio::chain::symbol::from_string(symbolname).to_symbol_code().value;
+   }
+
    fc::variant get_stats( const string& symbolname )
    {
-      auto symb = eosio::chain::symbol::from_string(symbolname);
-      auto symbol_code = symb.to_symbol_code().value;
+      auto symbol_code = get_symbol_code( symbolname );
       vector<char> data = get_row_by_account( N(eosio.token), symbol_code, N(stat), symbol_code );
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "currency_stats", data, abi_serializer_max_time );
    }
 
    fc::variant get_account( account_name acc, const string& symbolname)
    {
-      auto symb = eosio::chain::symbol::from_string(symbolname);
-      auto symbol_code = symb.to_symbol_code().value;
+      auto symbol_code = get_symbol_code( symbolname );
       vector<char> data = get_row_by_account( N(eosio.token), acc, N(accounts), symbol_code );
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "account", data, abi_serializer_max_time );
    }
 
+   fc::variant get_allowance( account_name acc, account_name spender, const string& symbolname)
+   {
+      auto symbol_code = get_symbol_code( symbolname );
+      vector<char> data = get_row_by_account( N(eosio.token), acc, N(allowances), spender.value + symbol_code );
+      return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "allowance", data, abi_serializer_max_time );
+   }
+
    action_result create( account_name issuer,
-                asset        maximum_supply ) {
+                         asset        maximum_supply ) {
 
       return push_action( N(eosio.token), N(create), mvo()
-           ( "issuer", issuer)
-           ( "maximum_supply", maximum_supply)
+           ( "issuer", issuer )
+           ( "maximum_supply", maximum_supply )
       );
    }
 
    action_result issue( account_name issuer, account_name to, asset quantity, string memo ) {
       return push_action( issuer, N(issue), mvo()
-           ( "to", to)
-           ( "quantity", quantity)
-           ( "memo", memo)
+           ( "to", to )
+           ( "quantity", quantity )
+           ( "memo", memo )
       );
    }
 
@@ -88,14 +99,14 @@ public:
    }
 
    action_result transfer( account_name from,
-                  account_name to,
-                  asset        quantity,
-                  string       memo ) {
+                           account_name to,
+                           asset        quantity,
+                           string       memo ) {
       return push_action( from, N(transfer), mvo()
-           ( "from", from)
-           ( "to", to)
-           ( "quantity", quantity)
-           ( "memo", memo)
+           ( "from", from )
+           ( "to", to )
+           ( "quantity", quantity )
+           ( "memo", memo )
       );
    }
 
@@ -114,6 +125,16 @@ public:
       return push_action( owner, N(close), mvo()
            ( "owner", owner )
            ( "symbol", "0,CERO" )
+      );
+   }
+
+   action_result approve( account_name owner,
+                          account_name spender,
+                          asset        quantity ) {
+      return push_action( owner, N(approve), mvo()
+           ( "owner", owner )
+           ( "spender", spender )
+           ( "quantity", quantity )
       );
    }
 
@@ -139,6 +160,9 @@ BOOST_FIXTURE_TEST_CASE( create_negative_max_supply, eosio_token_tester ) try {
 
    BOOST_REQUIRE_EQUAL( wasm_assert_msg( "max-supply must be positive" ),
       create( N(alice), asset::from_string("-1000.000 TKN"))
+   );
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "max-supply must be positive" ),
+      create( N(alice), asset::from_string("0.000 TKN"))
    );
 
 } FC_LOG_AND_RETHROW()
@@ -334,6 +358,18 @@ BOOST_FIXTURE_TEST_CASE( transfer_tests, eosio_token_tester ) try {
       ("whitelist", 1)
    );
 
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "cannot transfer to self" ),
+      transfer( N(alice), N(alice), asset::from_string("701 CERO"), "hola" )
+   );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "to account does not exist" ),
+      transfer( N(alice), N(pete), asset::from_string("701 CERO"), "hola" )
+   );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "symbol does not exist" ),
+      transfer( N(alice), N(bob), asset::from_string("701 UNKNOWN"), "hola" )
+   );
+
    BOOST_REQUIRE_EQUAL( wasm_assert_msg( "overdrawn balance" ),
       transfer( N(alice), N(bob), asset::from_string("701 CERO"), "hola" )
    );
@@ -341,7 +377,9 @@ BOOST_FIXTURE_TEST_CASE( transfer_tests, eosio_token_tester ) try {
    BOOST_REQUIRE_EQUAL( wasm_assert_msg( "must transfer positive quantity" ),
       transfer( N(alice), N(bob), asset::from_string("-1000 CERO"), "hola" )
    );
-
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "must transfer positive quantity" ),
+      transfer( N(alice), N(bob), asset::from_string("0 CERO"), "hola" )
+   );
 
 } FC_LOG_AND_RETHROW()
 
@@ -408,6 +446,64 @@ BOOST_FIXTURE_TEST_CASE( close_tests, eosio_token_tester ) try {
    BOOST_REQUIRE_EQUAL( success(), close( N(alice), "0,CERO" ) );
    alice_balance = get_account(N(alice), "0,CERO");
    BOOST_REQUIRE_EQUAL(true, alice_balance.is_null() );
+
+} FC_LOG_AND_RETHROW()
+
+BOOST_FIXTURE_TEST_CASE( approve_tests, eosio_token_tester ) try {
+
+   auto token = create( N(alice), asset::from_string("1000.000 EFX"));
+   produce_blocks(1);
+
+   issue( N(alice), N(alice), asset::from_string("500.000 EFX"), "memo" );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "cannot allow self" ),
+      approve( N(alice), N(alice), asset::from_string("40.000 EFX") )
+   );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "spender account does not exist" ),
+      approve( N(alice), N(pete), asset::from_string("40.000 EFX") )
+   );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "symbol does not exist" ),
+      approve( N(alice), N(bob), asset::from_string("701.000 UNKNOWN") )
+   );
+
+   // Not sure how to test invalid quantity....
+   // BOOST_REQUIRE_EQUAL( wasm_assert_msg( "invalid quantity" ),
+   //    approve( N(alice), N(bob), asset::from_string("9223372036854775808.000 EFX") )
+   // );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "must approve quantity of zero or more" ),
+      approve( N(alice), N(bob), asset::from_string("-1000.000 EFX") )
+   );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "symbol precision mismatch" ),
+      approve( N(alice), N(bob), asset::from_string("40 EFX") )
+   );
+
+   BOOST_REQUIRE_EQUAL( success(), approve( N(alice), N(bob), asset::from_string("0.000 EFX") ) );
+   auto bob_allowance = get_allowance( N(alice), N(bob), "3,EFX" );
+   BOOST_REQUIRE_EQUAL(true, bob_allowance.is_null() );
+
+   BOOST_REQUIRE_EQUAL( success(), approve( N(alice), N(bob), asset::from_string("40.000 EFX") ) );
+   bob_allowance = get_allowance( N(alice), N(bob), "3,EFX" );
+   REQUIRE_MATCHING_OBJECT( bob_allowance, mvo()
+      ("key", name("bob").value + get_symbol_code( "3,EFX" ))
+      ("spender", "bob")
+      ("quantity", "40.000 EFX")
+   );
+
+   BOOST_REQUIRE_EQUAL( success(), approve( N(alice), N(bob), asset::from_string("30.000 EFX") ) );
+   bob_allowance = get_allowance( N(alice), N(bob), "3,EFX" );
+   REQUIRE_MATCHING_OBJECT( bob_allowance, mvo()
+      ("key", name("bob").value + get_symbol_code( "3,EFX" ))
+      ("spender", "bob")
+      ("quantity", "30.000 EFX")
+   );
+
+   BOOST_REQUIRE_EQUAL( success(), approve( N(alice), N(bob), asset::from_string("0.000 EFX") ) );
+   bob_allowance = get_allowance( N(alice), N(bob), "3,EFX" );
+   BOOST_REQUIRE_EQUAL(true, bob_allowance.is_null() );
 
 } FC_LOG_AND_RETHROW()
 
