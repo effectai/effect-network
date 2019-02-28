@@ -553,8 +553,6 @@ BOOST_FIXTURE_TEST_CASE( transferfrom_tests, eosio_token_tester ) try {
       transferfrom( N(alice), N(wendy), N(bob), asset::from_string("10.0001 EFX"), "memo" )
    );
 
-   // std::string short_memo(256, 'm');
-
    BOOST_REQUIRE_EQUAL( wasm_assert_msg( "memo has more than 256 bytes" ),
       transferfrom( N(alice), N(wendy), N(bob), asset::from_string("20.000 EFX"), std::string(257, 'm') )
    );
