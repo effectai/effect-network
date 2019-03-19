@@ -247,10 +247,7 @@ void token::transferfrom( name    from,
     const auto& at = allowedtable.get( spender.value + sym_code_raw, "spender not allowed" );
 
     require_auth( at.spender );
-    check( at.quantity.is_valid(), "invalid allowed quantity" );
-    check( at.quantity.amount > 0, "allowed must be a positive quantity" );
-    check( at.quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
-    check( at.quantity.amount >= quantity.amount, "Allowed quantity < Transfer Quantity" );
+    check( at.quantity.amount >= quantity.amount, "not enough allowance" );
 
     sub_balancefrom( from, at.spender, quantity );
     add_balance( to, quantity, spender );
