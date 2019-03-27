@@ -17,7 +17,7 @@ namespace eosio {
 
    using std::string;
 
-   class [[eosio::contract("effect.token")]] token : public contract {
+   class [[eosio::contract("effect-token")]] token : public contract {
       public:
          using contract::contract;
 
