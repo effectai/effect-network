@@ -11,8 +11,8 @@ The token contract is implemented in C++. To compile and deploy the contract the
 
 First compile the contract:
 ```bash
-cd contracts/effect.token
-eosio-cpp -o effect.token.wasm effect.token.cpp --abigen
+cd contracts/effect-token
+eosio-cpp -o effect.token.wasm effect-token.cpp --abigen
 ```
 
 Create an account to deploy the contract to. In your development environment this would be:
@@ -22,7 +22,7 @@ cleos create account eosio effect.token EOS7ijWCBmoXBi3CgtK7DJxentZZeTkeUnaSDvyr
 
 Deploy the contract:
 ```bash
-cleos set contract effect.token contracts/effect.token -p effect.token@active
+cleos set contract effect.token contracts/effect-token -p effect.token@active
 ```
 
 ## Specification
