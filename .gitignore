@@ -1,3 +1,4 @@
 build
 *.abi
 *.wasm
+node_modules
