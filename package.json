@@ -1,0 +1,10 @@
+{
+  "name": "effect-network-eos",
+  "version": "0.0.1",
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@cityofzion/neon-js": "^4.3.3",
+    "eos-deploys": "file:../../../projects/eos-deploys/eos-deploys-0.0.1.tgz"
+  }
+}
