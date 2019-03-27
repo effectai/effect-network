@@ -6,5 +6,8 @@
   "dependencies": {
     "@cityofzion/neon-js": "^4.3.3",
     "eos-deploys": "file:../../../projects/eos-deploys/eos-deploys-0.0.1.tgz"
+  },
+  "scripts": {
+    "start": "lumo -c test -D org.clojure/tools.cli:0.3.7 -m efx.test"
   }
 }
