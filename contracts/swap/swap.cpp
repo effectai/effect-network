@@ -44,6 +44,7 @@ public:
     checksum256 chk = (checksum256) txhash.hash;
     auto& tx = txids.get(chk, "tx not found");
 
+    // TODO: fetch precision from token stat table
     symbol sym = symbol(token, 4);
 
     action(permission_level{contract, "active"_n},
@@ -52,7 +53,6 @@ public:
            std::make_tuple(tx.to, asset(tx.value, sym), memo)
            ).send();
   }
-
 
 private:
   struct [[eosio::table]] nep5 {
