@@ -21,7 +21,7 @@
                              (.then #(eos/update-auth account "active" account "eosio.code"))
                              (.then #(eos/update-auth token-account "active" account "active"))
                              (.catch prn)
-                             (.then eos/wait-block)                             
+                             (.then eos/wait-block)
                              (.then done))))
    :after (fn [])})
 
@@ -40,24 +40,23 @@
 (deftest posttx
   (async
    done
-   (let [{:keys [script-hash value]} (util/parse-nep5 tx1)]
+   (let [{:keys [script-hash value]} (util/parse-nep5 tx1)
+         tx-hash (.reverseHex Neon/u (.-hash tx1))]
      (->
       (eos/transact account "posttx"
-                    {:txid (.-hash tx1) :asset_hash script-hash :value value}
-                    [{:actor account :permission "active"}])
+                    {:txid tx-hash :asset_hash script-hash :value value :to account})
       (.catch prn)
       (.then (fn [tx]
                (let [console-out (eos/tx-get-console tx)]
                  (is (string/starts-with? console-out "inserted"))
                  console-out)))
-      (.catch prn)      
       (.then #(eos/wait-block %))
       (.then #(let [id (re-find #"\d+" %)]
                 (is (= (int? id)))
                 (eos/get-table-row account account "nep5" id)))
       (.catch prn)
       (.then (fn [row]
-               (is (= (get row "txid") (.-hash tx1)))
+               (is (= (get row "txid") tx-hash))
                (is (= (get row "value") value))
                (is (= (get row "asset_hash") script-hash))))
       (.then done)))))
@@ -68,19 +67,21 @@
    (do
      (->
       (eos/transact account "issue" {:contract token-account
-                                     :to account
-                                     :value "1.0000 EFX" :memo "hi"})
-      (.then eos/wait-block)
+                                     :rawtx (.serialize tx1 false)
+                                     :token "EFX" :memo "hi"})
+      ;; (.then #(do (prn (eos/tx-get-console %)) %))
       (.then (fn [res]
-               (util/pprint-json res)
+               (testing "swap transaction exists"
+                 (is (not (nil? res))))
                (let [inner-act (aget res "processed" "action_traces" 0 "inline_traces" 0
                                      "inline_traces" 0 "inline_traces" 0)]
-                 (is (= (aget inner-act "receipt" "receiver") account))
-                 (is (= (aget inner-act "act" "name") "transfer"))
-                 (is (= (aget inner-act "act" "data" "to") account))
-                 (is (= (aget inner-act "act" "data" "from") token-account))
-                 (is (= (aget inner-act "act" "data" "quantity") "1.0000 EFX")))))
-      (.catch prn)
+                 (testing "issue result is correct"
+                   (is (= (aget inner-act "receipt" "receiver") account))
+                   (is (= (aget inner-act "act" "name") "transfer"))
+                   (is (= (aget inner-act "act" "data" "to") account))
+                   (is (= (aget inner-act "act" "data" "from") token-account))
+                   (is (= (aget inner-act "act" "data" "quantity") "1.0000 EFX"))))))
+      (.catch #(is (= (.-message %) "failed processing transaction")))
       (.then done)))))
 
 

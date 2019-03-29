@@ -5,7 +5,7 @@
    [cljs.test :refer [do-report report] :refer-macros [deftest is testing run-tests async use-fixtures]]))
 
 (def owner-acc "jesse")
-(def account "efxefxefxe")
+(def account "efxefxefxefx")
 (def sym "EFX")
 (def total-amount "650000000.0000")
 (def total-supply (str total-amount " " sym))
@@ -34,4 +34,3 @@
                          (is (= issuer account))
                          (is (= supply (str "25.0000 " sym)))))
                (.then done))))
-

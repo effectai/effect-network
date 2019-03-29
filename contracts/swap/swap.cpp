@@ -23,45 +23,49 @@ public:
     printhex(&txhash, sizeof(txhash));
   }
 
-  [[eosio::action]] void posttx(const checksum256 txid, fixed_bytes<20> asset_hash, int64_t value) {
+  [[eosio::action]] void posttx(const checksum256 txid, const name to,
+                                const fixed_bytes<20> asset_hash, const int64_t value) {
     require_auth(permission_level{get_self(), "active"_n});
     auto id =  _nep5.available_primary_key();
     _nep5.emplace(_self, [&](auto& n) {
                            n.id = id;
                            n.txid = txid;
                            n.asset_hash = asset_hash;
+                           n.to = to;
                            n.value = value;
                          });
     print("inserted: ", id);
   }
-  
-  [[eosio::action]] void issue(const name contract, const name to,
-                               const asset value, const std::string memo) {
+
+  [[eosio::action]] void issue(const name contract, const symbol_code token,
+                               const std::vector<char> rawtx, const std::string memo) {
+    auto txhash = neo_hash(rawtx);
+    auto txids = _nep5.get_index<"txid"_n>();
+    checksum256 chk = (checksum256) txhash.hash;
+    auto& tx = txids.get(chk, "tx not found");
+
+    symbol sym = symbol(token, 4);
+
     action(permission_level{contract, "active"_n},
            contract,
            "issue"_n,
-           std::make_tuple(to, value, memo)
+           std::make_tuple(tx.to, asset(tx.value, sym), memo)
            ).send();
   }
 
-  
-private:
-//   struct [[eosio::table]] validator {
-//     uint8_t id;
-//     public_key pub;
-//     uint8_t primary_key() const { return id; }
-//   };
-//   typedef eosio::multi_index<"validator"_n, validator> validator_table;
 
+private:
   struct [[eosio::table]] nep5 {
     uint64_t id;
     checksum256 txid;
     fixed_bytes<20> asset_hash;
     int64_t value;
+    name to;
     uint64_t primary_key() const { return id; }
+    checksum256 by_txid() const { return txid; }
   };
-  
-  typedef eosio::multi_index<"nep5"_n, nep5> nep5_table;
+
+  typedef multi_index<"nep5"_n, nep5, indexed_by<"txid"_n, const_mem_fun<nep5, checksum256, &nep5::by_txid>>> nep5_table;
   nep5_table _nep5;
 };
 
