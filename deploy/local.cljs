@@ -15,8 +15,8 @@
   (->
    (eos/transact token-acc "create" {:issuer owner-acc :maximum_supply asset})
    (.then #(do (print "> Token created") (eos/wait-block %)))
-   (.then (eos/transact token-acc "issue" {:to owner-acc :quantity "1 EFX" :memo "issue"}))
-   (.then #(do (print "\n> 1 token issued to" owner-acc) (eos/wait-block %)))
+   ;; (.then (eos/transact token-acc "issue" {:to owner-acc :quantity "1 EFX" :memo "issue"}))
+   ;; (.then #(do (print "\n> 1 token issued to" owner-acc) (eos/wait-block %)))
    (.catch prn)))
 
 (defn -main []
@@ -27,7 +27,13 @@
      (.then #(eos/create-account owner-acc swap-acc))
      (.catch prn)
      (.then eos/wait-block)
-     (.then #(eos/update-auth swap-acc "active" swap-acc "eosio.code"))
+     (.then #(eos/update-auth swap-acc "active"
+                              [{:permission
+                                {:actor owner-acc :permission "active"}
+                                :weight 1}
+                               {:permission
+                                {:actor swap-acc :permission "eosio.code"}
+                                :weight 1}]))
      (.then #(eos/update-auth token-acc "active" swap-acc "active"))
      (.then eos/wait-block)
      (.then #(eos/deploy token-acc "contracts/effect-token/src/effect-token"))
@@ -35,5 +41,6 @@
      (.then #(eos/deploy swap-acc "contracts/swap/swap"))
      (.catch prn)
      (.then eos/wait-block)
-     (.then #(setup owner-acc token-acc swap-acc asset))
+     (.then #(setup owner-acc token-acc swap-acc "650000000.0000 EFX"))
+
      (.then #(print "\nDone!\n")))))
