@@ -13,7 +13,7 @@
 (defn setup [owner-acc token-acc swap-acc asset]
   (print "\n========================\nCREATE TOKEN" asset "\n========================\n")
   (->
-   (eos/transact token-acc "create" {:issuer owner-acc :maximum_supply asset})
+   (eos/transact token-acc "create" {:issuer swap-acc :maximum_supply asset})
    (.then #(do (print "> Token created") (eos/wait-block %)))
    ;; (.then (eos/transact token-acc "issue" {:to owner-acc :quantity "1 EFX" :memo "issue"}))
    ;; (.then #(do (print "\n> 1 token issued to" owner-acc) (eos/wait-block %)))
