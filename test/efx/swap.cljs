@@ -44,19 +44,6 @@
                (.then done))))
    :after (fn [])})
 
-(deftest checktx
-  (async
-   done
-   (do
-     (->
-      (eos/transact swap-acc "checktx" {:rawtx  (.serialize tx1 false)}
-                    [{:actor owner-acc :permission "active"}])
-      (.then (fn [tx]
-               (is (= (.reverseHex Neon/u (eos/tx-get-console tx) )
-                      (.-hash tx1)))))
-      (.catch prn)
-      (.then done) ))))
-
 (deftest posttx
   (async
    done
@@ -81,29 +68,39 @@
                (is (= (get row "asset_hash") script-hash))))
       (.then done)))))
 
-(deftest issue
+(deftest issue-success
   (async
    done
-   (do
-     (->
-      (eos/transact swap-acc "issue" {:contract token-acc
-                                      :txid  (.reverseHex Neon/u (.-hash tx1))
-                                      :token "SWP" :memo "hi"})
-      ;; (.then #(do (prn (eos/tx-get-console %)) %))
-      (.then (fn [res]
-               (testing "swap transaction exists"
-                 (is (not (nil? res))))
-               (let [inner-act (aget res "processed" "action_traces" 0 "inline_traces" 0
-                                     "inline_traces" 0 "inline_traces" 0)]
-                 (testing "issue result is correct"
-                   (is (= (aget inner-act "receipt" "receiver") swap-acc))
-                   (is (= (aget inner-act "act" "name") "transfer"))
-                   (is (= (aget inner-act "act" "data" "to") owner-acc))
-                   (is (= (aget inner-act "act" "data" "from") swap-acc))
-                   (is (= (aget inner-act "act" "data" "quantity") (str "1.0000 " sym)))))))
-      (.catch #(is (= (.-message %) "failed processing transaction")))
-      (.then done)))))
+   (->
+    (eos/transact swap-acc "issue" {:contract token-acc
+                                    :txid  (.reverseHex Neon/u (.-hash tx1))
+                                    :token sym :memo "hi"})
+    ;; (.then #(do (prn (eos/tx-get-console %)) %))
+    (.then (fn [res]
+             (testing "swap transaction exists"
+               (is (not (nil? res))))
+             (let [inner-act (aget res "processed" "action_traces" 0 "inline_traces" 0
+                                   "inline_traces" 0 "inline_traces" 0)]
+               (testing "issue result is correct"
+                 (is (= (aget inner-act "receipt" "receiver") swap-acc))
+                 (is (= (aget inner-act "act" "name") "transfer"))
+                 (is (= (aget inner-act "act" "data" "to") owner-acc))
+                 (is (= (aget inner-act "act" "data" "from") swap-acc))
+                 (is (= (aget inner-act "act" "data" "quantity") (str "1.0000 " sym)))))))
+    (.catch #(is (= (.-message %) "failed processing transaction")))
+    (.then done))))
 
+(deftest issue-fail
+  (async done (->
+               (eos/transact swap-acc "issue" {:contract token-acc
+                                               :txid  (.reverseHex Neon/u (.-hash tx1))
+                                               :token sym :memo "swap"})
+               (.then #(testing "transaction not made"
+                         (is (nil? %))))
+               (.catch #(testing "cant issue tokens twice"
+                          (is (= (aget % "json" "error" "details" 0 "message")
+                                 "assertion failure with message: tx already issued"))))
+               (.then done))))
 
 
 (defn -main []

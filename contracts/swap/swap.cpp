@@ -1,94 +1,54 @@
-#include <eosiolib/eosio.hpp>
-#include <eosiolib/print.hpp>
-#include <eosiolib/types.h>
-#include <eosiolib/asset.hpp>
-#include <eosiolib/crypto.h>
-#include <string>
+#include "swap.hpp"
 
-using namespace eosio;
+void swap::posttx(const std::vector<char> rawtx, const name to,
+                  const fixed_bytes<20> asset_hash, const int64_t value) {
+  require_auth(permission_level{get_self(), "active"_n});
 
-class [[eosio::contract]] swap : public contract {
-public:
-  swap(eosio::name receiver, eosio::name code, eosio::datastream<const char*> ds) :
-    eosio::contract(receiver, code, ds), _nep5(_self, _self.value), _issued(_self, _self.value) {};
+  auto txhash = neo_hash(rawtx);
+  checksum256 txid(txhash.hash);
 
-  capi_checksum256 neo_hash(const std::vector<char> data) {
-    capi_checksum256 digest, blockhash;
-    sha256(&data[0], data.size(), &digest);
-    sha256((const char*)&digest, sizeof(digest), &blockhash);
-    return blockhash;
-  }
+  auto id =  _nep5.available_primary_key();
 
-  [[eosio::action]] void checktx(const std::vector<char> rawtx) {
-    auto txhash = neo_hash(rawtx);
-    printhex(&txhash, sizeof(txhash));
-  }
+  _nep5.emplace(_self, [&](auto& n)
+                       {
+                         n.id = id;
+                         n.txid = txid;
+                         n.asset_hash = asset_hash;
+                         n.to = to;
+                         n.value = value;
+                       });
+  print("inserted: ", id);
+}
 
-  [[eosio::action]] void posttx(const std::vector<char> rawtx, const name to,
-                                const fixed_bytes<20> asset_hash, const int64_t value) {
-    require_auth(permission_level{get_self(), "active"_n});
+void swap::issue(const checksum256 txid, const name contract, const symbol_code token,
+                 const std::string memo) {
+  auto txids = _nep5.get_index<"txid"_n>();
 
-    auto txhash = neo_hash(rawtx);
-    checksum256 txid(txhash.hash);
+  auto& tx = txids.get(txid, "tx not found");
 
-    auto id =  _nep5.available_primary_key();
+  auto issued = _issued.find(tx.id);
+  eosio::check(issued == _issued.end(), "tx already issued");
 
-    _nep5.emplace(_self, [&](auto& n)
+  _issued.emplace(_self, [&](auto& n)
                          {
-                           n.id = id;
-                           n.txid = txid;
-                           n.asset_hash = asset_hash;
-                           n.to = to;
-                           n.value = value;
+                           n.id = tx.id;
                          });
-    print("inserted: ", id);
-  }
 
-  [[eosio::action]] void issue(const checksum256 txid, const name contract, const symbol_code token,
-                               const std::string memo) {
-    auto txids = _nep5.get_index<"txid"_n>();
+  // TODO: fetch precision from token stat table
+  symbol sym = symbol(token, 4);
 
-    auto& tx = txids.get(txid, "tx not found");
+  action(permission_level{_self, "active"_n},
+         contract,
+         "issue"_n,
+         std::make_tuple(tx.to, asset(tx.value, sym), memo)
+         ).send();
+}
 
-    auto issued = _issued.find(tx.id);
-    eosio::check(issued == _issued.end(), "tx already issued");
+capi_checksum256 swap::neo_hash(const std::vector<char> data) {
+  capi_checksum256 digest, blockhash;
+  sha256(&data[0], data.size(), &digest);
+  sha256((const char*)&digest, sizeof(digest), &blockhash);
+  return blockhash;
+}
 
-    _issued.emplace(_self, [&](auto& n)
-                           {
-                             n.id = tx.id;
-                           });
-
-    // TODO: fetch precision from token stat table
-    symbol sym = symbol(token, 4);
-
-    action(permission_level{_self, "active"_n},
-           contract,
-           "issue"_n,
-           std::make_tuple(tx.to, asset(tx.value, sym), memo)
-           ).send();
-  }
-
-private:
-  struct [[eosio::table]] nep5 {
-    uint64_t id;
-    checksum256 txid;
-    fixed_bytes<20> asset_hash;
-    int64_t value;
-    name to;
-    uint64_t primary_key() const { return id; }
-    checksum256 by_txid() const { return txid; }
-  };
-
-  typedef multi_index<"nep5"_n, nep5, indexed_by<"txid"_n, const_mem_fun<nep5, checksum256, &nep5::by_txid>>> nep5_table;
-  nep5_table _nep5;
-
-  struct [[eosio::table]] issued {
-    uint64_t id;
-    uint64_t primary_key() const { return id; }
-  };
-
-  typedef multi_index<"issued"_n, issued> issued_table;
-  issued_table _issued;
-};
-
-EOSIO_DISPATCH(swap, (checktx)(posttx)(issue));
+EOSIO_DISPATCH(swap, (posttx)(issue));
