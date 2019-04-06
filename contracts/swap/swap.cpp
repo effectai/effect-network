@@ -1,8 +1,11 @@
 #include "swap.hpp"
 
-void swap::posttx(const std::vector<char> rawtx, const name to,
+void swap::posttx(const name bookkeeper, const std::vector<char> rawtx, const name to,
                   const fixed_bytes<20> asset_hash, const int64_t value) {
-  require_auth(permission_level{get_self(), "active"_n});
+  require_auth(permission_level{bookkeeper, "active"_n});
+
+  auto bk = _bookkeeper.find(bookkeeper.value);
+  eosio::check(bk != _bookkeeper.end(), "not a bookkeeper");
 
   auto txhash = neo_hash(rawtx);
   checksum256 txid(txhash.hash);
@@ -44,6 +47,27 @@ void swap::issue(const checksum256 txid, const name contract, const symbol_code 
          ).send();
 }
 
+void swap::mkbookkeeper(name account) {
+  require_auth(permission_level{get_self(), "owner"_n});
+
+  auto bk = _bookkeeper.find(account.value);
+  eosio::check(bk == _bookkeeper.end(), "already registered");
+
+  _bookkeeper.emplace(_self, [&](auto& n)
+                             {
+                               n.account = account;
+                             });
+};
+
+void swap::rmbookkeeper(name account) {
+  require_auth(permission_level{get_self(), "owner"_n});
+
+  auto bk = _bookkeeper.find(account.value);
+  eosio::check(bk != _bookkeeper.end(), "not registered");
+
+  _bookkeeper.erase(bk);
+};
+
 capi_checksum256 swap::neo_hash(const std::vector<char> data) {
   capi_checksum256 digest, blockhash;
   sha256(&data[0], data.size(), &digest);
@@ -51,4 +75,4 @@ capi_checksum256 swap::neo_hash(const std::vector<char> data) {
   return blockhash;
 }
 
-EOSIO_DISPATCH(swap, (posttx)(issue));
+EOSIO_DISPATCH(swap, (posttx)(issue)(mkbookkeeper)(rmbookkeeper));

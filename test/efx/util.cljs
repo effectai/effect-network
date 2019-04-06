@@ -1,5 +1,6 @@
 (ns efx.util
-  (:require ["@cityofzion/neon-js" :as Neon]))
+  (:require ["@cityofzion/neon-js" :as Neon]
+            [cljs.test :refer-macros [is]]))
 
 (defn parse-nep5
   "Retrieve nep5 arguments from transaction object"
@@ -12,3 +13,13 @@
 
 (defn pprint-json [obj]
   (.log js/console (js/JSON.stringify obj nil 4)))
+
+(defn should-fail [p msg]
+  (-> p
+      (.then #(is nil msg))
+      (.catch #(is (not (nil? (.-message %))) msg))))
+
+(defn should-fail-with [p chk msg]
+  (-> p
+      (.then #(is nil msg))
+      (.catch #(is (=  chk (.-message %)) msg))))
