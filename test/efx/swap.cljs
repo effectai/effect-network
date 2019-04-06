@@ -49,12 +49,12 @@
                (.then done))))
    :after (fn [])})
 
-
-(defn do-posttx []
-  (eos/transact swap-acc "posttx"
-                {:bookkeeper bk-acc :rawtx (.serialize tx1 false)
-                 :asset_hash (:script-hash tx-parsed) :value (:value tx-parsed) :to owner-acc}
-                [{:actor bk-acc :permission "active"}]))
+(defn do-posttx
+  ([] (do-posttx bk-acc))
+  ([bk-acc](eos/transact swap-acc "posttx"
+                 {:bookkeeper bk-acc :rawtx (.serialize tx1 false)
+                  :asset_hash (:script-hash tx-parsed) :value (:value tx-parsed) :to owner-acc}
+                 [{:actor bk-acc :permission "active"}])))
 
 (deftest bookkeeper-add
   (async
@@ -74,7 +74,7 @@
            (eos/transact swap-acc "mkbookkeeper" {:account owner-acc}
                          [{:actor swap-acc :permission "active"}])
            (util/should-fail-with (str "missing authority of " swap-acc "/owner")
-                                  "adding a bookkeeper requires owner permission")           )
+                                  "adding a bookkeeper requires owner permission"))
           (->
            ;; cant add same bookkeeper twice
            (eos/transact swap-acc "mkbookkeeper" {:account "acc3"}
@@ -133,9 +133,14 @@
                (is (= (get row "value") (:value tx-parsed)))
                (is (= (get row "asset_hash") (:script-hash tx-parsed))))))
     ;; cant create same tx twice
-    (.then do-posttx)
+    (.then #(do-posttx))
     (util/should-fail-with "assertion failure with message: tx already posted"
                            "cant post same tx twice")
+    eos/wait-block
+    ;; requires bookkeeper
+    (.then #(do-posttx owner-acc))
+    (util/should-fail-with "assertion failure with message: not a bookkeeper"
+                           "require bookkeeper")
     (.then done))))
 
 (deftest issue-success
