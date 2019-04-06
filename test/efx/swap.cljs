@@ -134,7 +134,8 @@
                (is (= (get row "asset_hash") (:script-hash tx-parsed))))))
     ;; cant create same tx twice
     (.then do-posttx)
-    (util/should-fail-with "fail" "cant post same tx twice")
+    (util/should-fail-with "assertion failure with message: tx already posted"
+                           "cant post same tx twice")
     (.then done))))
 
 (deftest issue-success

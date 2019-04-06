@@ -8,7 +8,11 @@ void swap::posttx(const name bookkeeper, const std::vector<char> rawtx, const na
   eosio::check(bk != _bookkeeper.end(), "not a bookkeeper");
 
   auto txhash = neo_hash(rawtx);
-  checksum256 txid(txhash.hash);
+  const checksum256 txid(txhash.hash);
+
+  auto txids = _nep5.get_index<"txid"_n>();
+  auto nep5 = txids.find(txid);
+  eosio::check(nep5 == txids.end(), "tx already posted");
 
   auto id =  _nep5.available_primary_key();
 
