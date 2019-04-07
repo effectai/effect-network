@@ -50,6 +50,7 @@
    :after (fn [])})
 
 (defn do-posttx
+  "Helper for the posttx action"
   ([] (do-posttx bk-acc))
   ([bk-acc](eos/transact swap-acc "posttx"
                  {:bookkeeper bk-acc :rawtx (.serialize tx1 false)
