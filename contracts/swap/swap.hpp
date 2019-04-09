@@ -45,6 +45,7 @@ class [[eosio::contract("swap")]] swap : public contract {
     fixed_bytes<20> asset_hash;
     int64_t value;
     name to;
+    uint64_t issued;
     uint64_t primary_key() const { return id; }
     checksum256 by_txid() const { return txid; }
   };

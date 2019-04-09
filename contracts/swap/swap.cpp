@@ -23,7 +23,9 @@ void swap::posttx(const name bookkeeper, const std::vector<char> rawtx, const na
                          n.asset_hash = asset_hash;
                          n.to = to;
                          n.value = value;
+                         n.issued = false;
                        });
+
   print("inserted: ", id);
 }
 
@@ -33,13 +35,12 @@ void swap::issue(const checksum256 txid, const name contract, const symbol_code 
 
   auto& tx = txids.get(txid, "tx not found");
 
-  auto issued = _issued.find(tx.id);
-  eosio::check(issued == _issued.end(), "tx already issued");
+  eosio::check(tx.issued == false, "tx already issued");
 
-  _issued.emplace(_self, [&](auto& n)
-                         {
-                           n.id = tx.id;
-                         });
+  _nep5.modify(tx, _self, [&](auto& n)
+                          {
+                            n.issued = true;
+                          });
 
   // TODO: fetch precision from token stat table
   symbol sym = symbol(token, 4);
