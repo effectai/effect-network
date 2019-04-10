@@ -52,10 +52,11 @@
 (defn do-posttx
   "Helper for the posttx action"
   ([] (do-posttx bk-acc))
-  ([bk-acc](eos/transact swap-acc "posttx"
+  ([bk-acc] (do-posttx bk-acc [{:actor bk-acc :permission "active"}]))
+  ([bk-acc permission] (eos/transact swap-acc "posttx"
                  {:bookkeeper bk-acc :rawtx (.serialize tx1 false)
                   :asset_hash (:script-hash tx-parsed) :value (:value tx-parsed) :to owner-acc}
-                 [{:actor bk-acc :permission "active"}])))
+                 permission)))
 
 (deftest bookkeeper-add
   (async
@@ -71,10 +72,10 @@
            (.then #(eos/get-table-rows swap-acc swap-acc "bookkeeper"))
            (.then #(is (> (count %) 0) "there is 1 bookkeeper")))
           (->
-           ;; needs owner permission
+           ;; needs contract permission
            (eos/transact swap-acc "mkbookkeeper" {:account owner-acc}
-                         [{:actor swap-acc :permission "active"}])
-           (util/should-fail-with (str "missing authority of " swap-acc "/owner")
+                         [{:actor token-acc :permission "active"}])
+           (util/should-fail-with (str "missing authority of " swap-acc)
                                   "adding a bookkeeper requires owner permission"))
           (->
            ;; cant add same bookkeeper twice
@@ -96,20 +97,20 @@
      #js [(->
            ;; can remove bookkeeper
            (eos/transact swap-acc "rmbookkeeper" {:account "acc3"}
-                         [{:actor swap-acc :permission "owner"}])
+                         [{:actor swap-acc :permission "active"}])
            eos/wait-block
            (.then #(eos/get-table-rows swap-acc swap-acc "bookkeeper"))
            (.then #(is (= (count %) 1) "bookkeeper is removed")))
           (->
-           ;; needs owner permission
+           ;; needs contact permission
            (eos/transact swap-acc "rmbookkeeper" {:account owner-acc}
-                         [{:actor swap-acc :permission "active"}])
-           (util/should-fail-with (str "missing authority of " swap-acc "/owner")
+                         [{:actor token-acc :permission "active"}])
+           (util/should-fail-with (str "missing authority of " swap-acc)
                                   "removing a bookkeeper requires owner permission"))
           (->
            ;; cant remove non-existing bookkeeper
            (eos/transact swap-acc "rmbookkeeper" {:account "acc4"}
-                         [{:actor swap-acc :permission "owner"}])
+                         [{:actor swap-acc :permission "active"}])
            (util/should-fail-with "assertion failure with message: not registered"
                                   "cant remove non exisinting bookkeeper"))])
     done)))
@@ -138,10 +139,13 @@
     (util/should-fail-with "assertion failure with message: tx already posted"
                            "cant post same tx twice")
     eos/wait-block
-    ;; requires bookkeeper
+    ;; requires bookkeeper and signature
     (.then #(do-posttx owner-acc))
     (util/should-fail-with "assertion failure with message: not a bookkeeper"
-                           "require bookkeeper")
+                           "require registered bookkeeper")
+    (.then #(do-posttx bk-acc [{:actor owner-acc :permission "active"}]))
+    (util/should-fail-with (str "missing authority of " bk-acc)
+                           "require bookkeeper signature")
     (.then done))))
 
 (deftest issue-success

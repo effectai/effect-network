@@ -2,7 +2,7 @@
 
 void swap::posttx(const name bookkeeper, const std::vector<char> rawtx, const name to,
                   const fixed_bytes<20> asset_hash, const int64_t value) {
-  require_auth(permission_level{bookkeeper, "active"_n});
+  require_auth(bookkeeper);
 
   auto bk = _bookkeeper.find(bookkeeper.value);
   eosio::check(bk != _bookkeeper.end(), "not a bookkeeper");
@@ -53,7 +53,7 @@ void swap::issue(const checksum256 txid, const name contract, const symbol_code 
 }
 
 void swap::mkbookkeeper(name account) {
-  require_auth(permission_level{get_self(), "owner"_n});
+  require_auth(get_self());
 
   auto bk = _bookkeeper.find(account.value);
   eosio::check(bk == _bookkeeper.end(), "already registered");
@@ -65,7 +65,7 @@ void swap::mkbookkeeper(name account) {
 };
 
 void swap::rmbookkeeper(name account) {
-  require_auth(permission_level{get_self(), "owner"_n});
+  require_auth(get_self());
 
   auto bk = _bookkeeper.find(account.value);
   eosio::check(bk != _bookkeeper.end(), "not registered");
