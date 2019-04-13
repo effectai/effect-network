@@ -19,7 +19,7 @@ endif()
 ExternalProject_Add(
    contract
    SOURCE_DIR ${CMAKE_SOURCE_DIR}/src
-   BINARY_DIR ${CMAKE_BINARY_DIR}/effect.token
+   BINARY_DIR ${CMAKE_BINARY_DIR}/effect-token
    CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${EOSIO_CDT_ROOT}/lib/cmake/eosio.cdt/EosioWasmToolchain.cmake
    UPDATE_COMMAND ""
    PATCH_COMMAND ""
