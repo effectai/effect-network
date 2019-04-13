@@ -171,16 +171,17 @@
     (.then done))))
 
 (deftest issue-fail
-  (async done (->
-               (eos/transact swap-acc "issue" {:contract token-acc
-                                               :txid  (.reverseHex Neon/u (.-hash tx1))
-                                               :token sym :memo "swap"})
-               (.then #(testing "transaction not made"
-                         (is (nil? %))))
-               (.catch #(testing "cant issue tokens twice"
-                          (is (= (aget % "json" "error" "details" 0 "message")
-                                 "assertion failure with message: tx already issued"))))
-               (.then done))))
+  (async
+   done
+   (->
+    (eos/transact swap-acc "issue" {:contract token-acc
+                                    :txid  (.reverseHex Neon/u (.-hash tx1))
+                                    :token sym :memo "swap"})
+    (.then #(testing "transaction not made"
+              (is (nil? %))))
+    (util/should-fail-with "assertion failure with message: tx already issued"
+                           "cant issue tokens twice")
+    (.then done))))
 
 
 (defn -main []
