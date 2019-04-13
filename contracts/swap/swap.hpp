@@ -5,17 +5,24 @@
 #include <eosiolib/types.h>
 #include <eosiolib/asset.hpp>
 #include <eosiolib/crypto.h>
-#include <string>
-
+#include <eosiolib/singleton.hpp>
 #include <string>
 
 using namespace eosio;
 
 class [[eosio::contract("swap")]] swap : public contract {
  public:
+  static const int64_t MIN_TX_VALUE = 0;
+  static const int64_t MAX_TX_VALUE = 10000000000;
+
   swap(eosio::name receiver, eosio::name code, eosio::datastream<const char*> ds) :
     eosio::contract(receiver, code, ds), _nep5(_self, _self.value),
     _bookkeeper(_self, _self.value) {};
+
+  [[eosio::action]]
+    void init(name token_contract,
+              symbol_code token_symbol,
+              std::string issue_memo);
 
   [[eosio::action]]
     void posttx(name bookkeeper,
@@ -25,10 +32,7 @@ class [[eosio::contract("swap")]] swap : public contract {
                 int64_t value);
 
   [[eosio::action]]
-    void issue(checksum256 txid,
-               name contract,
-               symbol_code token,
-               std::string memo);
+    void issue(checksum256 txid);
 
   [[eosio::action]]
     void mkbookkeeper(name account);
@@ -38,6 +42,12 @@ class [[eosio::contract("swap")]] swap : public contract {
 
  private:
   capi_checksum256 neo_hash(const std::vector<char> data);
+
+  struct [[eosio::table]] config {
+    name token_contract;
+    symbol_code token_symbol;
+    std::string issue_memo;
+  };
 
   struct [[eosio::table]] nep5 {
     uint64_t id;
@@ -55,6 +65,7 @@ class [[eosio::contract("swap")]] swap : public contract {
     uint64_t primary_key() const { return account.value; }
   };
 
+  typedef singleton<"config"_n, config> config_table;
   typedef multi_index<"nep5"_n, nep5, indexed_by<"txid"_n, const_mem_fun<nep5, checksum256, &nep5::by_txid>>> nep5_table;
   typedef multi_index<"bookkeeper"_n, bookkeeper> bookkeeper_table;
 

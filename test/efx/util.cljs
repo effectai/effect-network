@@ -1,5 +1,6 @@
 (ns efx.util
   (:require ["@cityofzion/neon-js" :as Neon]
+            [clojure.string :as string]
             [cljs.test :refer-macros [is]]))
 
 (defn parse-nep5
@@ -19,7 +20,13 @@
       (.then #(is nil msg))
       (.catch #(is (not (nil? (.-message %))) msg))))
 
+(defn should-succeed [p msg]
+  (-> p
+      (.catch #(is false msg))
+      (.then #(do (is true msg)
+                  %))))
+
 (defn should-fail-with [p chk msg]
   (-> p
       (.then #(is nil msg))
-      (.catch #(is (=  chk (.-message %)) msg))))
+      (.catch #(is (string/ends-with? (.-message %) chk) msg))))

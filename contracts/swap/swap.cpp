@@ -1,8 +1,25 @@
 #include "swap.hpp"
 
+void swap::init(const name token_contract, const symbol_code token_symbol,
+                const std::string issue_memo) {
+  require_auth(get_self());
+
+  eosio::check(token_symbol.is_valid(), "invalid symbol name");
+  eosio::check(memo.size() <= 256, "memo has more than 256 bytes");
+
+  config_table config_tbl(_self, _self.value);
+  eosio::check(!config_tbl.exists(), "already initialized");
+
+  config_tbl.set(config{token_contract,
+                        token_symbol,
+                        issue_memo}, get_self());
+}
+
 void swap::posttx(const name bookkeeper, const std::vector<char> rawtx, const name to,
                   const fixed_bytes<20> asset_hash, const int64_t value) {
   require_auth(bookkeeper);
+
+  eosio::check(value >= MIN_TX_VALUE && value <= MAX_TX_VALUE, "invalid value");
 
   auto bk = _bookkeeper.find(bookkeeper.value);
   eosio::check(bk != _bookkeeper.end(), "not a bookkeeper");
@@ -29,8 +46,11 @@ void swap::posttx(const name bookkeeper, const std::vector<char> rawtx, const na
   print("inserted: ", id);
 }
 
-void swap::issue(const checksum256 txid, const name contract, const symbol_code token,
-                 const std::string memo) {
+void swap::issue(const checksum256 txid) {
+  config_table config_tbl(_self, _self.value);
+  eosio::check(config_tbl.exists(), "not initialized");
+  auto config = config_tbl.get();
+
   auto txids = _nep5.get_index<"txid"_n>();
 
   auto& tx = txids.get(txid, "tx not found");
@@ -42,13 +62,13 @@ void swap::issue(const checksum256 txid, const name contract, const symbol_code 
                             n.issued = true;
                           });
 
-  // TODO: fetch precision from token stat table
-  symbol sym = symbol(token, 4);
+  // TODO: fetch precision from token stat table?
+  symbol sym = symbol(config.token_symbol, 4);
 
   action(permission_level{_self, "active"_n},
-         contract,
+         config.token_contract,
          "issue"_n,
-         std::make_tuple(tx.to, asset(tx.value, sym), memo)
+         std::make_tuple(tx.to, asset(tx.value, sym), config.issue_memo)
          ).send();
 }
 
@@ -80,4 +100,4 @@ capi_checksum256 swap::neo_hash(const std::vector<char> data) {
   return blockhash;
 }
 
-EOSIO_DISPATCH(swap, (posttx)(issue)(mkbookkeeper)(rmbookkeeper));
+EOSIO_DISPATCH(swap, (init)(posttx)(issue)(mkbookkeeper)(rmbookkeeper));
