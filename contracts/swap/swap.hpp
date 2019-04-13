@@ -13,6 +13,9 @@ using namespace eosio;
 
 class [[eosio::contract("swap")]] swap : public contract {
  public:
+  static const int64_t MIN_TX_VALUE = 0;
+  static const int64_t MAX_TX_VALUE = 10000000000;
+
   swap(eosio::name receiver, eosio::name code, eosio::datastream<const char*> ds) :
     eosio::contract(receiver, code, ds), _nep5(_self, _self.value),
     _bookkeeper(_self, _self.value) {};

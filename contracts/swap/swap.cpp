@@ -4,6 +4,8 @@ void swap::posttx(const name bookkeeper, const std::vector<char> rawtx, const na
                   const fixed_bytes<20> asset_hash, const int64_t value) {
   require_auth(bookkeeper);
 
+  eosio::check(value >= MIN_TX_VALUE && value <= MAX_TX_VALUE, "invalid value");
+
   auto bk = _bookkeeper.find(bookkeeper.value);
   eosio::check(bk != _bookkeeper.end(), "not a bookkeeper");
 
@@ -31,6 +33,8 @@ void swap::posttx(const name bookkeeper, const std::vector<char> rawtx, const na
 
 void swap::issue(const checksum256 txid, const name contract, const symbol_code token,
                  const std::string memo) {
+  eosio::check(memo.size() <= 256, "memo too long");
+
   auto txids = _nep5.get_index<"txid"_n>();
 
   auto& tx = txids.get(txid, "tx not found");
@@ -42,7 +46,7 @@ void swap::issue(const checksum256 txid, const name contract, const symbol_code 
                             n.issued = true;
                           });
 
-  // TODO: fetch precision from token stat table
+  // TODO: fetch precision from token stat table?
   symbol sym = symbol(token, 4);
 
   action(permission_level{_self, "active"_n},
