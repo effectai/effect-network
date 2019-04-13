@@ -58,6 +58,35 @@
                   :asset_hash (:script-hash tx-parsed) :value (:value tx-parsed) :to owner-acc}
                  permission)))
 
+(def init-config {:token_contract token-acc :token_symbol sym
+                  :issue_memo "Token Swap"})
+
+(deftest initialize
+  (async
+   done
+   (->
+    ;; cant issue before init
+    (eos/transact swap-acc "issue" {:txid tx-hash}
+                  [{:actor bk-acc :permission "active"}])
+    (util/should-fail-with "not initialized"
+                           "cant call issue before without init")
+    ;; needs swap account authority
+    (.then #(eos/transact swap-acc "init" init-config
+                          [{:actor bk-acc :permission "active"}]))
+    (util/should-fail-with (str "missing authority of " swap-acc)
+                           "only swap account can init")
+    ;; can set config
+    (.then #(eos/transact swap-acc "init" init-config))
+    (util/should-succeed "can perform init")
+    (.then #(eos/get-table-rows swap-acc swap-acc "config"))
+    (.then #(is (= (vals (first %)) (vals init-config)) "config incorrect"))
+    eos/wait-block
+    ;; cant set config twice
+    (.then #(eos/transact swap-acc "init" init-config))
+    (util/should-fail-with "already initialized"
+                           "can only initialize once")
+    (.then done))))
+
 (deftest bookkeeper-add
   (async
    done
@@ -152,9 +181,7 @@
   (async
    done
    (->
-    (eos/transact swap-acc "issue" {:contract token-acc
-                                    :txid tx-hash
-                                    :token sym :memo "hi"})
+    (eos/transact swap-acc "issue" {:txid tx-hash})
     ;; (.then #(do (prn (eos/tx-get-console %)) %))
     (.then (fn [res]
              (testing "swap transaction exists"
@@ -179,7 +206,7 @@
                                     :token sym :memo "swap"})
     (.then #(testing "transaction not made"
               (is (nil? %))))
-    (util/should-fail-with "assertion failure with message: tx already issued"
+    (util/should-fail-with "tx already issued"
                            "cant issue tokens twice")
     (.then done))))
 
