@@ -5,7 +5,7 @@ void swap::init(const name token_contract, const symbol_code token_symbol,
   require_auth(get_self());
 
   eosio::check(token_symbol.is_valid(), "invalid symbol name");
-  eosio::check(memo.size() <= 256, "memo has more than 256 bytes");
+  eosio::check(issue_memo.size() <= 256, "memo has more than 256 bytes");
 
   config_table config_tbl(_self, _self.value);
   eosio::check(!config_tbl.exists(), "already initialized");
