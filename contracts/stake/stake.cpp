@@ -1,5 +1,20 @@
 #include "stake.hpp"
 
+void stake::init(name token_contract, symbol_code stake_symbol,
+                 symbol_code claim_symbol) {
+  require_auth(get_self());
+
+  eosio::check(stake_symbol.is_valid(), "invalid symbol name");
+  eosio::check(claim_symbol.is_valid(), "invalid symbol name");
+
+  config_table config_tbl(_self, _self.value);
+  eosio::check(!config_tbl.exists(), "already initialized");
+
+  config_tbl.set(config{token_contract,
+                        stake_symbol,
+                        claim_symbol}, get_self());
+}
+
 void stake::transfer_handler(name from, name to, asset quantity, std::string memo) {
   // stake when receiving funds
   if (to == get_self()) {
@@ -17,7 +32,6 @@ void stake::transfer_handler(name from, name to, asset quantity, std::string mem
                                      a.last_claim_age = 0;
                                    });
   }
-
 }
 
 void stake::unstake(name owner, asset quantity) {
@@ -54,12 +68,12 @@ void stake::claim(name owner, symbol_code token) {
 }
 
 extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
-  if(action == "transfer"_n.value) {
+  if (action == "transfer"_n.value) {
     execute_action<stake>(eosio::name(receiver), eosio::name(code),
                           &stake::transfer_handler);
   } else if (code == receiver) {
     switch(action) {
-      EOSIO_DISPATCH_HELPER(stake, (unstake)(claim));
+      EOSIO_DISPATCH_HELPER(stake, (init)(unstake)(claim));
     }
   }
 }

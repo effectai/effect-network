@@ -42,6 +42,31 @@
        (.then done))))
    :after (fn [])})
 
+(def init-config {:token_contract token-acc :stake_symbol sym :claim_symbol sym})
+
+(deftest initialize
+  (async
+   done
+   (->
+    ;; needs stake account authority
+    (eos/transact stake-acc "init" init-config
+                  [{:actor owner-acc :permission "active"}])
+    (util/should-fail-with (str "missing authority of " stake-acc)
+                           "only stake account can init")
+    ;; can set config
+    (.then #(eos/transact stake-acc "init" init-config
+                          [{:actor stake-acc :permission "owner"}]))
+    (util/should-succeed "can perform init")
+    (.then #(eos/get-table-rows stake-acc stake-acc "config"))
+    (.then #(is (= (vals (first %)) (vals init-config)) "config incorrect"))
+    eos/wait-block
+    ;; cant set config twice
+    (.then #(eos/transact stake-acc "init" init-config
+                          [{:actor stake-acc :permission "owner"}]))
+    (util/should-fail-with "already initialized"
+                           "can only initialize once")
+    (.then done))))
+
 (deftest stake
   (async
    done
