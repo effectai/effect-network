@@ -13,7 +13,10 @@
 (def token-acc efx.token/account)
 (def owner-acc efx.token/owner-acc)
 
+(def tkn-acc (eos/random-account "zbc"))   ; second token contract
+
 (def sym "STK")
+(def claim-sym "CLM")
 (def total-amount "15000000.0000")
 (def total-supply (str total-amount " " sym))
 
@@ -24,20 +27,42 @@
       done
       (->
        (eos/create-account owner-acc stake-acc)
-       (.catch prn)
-       (.then #(println (str "> Created STAKE account " stake-acc)))
+       (.then #(eos/create-account owner-acc tkn-acc))
+       (.then #(println (str "> Created STAKE account " stake-acc
+                             "\n> Created TOKEN account " tkn-acc)))
+       eos/wait-block
        eos/wait-block
        (.then #(eos/deploy stake-acc "contracts/stake/stake"))
-       (.catch prn)
+       (.then #(eos/deploy tkn-acc "contracts/effect-token/src/effect-token"))
+       eos/wait-block
+       eos/wait-block
        (.then #(eos/update-auth stake-acc "active"
                                 [{:permission {:actor token-acc :permission "eosio.code"}
+                                  :weight 1}
+                                 {:permission {:actor stake-acc :permission "eosio.code"}
+                                  :weight 1}
+                                 {:permission {:actor tkn-acc :permission "eosio.code"}
                                   :weight 1}]))
        eos/wait-block
        (.then #(eos/transact token-acc "create"
                              {:issuer stake-acc :maximum_supply total-supply}))
+       (.then #(eos/transact token-acc "create"
+                             {:issuer stake-acc :maximum_supply (str "1000.0000 " claim-sym)}))
+       (.then #(eos/transact tkn-acc "create"
+                             {:issuer stake-acc :maximum_supply total-supply}))
        eos/wait-block
-       (.then #(eos/transact token-acc "issue" {:to owner-acc :quantity (str "500.0000 " sym) :memo "hi"}
-                             [{:actor stake-acc :permission "owner"}]))
+       (.then
+        #(eos/transact token-acc "issue"
+                       {:to owner-acc :quantity (str "500.0000 " sym) :memo "hi"}
+                       [{:actor stake-acc :permission "owner"}]))
+       (.then
+        #(eos/transact token-acc "issue"
+                       {:to owner-acc :quantity (str "100.0000 " claim-sym) :memo "hi"}
+                       [{:actor stake-acc :permission "owner"}]))
+       (.then
+        #(eos/transact tkn-acc "issue"
+                       {:to owner-acc :quantity (str "500.0000 " sym) :memo "hi"}
+                       [{:actor stake-acc :permission "owner"}]))
        (.catch prn)
        (.then done))))
    :after (fn [])})
@@ -73,14 +98,25 @@
    (->
     ;; perform stake
     (eos/transact token-acc "transfer"
-                  {:from owner-acc :to stake-acc :quantity (str "1.0000 " sym) :memo "stake"}
+                  {:from owner-acc :to stake-acc :quantity (str "100.0000 " sym) :memo "stake"}
                   [{:actor owner-acc :permission "active"}])
-    util/should-succeed
+    (util/should-succeed "can perform a stake")
     ;; needs specific memo
     (.then #(eos/transact token-acc "transfer"
                          {:from owner-acc :to stake-acc :quantity (str "1.0000 " sym) :memo ""}
                          [{:actor owner-acc :permission "active"}]))
-    (util/should-fail-with "only stake transactions are accepted" "needs stake memo")
+    (util/should-fail-with "only stake transactions are accepted")
+    ;; needs specific asset
+    (.then #(eos/transact token-acc "transfer"
+                         {:from owner-acc :to stake-acc :quantity (str "2.0000 " claim-sym) :memo "stake"}
+                         [{:actor owner-acc :permission "active"}]))
+    (util/should-fail-with "asset cant be staked")
+    ;; cant stake from a different token contract
+    (.then
+     #(eos/transact tkn-acc "transfer"
+                    {:from owner-acc :to stake-acc :quantity (str "100.0000 " sym) :memo "stake"}
+                    [{:actor owner-acc :permission "active"}]))
+    (util/should-fail-with "contract is not allowed to stake")
     (.then done))))
 
 (deftest claim
@@ -98,6 +134,7 @@
     (.then #(eos/get-table-rows stake-acc owner-acc "stake"))
     (.then (fn [[{claim_age "last_claim_age"}]]
              (is (and (> claim_age 3) (< claim_age 7)) "stake should have age after claim")))
+    (.then #(eos/get-table-rows token-acc owner-acc "accounts"))
     (.then prn)
     (.catch prn)
     (.then done))))
