@@ -5,6 +5,8 @@
 #include <eosiolib/types.h>
 #include <eosiolib/asset.hpp>
 #include <eosiolib/crypto.h>
+#include <eosiolib/time.hpp>
+
 #include <string>
 
 using namespace eosio;
@@ -12,21 +14,26 @@ using namespace eosio;
 class [[eosio::contract("stake")]] stake : public contract {
  public:
   using contract::contract;
-  [[eosio::action]]
-    void dostake(name owner, asset amount);
+
+  inline static const std::string STAKE_MEMO = "stake";
+  static const uint32_t MIN_CLAIM_AGE_SEC = 2;
 
   [[eosio::action]]
-    void unstake(name owner);
+    void unstake(name owner,
+                 asset quantity);
 
   [[eosio::action]]
-    void claim(name owner);
+    void claim(name owner,
+               symbol_code token);
 
+  void transfer_handler(name from, name to, asset quantity, std::string memo);
  private:
-  struct [[eosio::table]] stake_t {
+  struct [[eosio::table]] stakeentry {
     asset stake;
-    uint64_t last_claim_time;
+    time_point_sec last_claim_time;
+    uint32_t last_claim_age;
     uint64_t primary_key() const { return stake.symbol.code().raw(); }
   };
 
-  typedef multi_index<"stake"_n, stake_t> stake_table;
+  typedef multi_index<"stake"_n, stakeentry> stake_table;
 };
