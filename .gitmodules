@@ -1,0 +1,3 @@
+[submodule "eos-cljs"]
+	path = eos-cljs
+	url = git@github.com:effectai/eos-cljs.git

@@ -1,0 +1,14 @@
+{
+  "name": "effect-network-eos",
+  "version": "0.0.1",
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@cityofzion/neon-js": "^4.3.3",
+    "eos-deploys": "./eos-cljs"
+  },
+  "scripts": {
+      "test": "lumo -c test -m efx.test",
+      "deploy": "lumo -c deploy -m "
+  }
+}
