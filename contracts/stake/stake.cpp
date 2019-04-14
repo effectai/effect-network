@@ -18,8 +18,18 @@ void stake::init(name token_contract, symbol_code stake_symbol,
 void stake::transfer_handler(name from, name to, asset quantity, std::string memo) {
   // stake when receiving funds
   if (to == get_self()) {
+    // stakes transfers require a specific memo
     eosio::check(memo == STAKE_MEMO, "only stake transactions are accepted");
     auto sym = quantity.symbol;
+
+    // validate the asset
+    config_table config_tbl(_self, _self.value);
+    eosio::check(config_tbl.exists(), "not initialized");
+    auto config = config_tbl.get();
+    eosio::check(config.stake_symbol == sym.code(), "asset cant be staked");
+
+    // validate the contract that is staking
+    eosio::check(config.token_contract == get_code(), "contract is not allowed to stake");
 
     stake_table stakes_tbl(get_self(), from.value);
     auto stakes = stakes_tbl.find(sym.code().raw());
