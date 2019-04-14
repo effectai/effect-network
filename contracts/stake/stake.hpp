@@ -41,10 +41,10 @@ class [[eosio::contract("stake")]] stake : public contract {
   };
 
   struct [[eosio::table]] stakeentry {
-    asset stake;
+    asset amount;
     time_point_sec last_claim_time;
     uint32_t last_claim_age;
-    uint64_t primary_key() const { return stake.symbol.code().raw(); }
+    uint64_t primary_key() const { return amount.symbol.code().raw(); }
   };
 
   typedef singleton<"config"_n, config> config_table;
