@@ -79,6 +79,7 @@
     (.then #(eos/transact swap-acc "init" init-config))
     (util/should-succeed "can perform init")
     (.then #(eos/get-table-rows swap-acc swap-acc "config"))
+
     (.then #(is (= (vals (first %)) (vals init-config)) "config incorrect"))
     eos/wait-block
     ;; cant set config twice
