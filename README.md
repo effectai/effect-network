@@ -4,11 +4,10 @@ EOS smart contracts for The Effect Network
 ## Compiling
 
 The token contract is implemented in C++. To compile and deploy the
-contract the following prerequisites are required:
-- eosio.cdt v1.6.0
-- nodeos v1.6.1
-- keosd v1.6.1
-- cleos
+contracts you will need the following prerequisites:
+
+- eosio.cdt v1.5.0
+- eosio v1.6.4
 
 To compile all contracts and the unit tests:
 
