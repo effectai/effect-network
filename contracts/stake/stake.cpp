@@ -2,13 +2,14 @@
 
 void stake::init(name token_contract, symbol_code stake_symbol,
                  symbol_code claim_symbol, uint32_t age_limit,
-                 uint64_t scale_factor) {
+                 uint64_t scale_factor, uint32_t unstake_delay_sec) {
   require_auth(get_self());
 
   eosio::check(stake_symbol.is_valid(), "invalid symbol name");
   eosio::check(claim_symbol.is_valid(), "invalid symbol name");
   eosio::check(age_limit > 0, "age limit must be positive");
   eosio::check(scale_factor > 0, "scale factor must be positive");
+  eosio::check(unstake_delay_sec > 0, "unstake delay must be positive");
 
   config_table config_tbl(_self, _self.value);
   eosio::check(!config_tbl.exists(), "already initialized");
@@ -17,7 +18,8 @@ void stake::init(name token_contract, symbol_code stake_symbol,
                         stake_symbol,
                         claim_symbol,
                         age_limit,
-                        scale_factor}, get_self());
+                        scale_factor,
+                        unstake_delay_sec}, get_self());
 }
 
 void stake::transfer_handler(name from, name to, asset quantity, std::string memo) {
@@ -39,7 +41,7 @@ void stake::transfer_handler(name from, name to, asset quantity, std::string mem
     stake_table stakes_tbl(get_self(), from.value);
     auto stakes = stakes_tbl.find(sym.code().raw());
 
-    eosio::check(stakes == stakes_tbl.end(), "stake upgrading not yet implemented");
+    eosio::check(stakes == stakes_tbl.end(), "stake upgrading not implemented");
     stakes_tbl.emplace(get_self(), [&](auto& st)
                                    {
                                      st.amount = quantity;
@@ -59,7 +61,54 @@ void stake::unstake(name owner, asset quantity) {
   eosio::check(quantity.amount > 0, "must unstake positive quantity");
 
   stake_table stakes_tbl(get_self(), owner.value);
-  auto stakes = stakes_tbl.find(sym.code().raw());
+  auto& stakes = stakes_tbl.get(sym.code().raw(), "no stake found");
+  eosio::check(stakes.amount.amount > quantity.amount, "not enough staked");
+
+  // users should claim before they unstake! any unclaimed tokens are
+  // lost or reduced.
+  if (stakes.amount.amount == quantity.amount) {
+    stakes_tbl.erase(stakes);
+  } else {
+    stakes_tbl.modify(stakes, eosio::same_payer, [&](auto& stk)
+                                                 {
+                                                   stk.amount -= quantity;
+                                                 });
+  }
+
+  unstake_table unstake_tbl(get_self(), owner.value);
+  auto to = unstake_tbl.find(sym.code().raw());
+  if (to == unstake_tbl.end()) {
+    unstake_tbl.emplace(owner, [&](auto& stk)
+                               {
+                                 stk.amount = quantity;
+                                 stk.time = time_point_sec(now());
+                               });
+  } else {
+    unstake_tbl.modify(to, eosio::same_payer,
+                       [&](auto& stk)
+                       {
+                         stk.amount += quantity;
+                         stk.time = time_point_sec(now());
+                       });
+  }
+}
+
+void stake::refund(name owner) {
+  config_table config_tbl(_self, _self.value);
+  auto config = config_tbl.get();
+
+  unstake_table unstake_tbl(get_self(), owner.value);
+  const auto& unstakes = unstake_tbl.get(config.stake_symbol.raw(), "no unstake exists");
+
+  auto unstake_at = unstakes.time + config.unstake_delay_sec;
+
+  eosio::check(time_point_sec(now()) > unstake_at, "unstake is still pending");
+
+  action(permission_level{_self, "active"_n},
+         config.token_contract,
+         "transfer"_n,
+         std::make_tuple(_self, owner, unstakes.amount, REFUND_MEMO)
+         ).send();
 }
 
 void stake::claim(name owner, symbol_code token) {
@@ -117,7 +166,7 @@ extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
                           &stake::transfer_handler);
   } else if (code == receiver) {
     switch(action) {
-      EOSIO_DISPATCH_HELPER(stake, (init)(unstake)(claim));
+      EOSIO_DISPATCH_HELPER(stake, (init)(unstake)(refund)(claim));
     }
   }
 }

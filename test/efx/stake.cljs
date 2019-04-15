@@ -68,7 +68,8 @@
    :after (fn [])})
 
 (def init-config {:token_contract token-acc :stake_symbol sym
-                  :claim_symbol claim-sym :age_limit 5 :scale_factor (*  1000000 1)})
+                  :claim_symbol claim-sym :age_limit 5 :scale_factor (*  1000000 1)
+                  :unstake_delay_sec 2})
 
 (deftest initialize
   (async
@@ -118,23 +119,21 @@
                     {:from owner-acc :to stake-acc :quantity (str "100.0000 " sym) :memo "stake"}
                     [{:actor owner-acc :permission "active"}]))
     (util/should-fail-with "contract is not allowed to stake")
+    (eos/wait-block 2)
     (.then done))))
 
+(def owner-perm [{:actor owner-acc :permission "active"}])
+
 (defn doclaim
-  ([] (eos/transact stake-acc "claim" {:owner owner-acc :token sym}
-                    [{:actor owner-acc :permission "active"}])))
+  [] (eos/transact stake-acc "claim" {:owner owner-acc :token sym} owner-perm))
 
 (deftest claim
   (async
    done
    (->
-    ;; stake needs age to claim
-    (eos/transact stake-acc "claim" {:owner owner-acc :token sym}
-                  [{:actor owner-acc :permission "active"}])
-    (util/should-fail-with "nothing to claim" "stakes needs some age to claim")
     ;; check stake age after claims
-    (eos/wait-block 4)
-    (.then doclaim)
+    (doclaim)
+    util/should-succeed
     (.then #(eos/get-table-rows stake-acc owner-acc "stake"))
     (.then (fn [[{claim_age "last_claim_age"}]]
              (is (> claim_age 1) "token age is increasing")))
@@ -148,4 +147,31 @@
     (.then #(eos/get-table-rows stake-acc owner-acc "stake"))
     (.then (fn [[{claim_age "last_claim_age"}]]
              (is (= claim_age (:age_limit init-config)) "age reaches limit")))
+    (.then done))))
+
+(deftest unstake
+  (async
+   done
+   (->
+    (eos/transact stake-acc "refund" {:owner owner-acc} owner-perm)
+    (util/should-fail-with "no unstake exists")
+    ;; can unstake
+    (.then #(eos/transact stake-acc "unstake"
+                          {:owner owner-acc :quantity (str "1.0000 " sym)}
+                          owner-perm))
+    (.then #(eos/get-table-rows stake-acc owner-acc "stake"))
+    (.then (fn [[{amount "amount"}]]
+             (is (= amount (str "99.0000 " sym)) "unstake should decrease stake")))
+    ;; cant unstake too much
+    (.then #(eos/transact stake-acc "unstake"
+                          {:owner owner-acc :quantity (str "101.0000 " sym)} owner-perm))
+    (util/should-fail-with "not enough staked")
+    ;; refund fails
+    (.then #(eos/transact stake-acc "refund" {:owner owner-acc} owner-perm))
+    (util/should-fail-with "unstake is still pending")
+    ;; refund succeeds
+    (eos/wait-block 5)
+    (.then #(eos/transact stake-acc "refund" {:owner owner-acc} owner-perm))
+    (.then #(eos/get-table-rows token-acc owner-acc "accounts"))
+    (.then #(is (= (get-in % [0 "balance"]) (str "401.0000 " sym)) "stake refund is correct"))
     (.then done))))
