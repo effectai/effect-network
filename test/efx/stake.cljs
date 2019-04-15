@@ -67,7 +67,8 @@
        (.then done))))
    :after (fn [])})
 
-(def init-config {:token_contract token-acc :stake_symbol sym :claim_symbol sym})
+(def init-config {:token_contract token-acc :stake_symbol sym
+                  :claim_symbol claim-sym :age_limit 5 :scale_factor (*  1000000 1)})
 
 (deftest initialize
   (async
@@ -119,6 +120,10 @@
     (util/should-fail-with "contract is not allowed to stake")
     (.then done))))
 
+(defn doclaim
+  ([] (eos/transact stake-acc "claim" {:owner owner-acc :token sym}
+                    [{:actor owner-acc :permission "active"}])))
+
 (deftest claim
   (async
    done
@@ -126,15 +131,21 @@
     ;; stake needs age to claim
     (eos/transact stake-acc "claim" {:owner owner-acc :token sym}
                   [{:actor owner-acc :permission "active"}])
-    (util/should-fail-with "stake too young to claim" "stakes needs some age to claim")
-    ;; can claim after 10 blocks
-    (eos/wait-block 10)
-    (.then #(eos/transact stake-acc "claim" {:owner owner-acc :token sym}
-                          [{:actor owner-acc :permission "active"}]))
+    (util/should-fail-with "nothing to claim" "stakes needs some age to claim")
+    ;; check stake age after claims
+    (eos/wait-block 4)
+    (.then doclaim)
     (.then #(eos/get-table-rows stake-acc owner-acc "stake"))
     (.then (fn [[{claim_age "last_claim_age"}]]
-             (is (and (> claim_age 3) (< claim_age 7)) "stake should have age after claim")))
-    (.then #(eos/get-table-rows token-acc owner-acc "accounts"))
-    (.then prn)
-    (.catch prn)
+             (is (> claim_age 1) "token age is increasing")))
+    (eos/wait-block 4)
+    (.then doclaim)
+    (.then #(eos/get-table-rows stake-acc owner-acc "stake"))
+    (.then (fn [[{claim_age "last_claim_age"}]]
+             (is (<= claim_age (:age_limit init-config)) "token age is increasing")))
+    (eos/wait-block 4)
+    (.then doclaim)
+    (.then #(eos/get-table-rows stake-acc owner-acc "stake"))
+    (.then (fn [[{claim_age "last_claim_age"}]]
+             (is (= claim_age (:age_limit init-config)) "age reaches limit")))
     (.then done))))

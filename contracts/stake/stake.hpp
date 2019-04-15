@@ -16,12 +16,14 @@ class [[eosio::contract("stake")]] stake : public contract {
   using contract::contract;
 
   inline static const std::string STAKE_MEMO = "stake";
-  static const uint32_t MIN_CLAIM_AGE_SEC = 2;
+  inline static const std::string CLAIM_MEMO = "stake claim";
 
   [[eosio::action]]
     void init(name token_contract,
               symbol_code stake_symbol,
-              symbol_code claim_symbol);
+              symbol_code claim_symbol,
+              uint32_t age_limit,
+              uint64_t scale_factor);
 
   [[eosio::action]]
     void unstake(name owner,
@@ -38,6 +40,8 @@ class [[eosio::contract("stake")]] stake : public contract {
     name token_contract;
     symbol_code stake_symbol;
     symbol_code claim_symbol;
+    uint32_t age_limit;
+    uint64_t scale_factor;
   };
 
   struct [[eosio::table]] stakeentry {
