@@ -41,13 +41,30 @@ void stake::transfer_handler(name from, name to, asset quantity, std::string mem
     stake_table stakes_tbl(get_self(), from.value);
     auto stakes = stakes_tbl.find(sym.code().raw());
 
-    eosio::check(stakes == stakes_tbl.end(), "stake upgrading not implemented");
-    stakes_tbl.emplace(get_self(), [&](auto& st)
-                                   {
-                                     st.amount = quantity;
-                                     st.last_claim_time = time_point_sec(now());
-                                     st.last_claim_age = 0;
-                                   });
+    if (stakes == stakes_tbl.end()) {
+      // this is a new stake
+      stakes_tbl.emplace(get_self(),
+                         [&](auto& st)
+                         {
+                           st.amount = quantity;
+                           st.last_claim_time = time_point_sec(now());
+                           st.last_claim_age = 0;
+                         });
+    } else {
+      // dilute an existing stake; a claim is mandatory
+      eosio::check(stakes->last_claim_time == time_point_sec(now()),
+                   "you must claim before diluting your stake");
+
+      asset new_amount = stakes->amount + quantity;
+      uint32_t new_last_claim_age = (stakes->last_claim_age * stakes->amount.amount) / new_amount.amount;
+
+      stakes_tbl.modify(stakes, eosio::same_payer,
+                        [&](auto& stk)
+                        {
+                          stk.last_claim_age = new_last_claim_age;
+                          stk.amount = new_amount;
+                        });
+    }
   }
 }
 
@@ -114,12 +131,12 @@ void stake::refund(name owner) {
 void stake::claim(name owner, symbol_code token) {
   require_auth(owner);
 
+  eosio::check(token.is_valid(), "invalid symbol name");
+
   stake_table stakes_tbl(get_self(), owner.value);
   const auto& stakes_chk = stakes_tbl.find(token.raw());
   eosio::check(stakes_chk != stakes_tbl.end(), "stake does not exist");
   const auto& stakes = *stakes_chk;
-
-  eosio::check(token.is_valid(), "invalid symbol name");
 
   config_table config_tbl(_self, _self.value);
   eosio::check(config_tbl.exists(), "not initialized");

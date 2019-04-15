@@ -133,7 +133,7 @@
    (->
     ;; check stake age after claims
     (doclaim)
-    util/should-succeed
+    (util/should-succeed "can claim")
     (.then #(eos/get-table-rows stake-acc owner-acc "stake"))
     (.then (fn [[{claim_age "last_claim_age"}]]
              (is (> claim_age 1) "token age is increasing")))
@@ -175,3 +175,32 @@
     (.then #(eos/get-table-rows token-acc owner-acc "accounts"))
     (.then #(is (= (get-in % [0 "balance"]) (str "401.0000 " sym)) "stake refund is correct"))
     (.then done))))
+
+(deftest dilute
+  (async
+   done
+   (->
+    ;; claim is mandatory to dilute
+    (eos/transact token-acc "transfer"
+                  {:from owner-acc :to stake-acc :quantity (str "100.0000 " sym) :memo "stake"}
+                  owner-perm)
+    (util/should-fail-with "you must claim before diluting your stake")
+    ;; fetch current stake info for comparison
+    (.then #(eos/get-table-rows stake-acc owner-acc "stake"))
+    (.then
+     (fn [[{amount "amount" last-age "last_claim_age" :as pp}]]
+       (->
+        ;; can dilute when combined with claim
+        (eos/transact [{:account stake-acc :name "claim"
+                        :authorization owner-perm
+                        :data {:owner owner-acc :token sym}}
+                       {:account token-acc :name "transfer"
+                        :authorization owner-perm
+                        :data {:from owner-acc :to stake-acc
+                               :quantity (str "100.0000 " sym) :memo "stake"}}])
+        (.then #(eos/get-table-rows stake-acc owner-acc "stake"))
+        (.then (fn [[{amount "amount" new-age "last_claim_age"}]]
+                 (is (> last-age new-age) "age has diluted")
+                 (is (= amount (str "199.0000 " sym)) "stake is added")))
+        (.then prn)
+        (.then done)))))))
