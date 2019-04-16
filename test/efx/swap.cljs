@@ -12,7 +12,7 @@
 (def swap-acc (eos/random-account "efx"))
 (def token-acc efx.token/account)
 (def owner-acc efx.token/owner-acc)
-(def bk-acc "jesse")
+(def bk-acc (eos/random-account "jbk"))
 
 ;; define a new token for the swap test
 (def sym "SWP")
@@ -196,15 +196,14 @@
                  (is (= (aget inner-act "act" "data" "from") swap-acc))
                  (is (= (aget inner-act "act" "data" "quantity") (str "1.0000 " sym)))))))
     (.catch #(is (= (.-message %) "failed processing transaction")))
+    eos/wait-block
     (.then done))))
 
 (deftest issue-fail
   (async
    done
    (->
-    (eos/transact swap-acc "issue" {:contract token-acc
-                                    :txid  (.reverseHex Neon/u (.-hash tx1))
-                                    :token sym :memo "swap"})
+    (eos/transact swap-acc "issue" {:txid  (.reverseHex Neon/u (.-hash tx1))})
     (.then #(testing "transaction not made"
               (is (nil? %))))
     (util/should-fail-with "tx already issued"

@@ -20,13 +20,17 @@
       (.then #(is nil msg))
       (.catch #(is (not (nil? (.-message %))) msg))))
 
-(defn should-succeed [p msg]
-  (-> p
-      (.catch #(is false msg))
-      (.then #(do (is true msg)
-                  %))))
+(defn should-succeed
+  ([p] (should-succeed p "should succeed"))
+  ([p msg]
+   (-> p
+       (.catch #(is (= % msg) msg))
+       (.then #(do (is true msg)
+                   %)))))
 
-(defn should-fail-with [p chk msg]
-  (-> p
-      (.then #(is nil msg))
-      (.catch #(is (string/ends-with? (.-message %) chk) msg))))
+(defn should-fail-with
+  ([p chk] (should-fail-with p chk chk))
+  ([p chk msg]
+   (-> p
+       (.then #(is nil msg))
+       (.catch #(is (string/ends-with? (.-message %) chk) msg)))))

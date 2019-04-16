@@ -4,6 +4,6 @@
 
 (defn -main []
   (-> (run-tests 'efx.token)
-      ;; (.then #(run-tests 'efx.swap))
+      (.then #(run-tests 'efx.swap))
       (.then #(run-tests 'efx.stake))
       (.then prn)))
