@@ -1,8 +1,8 @@
-(ns efx.swap
+(ns e2e.swap
   (:require
    [eos-deploys.core :as eos]
-   efx.token
-   [efx.util :as util]
+   e2e.token
+   [e2e.util :as util]
    ["@cityofzion/neon-js" :refer [rpc tx] :as Neon]
    [clojure.string :as string]
    (clojure.pprint :refer [pprint])
@@ -10,8 +10,8 @@
    ))
 
 (def swap-acc (eos/random-account "efx"))
-(def token-acc efx.token/account)
-(def owner-acc efx.token/owner-acc)
+(def token-acc e2e.token/account)
+(def owner-acc e2e.token/owner-acc)
 (def bk-acc (eos/random-account "jbk"))
 
 ;; define a new token for the swap test
