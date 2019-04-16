@@ -121,10 +121,14 @@ void stake::refund(name owner) {
 
   eosio::check(time_point_sec(now()) > unstake_at, "unstake is still pending");
 
+  asset refund_amount = unstakes.amount;
+
+  unstake_tbl.erase(unstakes);
+
   action(permission_level{_self, "active"_n},
          config.token_contract,
          "transfer"_n,
-         std::make_tuple(_self, owner, unstakes.amount, REFUND_MEMO)
+         std::make_tuple(_self, owner, refund_amount, REFUND_MEMO)
          ).send();
 }
 

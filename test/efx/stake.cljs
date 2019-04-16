@@ -119,7 +119,7 @@
                     {:from owner-acc :to stake-acc :quantity (str "100.0000 " sym) :memo "stake"}
                     [{:actor owner-acc :permission "active"}]))
     (util/should-fail-with "contract is not allowed to stake")
-    (eos/wait-block 2)
+    (eos/wait-block 3)
     (.then done))))
 
 (def owner-perm [{:actor owner-acc :permission "active"}])
@@ -174,6 +174,8 @@
     (.then #(eos/transact stake-acc "refund" {:owner owner-acc} owner-perm))
     (.then #(eos/get-table-rows token-acc owner-acc "accounts"))
     (.then #(is (= (get-in % [0 "balance"]) (str "401.0000 " sym)) "stake refund is correct"))
+    (.then #(eos/get-table-rows stake-acc owner-acc "unstake"))
+    (.then #(is (= (empty? %)) "unstake table is empty"))
     (.then done))))
 
 (deftest dilute
@@ -202,5 +204,4 @@
         (.then (fn [[{amount "amount" new-age "last_claim_age"}]]
                  (is (> last-age new-age) "age has diluted")
                  (is (= amount (str "199.0000 " sym)) "stake is added")))
-        (.then prn)
         (.then done)))))))
