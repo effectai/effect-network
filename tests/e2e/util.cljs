@@ -1,4 +1,4 @@
-(ns efx.util
+(ns e2e.util
   (:require ["@cityofzion/neon-js" :as Neon]
             [clojure.string :as string]
             [cljs.test :refer-macros [is]]))

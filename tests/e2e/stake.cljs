@@ -1,8 +1,8 @@
-(ns efx.stake
+(ns e2e.stake
   (:require
    [eos-deploys.core :as eos]
-   efx.token
-   [efx.util :as util]
+   e2e.token
+   [e2e.util :as util]
    ["@cityofzion/neon-js" :refer [rpc tx] :as Neon]
    [clojure.string :as string]
    (clojure.pprint :refer [pprint])
@@ -10,8 +10,8 @@
    ))
 
 (def stake-acc (eos/random-account "stk"))
-(def token-acc efx.token/account)
-(def owner-acc efx.token/owner-acc)
+(def token-acc e2e.token/account)
+(def owner-acc e2e.token/owner-acc)
 
 (def tkn-acc (eos/random-account "zbc"))   ; second token contract
 
@@ -33,7 +33,7 @@
        eos/wait-block
        eos/wait-block
        (.then #(eos/deploy stake-acc "contracts/stake/stake"))
-       (.then #(eos/deploy tkn-acc "contracts/effect-token/src/effect-token"))
+       (.then #(eos/deploy tkn-acc "contracts/effect-token/effect-token"))
        eos/wait-block
        eos/wait-block
        (.then #(eos/update-auth stake-acc "active"

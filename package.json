@@ -8,7 +8,7 @@
     "eos-deploys": "./eos-cljs"
   },
   "scripts": {
-      "test": "lumo -c test -m efx.test",
-      "deploy": "lumo -c deploy -m "
+    "test": "lumo -c tests -m e2e.test",
+    "deploy": "lumo -c deploy -m "
   }
 }

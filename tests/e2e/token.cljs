@@ -1,4 +1,4 @@
-(ns efx.token
+(ns e2e.token
   (:require
    [eos-deploys.core :as eos]
    [clojure.string :as string]
@@ -19,7 +19,7 @@
                   (.then #(println (str "> Created TOKEN account " account)))
                   ;; (.catch #(is (string/ends-with? (.-message %) "name is already taken")))
                   eos/wait-block
-                  (.then #(eos/deploy account "contracts/effect-token/src/effect-token"))
+                  (.then #(eos/deploy account "contracts/effect-token/effect-token"))
                   ;; (.catch #(is (= (.-message %) eos/msg-contract-exist)))
                   (.then done))))
    :after (fn [])})
