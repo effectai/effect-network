@@ -108,6 +108,19 @@ void stake::unstake(name owner, asset quantity) {
                          stk.time = time_point_sec(now());
                        });
   }
+
+  // Auto claim unstaked tokens after tokens have matured
+  transaction out{};
+  out.actions.emplace_back(
+    permission_level{owner, "active"_n},
+    config.token_contract,
+    "refund"_n,
+    std::make_tuple(owner)
+  );
+  out.delay_sec = TIME_TO_MATURE;
+  out.send(owner, owner, true);
+
+  print("Scheduled claim with a delay of ", TIME_TO_MATURE)
 }
 
 void stake::refund(name owner) {

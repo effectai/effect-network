@@ -20,6 +20,7 @@ class [[eosio::contract("stake")]] stake : public contract {
   inline static const std::string REFUND_MEMO = "unstake refund";
 
   static const uint32_t SECONDS_PER_DAY = 86400;
+  static const uint32_t TIME_TO_MATURE = SECONDS_PER_DAY * 3;
 
   [[eosio::action]]
     void init(name token_contract,
