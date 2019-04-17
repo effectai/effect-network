@@ -1,18 +1,22 @@
-# Effect Network EOS
-EOS smart contracts for The Effect Network
+<p align="center"><img src="logo.png" width="192px"></p>
+
+<h1 align="center">Effect Network EOS</h1>
+
+<p align="center">Smart contracts for the Effect Network</p>
 
 ## Compiling
 
 The contracts are implemented in C++ and require **eosio.cdt 1.5.0**
  to compile.
 
-The supplied Makefile will compile all contracts:
+The supplied Makefile can compile all contracts:
 
 ```bash
 make all
 ```
 
-It's possible to swap `eosio-cpp` with a docker container:
+It's possible to use a docker container instead of installing
+**eosio.cdt** locally:
 
 ```bash
 EOS_CC="docker run --rm -it -v $(pwd):/app -w /app effectai/eosio-cdt:v1.5.0 eosio-cpp" ABI_CC="docker run --rm -it -v $(pwd):/app -w /app effectai/eosio-cdt:v1.5.0 eosio-abigen" make all
