@@ -25,7 +25,7 @@ EOS_CC="docker run --rm -it -v $(pwd):/app -w /app effectai/eosio-cdt:v1.5.0 eos
 ## Deploying
 
 To deploy the contracts to a [local EOSIO
-testnet](https://github.com/EOSIO/eos/tree/master/Docker) you can use
+net](https://github.com/EOSIO/eos/tree/master/Docker) you can use
 the provided setup script. The arguments are the 3 accounts that will
 be created to function as smart contracts:
 
