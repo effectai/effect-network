@@ -17,8 +17,8 @@
 
 (def sec-per-day 86400)
 
-(def stake-config {:token_contract token-acc :stake_symbol tkn-sym
-                   :claim_symbol clm-sym :age_limit (* 200 sec-per-day)
+(def stake-config {:token_contract token-acc :stake_symbol (str "4," tkn-sym)
+                   :claim_symbol (str "4," clm-sym) :age_limit (* 200 sec-per-day)
                    :scale_factor (*  1000000 sec-per-day)
                    :unstake_delay_sec (* 7 sec-per-day)})
 
@@ -71,7 +71,6 @@
         #(eos/transact token-acc "create"
                        {:issuer swap-acc :maximum_supply (str tkn-total-supply " " tkn-sym)}))
        (.catch prn)
-       (.then #(prn  (str clm-total-supply " " clm-sym) "xxxx"))
        (.then
         #(eos/transact token-acc "create"
                        {:issuer stake-acc :maximum_supply (str clm-total-supply " " clm-sym)}))
