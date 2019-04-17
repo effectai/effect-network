@@ -1,6 +1,6 @@
 <p align="center"><img src="logo.png" width="192px"></p>
 
-<h1 align="center">Effect Network EOS</h1>
+<h1 align="center">Effect Network EOSIO</h1>
 
 <p align="center">Smart contracts for the Effect Network</p>
 
