@@ -79,7 +79,7 @@ void stake::unstake(name owner, asset quantity) {
 
   stake_table stakes_tbl(get_self(), owner.value);
   auto& stakes = stakes_tbl.get(sym.code().raw(), "no stake found");
-  eosio::check(stakes.amount.amount > quantity.amount, "not enough staked");
+  eosio::check(stakes.amount.amount >= quantity.amount, "not enough staked");
 
   // users should claim before they unstake! any unclaimed tokens are
   // lost or reduced.
