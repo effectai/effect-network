@@ -68,8 +68,10 @@
    :after (fn [])})
 
 (def init-config {:token_contract token-acc :stake_symbol (str "4," sym)
-                  :claim_symbol (str "4," claim-sym) :age_limit 5
-                  :scale_factor (*  1000000 1) :unstake_delay_sec 2})
+                  :claim_symbol (str "4," claim-sym) :age_limit 65
+                  :scale_factor (*  1000000 1) :unstake_delay_sec 2
+                  :stake_bonus_age 60
+                  :stake_bonus_deadline "2019-05-18T14:37:30"})
 
 (deftest initialize
   (async
