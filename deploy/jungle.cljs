@@ -19,7 +19,7 @@
 
 (def stake-config {:token_contract token-acc :stake_symbol (str "4," tkn-sym)
                    :claim_symbol (str "4," clm-sym) :age_limit (* 200 sec-per-day)
-                   :scale_factor (*  1000000 sec-per-day)
+                   :scale_factor (* 10000000000 sec-per-day)
                    :unstake_delay_sec (* 7 sec-per-day)})
 
 (def swap-config {:token_contract token-acc :token_symbol tkn-sym

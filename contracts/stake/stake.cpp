@@ -183,8 +183,8 @@ void stake::claim(name owner) {
   double avg = (((age_last + age_new) / 2.0) * min_part) + (age_new * max_part);
   uint64_t claim_amount = (stakes.amount.amount * aged * avg) / (double) config.scale_factor;
 
+  print("claiming ", claim_amount, " for age ", (uint64_t) age_new);
 
-  print("claiming ", claim_amount, " for age ", age_new);
 
   stakes_tbl.modify(stakes, eosio::same_payer, [&](auto& a)
                                                {
