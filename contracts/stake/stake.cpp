@@ -183,7 +183,6 @@ void stake::claim(name owner) {
   double avg = (((age_last + age_new) / 2.0) * min_part) + (age_new * max_part);
   uint64_t claim_amount = (stakes.amount.amount * aged * avg) / (double) config.scale_factor;
 
-  eosio::check(claim_amount > 0, "nothing to claim");
 
   print("claiming ", claim_amount, " for age ", age_new);
 
@@ -191,13 +190,15 @@ void stake::claim(name owner) {
                                                {
                                                  a.last_claim_time = cur;
                                                  a.last_claim_age = age_new;
-                                               });
+                                                 });
 
-  action(permission_level{_self, "active"_n},
-         config.token_contract,
-         "issue"_n,
-         std::make_tuple(owner, asset(claim_amount, config.claim_symbol), CLAIM_MEMO)
-         ).send();
+    if (claim_amount > 0) {
+      action(permission_level{_self, "active"_n},
+             config.token_contract,
+             "issue"_n,
+             std::make_tuple(owner, asset(claim_amount, config.claim_symbol), CLAIM_MEMO)
+             ).send();
+    }
 }
 
 extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
