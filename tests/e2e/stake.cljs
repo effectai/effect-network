@@ -67,9 +67,9 @@
        (.then done))))
    :after (fn [])})
 
-(def init-config {:token_contract token-acc :stake_symbol sym
-                  :claim_symbol claim-sym :age_limit 5 :scale_factor (*  1000000 1)
-                  :unstake_delay_sec 2})
+(def init-config {:token_contract token-acc :stake_symbol (str "4," sym)
+                  :claim_symbol (str "4," claim-sym) :age_limit 5
+                  :scale_factor (*  1000000 1) :unstake_delay_sec 2})
 
 (deftest initialize
   (async
@@ -94,14 +94,25 @@
                            "can only initialize once")
     (.then done))))
 
+(def owner-perm [{:actor owner-acc :permission "active"}])
+
 (deftest stake
   (async
    done
    (->
-    ;; perform stake
+    ;; needs open stake entry
     (eos/transact token-acc "transfer"
                   {:from owner-acc :to stake-acc :quantity (str "100.0000 " sym) :memo "stake"}
-                  [{:actor owner-acc :permission "active"}])
+                  owner-perm)
+    (util/should-fail-with "you must open a stake before staking")
+    (.then
+     #(eos/transact [{:account stake-acc :name "open"
+                      :authorization owner-perm
+                      :data {:owner owner-acc :ram_payer owner-acc}}
+                     {:account token-acc :name "transfer"
+                      :authorization owner-perm
+                      :data {:from owner-acc :to stake-acc :quantity (str "100.0000 " sym)
+                             :memo "stake"}}]))
     (util/should-succeed "can perform a stake")
     ;; needs specific memo
     (.then #(eos/transact token-acc "transfer"
@@ -122,7 +133,7 @@
     (eos/wait-block 3)
     (.then done))))
 
-(def owner-perm [{:actor owner-acc :permission "active"}])
+
 
 (defn doclaim
   [] (eos/transact stake-acc "claim" {:owner owner-acc :token sym} owner-perm))
