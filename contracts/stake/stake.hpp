@@ -27,7 +27,9 @@ class [[eosio::contract("stake")]] stake : public contract {
               const symbol& claim_symbol,
               uint32_t age_limit,
               uint64_t scale_factor,
-              uint32_t unstake_delay_sec);
+              uint32_t unstake_delay_sec,
+              uint32_t stake_bonus_age,
+              time_point_sec stake_bonus_deadline);
 
   [[eosio::action]]
     void unstake(name owner,
@@ -53,6 +55,8 @@ class [[eosio::contract("stake")]] stake : public contract {
     uint32_t age_limit;
     uint64_t scale_factor;
     uint32_t unstake_delay_sec;
+    uint32_t stake_bonus_age;
+    time_point_sec stake_bonus_deadline;
   };
 
   struct [[eosio::table]] stakeentry {

@@ -2,7 +2,8 @@
 
 void stake::init(name token_contract, const symbol& stake_symbol,
                  const symbol& claim_symbol, uint32_t age_limit,
-                 uint64_t scale_factor, uint32_t unstake_delay_sec) {
+                 uint64_t scale_factor, uint32_t unstake_delay_sec,
+                 uint32_t stake_bonus_age, time_point_sec stake_bonus_deadline) {
   require_auth(get_self());
 
   eosio::check(stake_symbol.is_valid(), "invalid symbol name");
@@ -10,6 +11,9 @@ void stake::init(name token_contract, const symbol& stake_symbol,
   eosio::check(age_limit > 0, "age limit must be positive");
   eosio::check(scale_factor > 0, "scale factor must be positive");
   eosio::check(unstake_delay_sec > 0, "unstake delay must be positive");
+  eosio::check(stake_bonus_age > 0, "stake bonus age must be positive");
+  eosio::check(stake_bonus_deadline > time_point_sec(now()),
+               "stake bonus deadline must be in future");
 
   config_table config_tbl(_self, _self.value);
   eosio::check(!config_tbl.exists(), "already initialized");
@@ -19,7 +23,9 @@ void stake::init(name token_contract, const symbol& stake_symbol,
                         claim_symbol,
                         age_limit,
                         scale_factor,
-                        unstake_delay_sec}, get_self());
+                        unstake_delay_sec,
+                        stake_bonus_age,
+                        stake_bonus_deadline}, get_self());
 }
 
 void stake::transfer_handler(name from, name to, asset quantity, std::string memo) {
@@ -43,6 +49,11 @@ void stake::transfer_handler(name from, name to, asset quantity, std::string mem
 
     eosio::check(stakes != stakes_tbl.end(), "you must open a stake before staking");
 
+    uint32_t start_age = 0;
+    if (time_point_sec(now()) <= config.stake_bonus_deadline) {
+      start_age += config.stake_bonus_age;
+    }
+
     if (stakes->amount.amount == 0) {
       // this is a new stake
       stakes_tbl.modify(stakes, eosio::same_payer,
@@ -50,7 +61,7 @@ void stake::transfer_handler(name from, name to, asset quantity, std::string mem
                         {
                           st.amount = quantity;
                           st.last_claim_time = time_point_sec(now());
-                          st.last_claim_age = 0;
+                          st.last_claim_age = start_age;
                         });
     } else {
       // dilute an existing stake; a claim is mandatory
@@ -58,7 +69,7 @@ void stake::transfer_handler(name from, name to, asset quantity, std::string mem
                    "you must claim before diluting your stake");
 
       asset new_amount = stakes->amount + quantity;
-      uint32_t new_last_claim_age = (stakes->last_claim_age * stakes->amount.amount) / new_amount.amount;
+      uint32_t new_last_claim_age = ((stakes->last_claim_age * stakes->amount.amount) + (start_age * quantity.amount))  / new_amount.amount;
 
       stakes_tbl.modify(stakes, eosio::same_payer,
                         [&](auto& stk)
