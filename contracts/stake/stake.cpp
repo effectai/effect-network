@@ -126,20 +126,26 @@ void stake::unstake(name owner, asset quantity) {
                                                  });
   }
 
+  config_table config_tbl(_self, _self.value);
+  auto config = config_tbl.get();
+
+  auto unstake_time = time_point_sec(now()) + config.unstake_delay_sec;
+
   unstake_table unstake_tbl(get_self(), owner.value);
   auto to = unstake_tbl.find(sym.code().raw());
+
   if (to == unstake_tbl.end()) {
     unstake_tbl.emplace(owner, [&](auto& stk)
                                {
                                  stk.amount = quantity;
-                                 stk.time = time_point_sec(now());
+                                 stk.time = unstake_time;
                                });
   } else {
     unstake_tbl.modify(to, eosio::same_payer,
                        [&](auto& stk)
                        {
                          stk.amount += quantity;
-                         stk.time = time_point_sec(now());
+                         stk.time = unstake_time;
                        });
   }
 }
@@ -151,9 +157,7 @@ void stake::refund(name owner) {
   unstake_table unstake_tbl(get_self(), owner.value);
   const auto& unstakes = unstake_tbl.get(config.stake_symbol.code().raw(), "no unstake exists");
 
-  auto unstake_at = unstakes.time + config.unstake_delay_sec;
-
-  eosio::check(time_point_sec(now()) > unstake_at, "unstake is still pending");
+  eosio::check(time_point_sec(now()) > unstakes.time, "unstake is still pending");
 
   asset refund_amount = unstakes.amount;
 
