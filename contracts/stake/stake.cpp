@@ -184,9 +184,9 @@ void stake::claim(name owner) {
 
   // calculate the new and old stake age
   auto cur = time_point_sec(now());
-  time_point age = (time_point) (cur - stakes.last_claim_time);
+  auto age = (microseconds) (cur - stakes.last_claim_time);
   uint32_t age_last = stakes.last_claim_age;
-  double aged = age.sec_since_epoch();
+  double aged = age.to_seconds();
   double age_new = std::min(age_last + aged, (double) config.age_limit);
 
   eosio::check(aged > 0.0, "nothing to claim");
