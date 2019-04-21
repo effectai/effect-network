@@ -125,13 +125,13 @@
     (.then #(eos/transact token-acc "transfer"
                          {:from owner-acc :to stake-acc :quantity (str "2.0000 " claim-sym) :memo "stake"}
                          [{:actor owner-acc :permission "active"}]))
-    (util/should-fail-with "asset cant be staked")
+    (util/should-fail-with "asset cannot be staked")
     ;; cant stake from a different token contract
     (.then
      #(eos/transact tkn-acc "transfer"
                     {:from owner-acc :to stake-acc :quantity (str "100.0000 " sym) :memo "stake"}
                     [{:actor owner-acc :permission "active"}]))
-    (util/should-fail-with "contract is not allowed to stake")
+    (util/should-fail-with "wrong token contract")
     (eos/wait-block 3)
     (.then done))))
 
@@ -199,7 +199,7 @@
     (eos/transact token-acc "transfer"
                   {:from owner-acc :to stake-acc :quantity (str "100.0000 " sym) :memo "stake"}
                   owner-perm)
-    (util/should-fail-with "you must claim before diluting your stake")
+    (util/should-fail-with "you must claim before you can top-up a stake")
     ;; fetch current stake info for comparison
     (.then #(eos/get-table-rows stake-acc owner-acc "stake"))
     (.then

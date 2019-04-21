@@ -6,8 +6,8 @@ void stake::init(name token_contract, const symbol& stake_symbol,
                  uint32_t stake_bonus_age, time_point_sec stake_bonus_deadline) {
   require_auth(get_self());
 
-  eosio::check(stake_symbol.is_valid(), "invalid symbol name");
-  eosio::check(claim_symbol.is_valid(), "invalid symbol name");
+  eosio::check(stake_symbol.is_valid(), "invalid stake symbol");
+  eosio::check(claim_symbol.is_valid(), "invalid claim symbol");
   eosio::check(age_limit > 0, "age limit must be positive");
   eosio::check(scale_factor > 0, "scale factor must be positive");
   eosio::check(unstake_delay_sec > 0, "unstake delay must be positive");
@@ -39,10 +39,10 @@ void stake::transfer_handler(name from, name to, asset quantity, std::string mem
     config_table config_tbl(_self, _self.value);
     eosio::check(config_tbl.exists(), "not initialized");
     auto config = config_tbl.get();
-    eosio::check(config.stake_symbol == sym, "asset cant be staked");
+    eosio::check(config.stake_symbol == sym, "asset cannot be staked");
 
     // validate the contract that is staking
-    eosio::check(config.token_contract == get_code(), "contract is not allowed to stake");
+    eosio::check(config.token_contract == get_code(), "wrong token contract");
 
     stake_table stakes_tbl(get_self(), from.value);
     auto stakes = stakes_tbl.find(sym.code().raw());
@@ -64,9 +64,9 @@ void stake::transfer_handler(name from, name to, asset quantity, std::string mem
                           st.last_claim_age = start_age;
                         });
     } else {
-      // dilute an existing stake; a claim is mandatory
+      // top-up an existing stake; a claim is mandatory
       eosio::check(stakes->last_claim_time == time_point_sec(now()),
-                   "you must claim before diluting your stake");
+                   "you must claim before you can top-up a stake");
 
       asset new_amount = stakes->amount + quantity;
       uint32_t new_last_claim_age = ((stakes->last_claim_age * stakes->amount.amount) + (start_age * quantity.amount))  / new_amount.amount;
@@ -205,7 +205,7 @@ void stake::claim(name owner) {
                                                {
                                                  a.last_claim_time = cur;
                                                  a.last_claim_age = age_new;
-                                                 });
+                                               });
 
     if (claim_amount > 0) {
       action(permission_level{_self, "active"_n},
