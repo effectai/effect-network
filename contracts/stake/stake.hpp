@@ -24,11 +24,13 @@ class [[eosio::contract("stake")]] stake : public contract {
 
   [[eosio::action]]
     void init(name token_contract,
-              symbol_code stake_symbol,
-              symbol_code claim_symbol,
+              const symbol& stake_symbol,
+              const symbol& claim_symbol,
               uint32_t age_limit,
               uint64_t scale_factor,
-              uint32_t unstake_delay_sec);
+              uint32_t unstake_delay_sec,
+              uint32_t stake_bonus_age,
+              time_point_sec stake_bonus_deadline);
 
   [[eosio::action]]
     void unstake(name owner,
@@ -38,19 +40,24 @@ class [[eosio::contract("stake")]] stake : public contract {
     void refund(name owner);
 
   [[eosio::action]]
-    void claim(name owner,
-               symbol_code token);
+    void open(name owner,
+              name ram_payer);
+
+  [[eosio::action]]
+    void claim(name owner);
 
   void transfer_handler(name from, name to, asset quantity, std::string memo);
 
  private:
   struct [[eosio::table]] config {
     name token_contract;
-    symbol_code stake_symbol;
-    symbol_code claim_symbol;
+    symbol stake_symbol;
+    symbol claim_symbol;
     uint32_t age_limit;
     uint64_t scale_factor;
     uint32_t unstake_delay_sec;
+    uint32_t stake_bonus_age;
+    time_point_sec stake_bonus_deadline;
   };
 
   struct [[eosio::table]] stakeentry {

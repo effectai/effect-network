@@ -67,9 +67,11 @@
        (.then done))))
    :after (fn [])})
 
-(def init-config {:token_contract token-acc :stake_symbol sym
-                  :claim_symbol claim-sym :age_limit 5 :scale_factor (*  1000000 1)
-                  :unstake_delay_sec 2})
+(def init-config {:token_contract token-acc :stake_symbol (str "4," sym)
+                  :claim_symbol (str "4," claim-sym) :age_limit 65
+                  :scale_factor (*  1000000 1) :unstake_delay_sec 2
+                  :stake_bonus_age 60
+                  :stake_bonus_deadline "2019-05-18T14:37:30"})
 
 (deftest initialize
   (async
@@ -94,14 +96,25 @@
                            "can only initialize once")
     (.then done))))
 
+(def owner-perm [{:actor owner-acc :permission "active"}])
+
 (deftest stake
   (async
    done
    (->
-    ;; perform stake
+    ;; needs open stake entry
     (eos/transact token-acc "transfer"
                   {:from owner-acc :to stake-acc :quantity (str "100.0000 " sym) :memo "stake"}
-                  [{:actor owner-acc :permission "active"}])
+                  owner-perm)
+    (util/should-fail-with "you must open a stake before staking")
+    (.then
+     #(eos/transact [{:account stake-acc :name "open"
+                      :authorization owner-perm
+                      :data {:owner owner-acc :ram_payer owner-acc}}
+                     {:account token-acc :name "transfer"
+                      :authorization owner-perm
+                      :data {:from owner-acc :to stake-acc :quantity (str "100.0000 " sym)
+                             :memo "stake"}}]))
     (util/should-succeed "can perform a stake")
     ;; needs specific memo
     (.then #(eos/transact token-acc "transfer"
@@ -112,17 +125,17 @@
     (.then #(eos/transact token-acc "transfer"
                          {:from owner-acc :to stake-acc :quantity (str "2.0000 " claim-sym) :memo "stake"}
                          [{:actor owner-acc :permission "active"}]))
-    (util/should-fail-with "asset cant be staked")
+    (util/should-fail-with "asset cannot be staked")
     ;; cant stake from a different token contract
     (.then
      #(eos/transact tkn-acc "transfer"
                     {:from owner-acc :to stake-acc :quantity (str "100.0000 " sym) :memo "stake"}
                     [{:actor owner-acc :permission "active"}]))
-    (util/should-fail-with "contract is not allowed to stake")
+    (util/should-fail-with "wrong token contract")
     (eos/wait-block 3)
     (.then done))))
 
-(def owner-perm [{:actor owner-acc :permission "active"}])
+
 
 (defn doclaim
   [] (eos/transact stake-acc "claim" {:owner owner-acc :token sym} owner-perm))
@@ -186,7 +199,7 @@
     (eos/transact token-acc "transfer"
                   {:from owner-acc :to stake-acc :quantity (str "100.0000 " sym) :memo "stake"}
                   owner-perm)
-    (util/should-fail-with "you must claim before diluting your stake")
+    (util/should-fail-with "you must claim before you can top-up a stake")
     ;; fetch current stake info for comparison
     (.then #(eos/get-table-rows stake-acc owner-acc "stake"))
     (.then

@@ -7,9 +7,25 @@
 
 (def token-acc "forbeginners")
 (def swap-acc "dontworrybet")
-(def symb "ABC")
+(def stake-acc "upandrunning")
 (def bk-acc "foreveryoung")
-(def total-supply "650000000.0000")
+
+(def tkn-sym "TKN")
+(def clm-sym "CLM")
+(def tkn-total-supply "650000000.0000")
+(def clm-total-supply "20000000000.0000")
+
+(def sec-per-day 86400)
+
+(def stake-config {:token_contract token-acc :stake_symbol (str "4," tkn-sym)
+                   :claim_symbol (str "4," clm-sym) :age_limit (* 200 sec-per-day)
+                   :scale_factor (* 10000000000 sec-per-day)
+                   :unstake_delay_sec (* 7 sec-per-day)
+                   :stake_bonus_age (* 50 sec-per-day)
+                   :stake_bonus_deadline "2019-04-18T15:59:44.500"})
+
+(def swap-config {:token_contract token-acc :token_symbol tkn-sym
+                  :issue_memo (str "Welcome to EOS " tkn-sym "!")})
 
 (defn usage [opts]
   (->> ["Run as `npm run deploy jungle <PRIVATE KEY FOR SIGNING>`"
@@ -19,6 +35,9 @@
         "Code will be deployed to:"
         (str "- " token-acc " (token)")
         (str "- " swap-acc " (swap)")
+        (str "- " stake-acc " (stake)")
+        ""
+        (str bk-acc " is a book keeper which is allowed to posttx")
         ""]
        (string/join "\n")))
 
@@ -28,22 +47,44 @@
     (let [[privatekey] *command-line-args*]
       (eos/set-api! (assoc (:jungle eos/apis) :priv-keys [privatekey]))
       (->
-       ;; set authorities
-       (eos/update-auth swap-acc "active"
-                        [{:permission
-                          {:actor swap-acc :permission "eosio.code"}
-                          :weight 1}])
        ;; deploy fresh code
-       (.then #(eos/deploy token-acc "contracts/effect-token/src/effect-token"))
+       (eos/deploy token-acc "contracts/effect-token/effect-token")
        (.catch prn)
        (.then #(eos/deploy swap-acc "contracts/swap/swap"))
        (.catch prn)
+       (.then #(eos/deploy stake-acc "contracts/stake/stake"))
+       (.catch prn)
+       ;; set authorities
+       (.then
+        #(eos/update-auth swap-acc "active"
+                          [{:permission
+                            {:actor swap-acc :permission "eosio.code"}
+                            :weight 1}]))
+       (.then
+        #(eos/update-auth stake-acc "active"
+                          [{:permission
+                            {:actor stake-acc :permission "eosio.code"}
+                            :weight 1}]))
        eos/wait-block
        ;; create the token
-       (.then  (print "\n========================\nCREATE TOKEN" symb
+       (.then #(print "\n========================\nCREATE TOKEN" tkn-sym
                       " in " token-acc "\n========================\n"))
-       (.then #(eos/transact token-acc "create"
-                             {:issuer swap-acc :maximum_supply (str total-supply symb)}))
+       (.then
+        #(eos/transact token-acc "create"
+                       {:issuer swap-acc :maximum_supply (str tkn-total-supply " " tkn-sym)}))
+       (.catch prn)
+       (.then
+        #(eos/transact token-acc "create"
+                       {:issuer stake-acc :maximum_supply (str clm-total-supply " " clm-sym)}))
+       (.catch prn)
+       ;; initialize stake and swap
+       (.then
+        #(eos/transact stake-acc "init" stake-config
+                       [{:actor stake-acc :permission "owner"}]))
+       (.catch prn)
+       (.then
+        #(eos/transact swap-acc "init" swap-config
+                       [{:actor swap-acc :permission "owner"}]))
        (.catch prn)
        ;; add a bookkeeper that can post neo txs
        (.then #(eos/transact swap-acc "mkbookkeeper" {:account bk-acc}
