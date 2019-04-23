@@ -17,9 +17,11 @@
 (def efx-sym "EFX")
 (def nfx-sym "NFX")
 
-(def stake-config {:token_contract token-acc :stake_symbol efx-sym
-                   :claim_symbol nfx-sym :age_limit 5 :scale_factor (*  1000000 1)
-                   :unstake_delay_sec 2})
+(def stake-config {:token_contract token-acc :stake_symbol (str "4," efx-sym)
+                                     :claim_symbol (str "4," nfx-sym) :age_limit 65
+                                     :scale_factor (*  1000000 1) :unstake_delay_sec 30
+                                     :stake_bonus_age 60
+                                     :stake_bonus_deadline "2019-05-18T14:37:30"})
 
 (def swap-config {:token_contract token-acc :token_symbol efx-sym
                   :issue_memo "Token Swap"})
