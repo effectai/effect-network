@@ -1,6 +1,6 @@
 (ns e2e.swap
   (:require
-   [eos-deploys.core :as eos]
+   [eos-cljs.core :as eos]
    e2e.token
    [e2e.util :as util]
    ["@cityofzion/neon-js" :refer [rpc tx] :as Neon]
@@ -59,7 +59,7 @@
                  permission)))
 
 (def init-config {:token_contract token-acc :token_symbol sym
-                  :issue_memo "Token Swap"})
+                  :issue_memo "Token Swap" :tx_max_age 100000000})
 
 (deftest initialize
   (async
@@ -162,8 +162,7 @@
     (.then (fn [row]
              (testing "nep5 tx is correct"
                (is (= (get row "txid") tx-hash))
-               (is (= (get row "value") (:value tx-parsed)))
-               (is (= (get row "asset_hash") (:script-hash tx-parsed))))))
+               (is (= (get row "value") (:value tx-parsed))))))
     ;; cant create same tx twice
     (.then #(do-posttx))
     (util/should-fail-with "assertion failure with message: tx already posted"
@@ -182,7 +181,7 @@
   (async
    done
    (->
-    (eos/transact swap-acc "issue" {:txid tx-hash})
+    (eos/transact swap-acc "issue" {:to owner-acc})
     ;; (.then #(do (prn (eos/tx-get-console %)) %))
     (.then (fn [res]
              (testing "swap transaction exists"

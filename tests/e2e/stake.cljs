@@ -1,6 +1,6 @@
 (ns e2e.stake
   (:require
-   [eos-deploys.core :as eos]
+   [eos-cljs.core :as eos]
    e2e.token
    [e2e.util :as util]
    ["@cityofzion/neon-js" :refer [rpc tx] :as Neon]
