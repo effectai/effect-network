@@ -62,6 +62,20 @@
                   :issue_memo "Token Swap" :tx_max_age 100000000
                   :min_tx_value 1 :max_tx_value "10000000000"})
 
+(def update-config {:issue_memo "Token Swap" :tx_max_age 100000000
+                    :min_tx_value 1 :max_tx_value "10000000000"})
+
+(deftest update
+  (async
+   done
+   (->
+    ;; cant update before init
+    (eos/transact swap-acc "update" update-config)
+    (util/should-fail-with "not initialized"
+                            "cant call update before init")
+    (util/should-succeed)
+    (.then done))))
+
 (deftest initialize
   (async
    done
