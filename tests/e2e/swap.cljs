@@ -59,7 +59,8 @@
                  permission)))
 
 (def init-config {:token_contract token-acc :token_symbol sym
-                  :issue_memo "Token Swap" :tx_max_age 100000000})
+                  :issue_memo "Token Swap" :tx_max_age 100000000
+                  :min_tx_value 1 :max_tx_value "10000000000"})
 
 (deftest initialize
   (async
