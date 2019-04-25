@@ -1,6 +1,6 @@
 (ns local
   (:require
-   [eos-deploys.core :as eos]
+   [eos-cljs.core :as eos]
    [cljs.core :refer [*command-line-args*]]
    [clojure.string :as string]
    (clojure.pprint :refer [pprint])))
@@ -12,27 +12,38 @@
         using the default keys in a privnet."]
        (string/join "\n")))
 
+(def owner-acc "eosio")
+(def token-acc "token")
+(def stake-acc "stake")
+(def swap-acc "swap")
+
 (def efx-supply "650000000.0000 EFX")
 (def nfx-supply "20000000000.0000 NFX")
 (def efx-sym "EFX")
 (def nfx-sym "NFX")
 
-(def stake-config {:token_contract token-acc :stake_symbol efx-sym
-                   :claim_symbol nfx-sym :age_limit 5 :scale_factor (*  1000000 1)
-                   :unstake_delay_sec 2})
+(def sec-per-day 86400)
+
+(def stake-config {:token_contract token-acc :stake_symbol (str "4," efx-sym)
+                   :claim_symbol (str "4," nfx-sym) :age_limit 5
+                   :scale_factor (*  1000000 1)
+                   :unstake_delay_sec 2
+                   :stake_bonus_age (* 50 sec-per-day)
+                   :stake_bonus_deadline "2019-05-03T15:59:44.500"                   })
 
 (def swap-config {:token_contract token-acc :token_symbol efx-sym
+                  :tx_max_age 600
                   :issue_memo "Token Swap"})
 
-(defn setup [owner-acc token-acc swap-acc stake-acc]
+(defn setup []
   (print "\n========================\nCREATE TOKENS" "\n========================\n")
   (-> (eos/transact token-acc "create" {:issuer swap-acc :maximum_supply efx-supply})
-      (.catch prn)      
+      (.catch prn)
       (.then #(println "> Token created " efx-sym))
       (.then #(eos/transact token-acc "create"
                             {:issuer stake-acc :maximum_supply nfx-supply}))
-      (.catch prn)      
-      (.then #(println "> Token created " nfx-sym))        
+      (.catch prn)
+      (.then #(println "> Token created " nfx-sym))
       (.then #(eos/transact stake-acc "init"
                             (assoc stake-config :token_contract token-acc)
                             [{:actor stake-acc :permission "owner"}]))
@@ -44,14 +55,13 @@
       (.catch prn)))
 
 (defn -main []
-  (let [[token-acc swap-acc stake-acc] *command-line-args*
-        owner-acc "eosio"]
+  (let [args *command-line-args*]
     (->
      (eos/create-account owner-acc token-acc)
      (.catch prn)
      (.then #(eos/create-account owner-acc swap-acc))
      (.catch prn)
-     (.then #(eos/create-account owner-acc stake-acc))     
+     (.then #(eos/create-account owner-acc stake-acc))
      (.catch prn)
      (.then #(eos/deploy token-acc "contracts/effect-token/effect-token"))
      (.catch prn)
@@ -60,16 +70,15 @@
      (.then #(eos/deploy stake-acc "contracts/stake/stake"))
      (.catch prn)
      (.then #(eos/update-auth swap-acc "active"
-                              [{:permission
-                                {:actor owner-acc :permission "active"}
+                              [{:permission {:actor owner-acc :permission "active"}
                                 :weight 1}
-                               {:permission
-                                {:actor swap-acc :permission "eosio.code"}
-                                :weight 1}]))
+                               {:permission {:actor swap-acc :permission "eosio.code"}
+                                :weight 1}
+                               ]))
      (.then #(eos/update-auth stake-acc "active"
-                              [{:permission {:actor token-acc :permission "eosio.code"}
+                              [{:permission {:actor stake-acc :permission "eosio.code"}
                                 :weight 1}
-                               {:permission {:actor stake-acc :permission "eosio.code"}
+                               {:permission {:actor token-acc :permission "eosio.code"}
                                 :weight 1}]))
-     (.then #(setup owner-acc token-acc swap-acc stake-acc))
+     (.then setup)
      (.then #(print "\nDone!\n")))))

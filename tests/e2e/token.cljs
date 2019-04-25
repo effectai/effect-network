@@ -1,6 +1,6 @@
 (ns e2e.token
   (:require
-   [eos-deploys.core :as eos]
+   [eos-cljs.core :as eos]
    [clojure.string :as string]
    [cljs.test :refer [do-report report] :refer-macros [deftest is testing run-tests async use-fixtures]]))
 

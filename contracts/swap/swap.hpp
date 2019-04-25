@@ -5,6 +5,7 @@
 #include <eosiolib/types.h>
 #include <eosiolib/asset.hpp>
 #include <eosiolib/crypto.h>
+#include <eosiolib/time.hpp>
 #include <eosiolib/singleton.hpp>
 #include <string>
 
@@ -22,7 +23,8 @@ class [[eosio::contract("swap")]] swap : public contract {
   [[eosio::action]]
     void init(name token_contract,
               symbol_code token_symbol,
-              std::string issue_memo);
+              std::string issue_memo,
+              uint32_t tx_max_age);
 
   [[eosio::action]]
     void posttx(name bookkeeper,
@@ -47,12 +49,13 @@ class [[eosio::contract("swap")]] swap : public contract {
     name token_contract;
     symbol_code token_symbol;
     std::string issue_memo;
+    uint32_t tx_max_age;
   };
 
   struct [[eosio::table]] nep5 {
     uint64_t id;
     checksum256 txid;
-    fixed_bytes<20> asset_hash;
+    time_point_sec txtime;
     int64_t value;
     name to;
     uint64_t issued;
