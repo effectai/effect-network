@@ -28,7 +28,7 @@ void swap::update(const std::string issue_memo, uint32_t tx_max_age,
 
   config_table config_tbl(_self, _self.value);
 
-  eosio::check(config_tbl.exists(), "not initialized");
+  eosio::check(config_tbl.exists(), "config table not initialized");
   eosio::check(issue_memo.size() <= 256, "memo has more than 256 bytes");
   eosio::check(tx_max_age > 0, "tx max age must be positive");
   eosio::check(min_tx_value >= 0, "tx min value must be positive");
