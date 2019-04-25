@@ -181,7 +181,7 @@
   (async
    done
    (->
-    (eos/transact swap-acc "issue" {:to owner-acc})
+    (eos/transact swap-acc "issue" {:txid tx-hash})
     ;; (.then #(do (prn (eos/tx-get-console %)) %))
     (.then (fn [res]
              (testing "swap transaction exists"
