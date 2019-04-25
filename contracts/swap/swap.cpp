@@ -22,6 +22,27 @@ void swap::init(const name token_contract, const symbol_code token_symbol,
                         max_tx_value}, get_self());
 }
 
+void swap::update(const std::string issue_memo, uint32_t tx_max_age,
+                  uint64_t min_tx_value, uint64_t max_tx_value) {
+  require_auth(get_self());
+
+  config_table config_tbl(_self, _self.value);
+
+  eosio::check(config_tbl.exists(), "not initialized");
+  eosio::check(issue_memo.size() <= 256, "memo has more than 256 bytes");
+  eosio::check(tx_max_age > 0, "tx max age must be positive");
+  eosio::check(min_tx_value >= 0, "tx min value must be positive");
+  eosio::check(max_tx_value >= 0, "tx max value must be positive");
+
+  auto config = config_tbl.get();
+  config.issue_memo = issue_memo;
+  config.tx_max_age = tx_max_age;
+  config.min_tx_value = min_tx_value;
+  config.max_tx_value = max_tx_value;
+
+  config_tbl.set(config, get_self());
+}
+
 void swap::posttx(const name bookkeeper, const std::vector<char> rawtx, const name to,
                   const fixed_bytes<20> asset_hash, const int64_t value) {
   require_auth(bookkeeper);
@@ -111,4 +132,4 @@ capi_checksum256 swap::neo_hash(const std::vector<char> data) {
   return blockhash;
 }
 
-EOSIO_DISPATCH(swap, (init)(posttx)(issue)(mkbookkeeper)(rmbookkeeper));
+EOSIO_DISPATCH(swap, (init)(update)(posttx)(issue)(mkbookkeeper)(rmbookkeeper));
