@@ -3,3 +3,4 @@ build
 *.wasm
 node_modules
 .idea/
+.vscode/

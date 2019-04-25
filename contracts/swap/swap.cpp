@@ -1,18 +1,20 @@
 #include "swap.hpp"
 
 void swap::init(const name token_contract, const symbol_code token_symbol,
-                const std::string issue_memo) {
+                const std::string issue_memo, uint32_t tx_max_age) {
   require_auth(get_self());
 
   eosio::check(token_symbol.is_valid(), "invalid symbol name");
   eosio::check(issue_memo.size() <= 256, "memo has more than 256 bytes");
+  eosio::check(tx_max_age > 0, "tx max age must be positive");
 
   config_table config_tbl(_self, _self.value);
   eosio::check(!config_tbl.exists(), "already initialized");
 
   config_tbl.set(config{token_contract,
                         token_symbol,
-                        issue_memo}, get_self());
+                        issue_memo,
+                        tx_max_age}, get_self());
 }
 
 void swap::posttx(const name bookkeeper, const std::vector<char> rawtx, const name to,
@@ -37,7 +39,7 @@ void swap::posttx(const name bookkeeper, const std::vector<char> rawtx, const na
                        {
                          n.id = id;
                          n.txid = txid;
-                         n.asset_hash = asset_hash;
+                         n.txtime = time_point_sec(now());
                          n.to = to;
                          n.value = value;
                          n.issued = false;
