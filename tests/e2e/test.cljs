@@ -5,5 +5,4 @@
 (defn -main []
   (-> (run-tests 'e2e.token)
       (.then #(run-tests 'e2e.swap))
-      (.then #(run-tests 'e2e.stake))
-      (.then prn)))
+      (.then #(run-tests 'e2e.stake))))
