@@ -30,12 +30,8 @@
        (.then #(eos/create-account owner-acc tkn-acc))
        (.then #(println (str "> Created STAKE account " stake-acc
                              "\n> Created TOKEN account " tkn-acc)))
-       eos/wait-block
-       eos/wait-block
        (.then #(eos/deploy stake-acc "contracts/stake/stake"))
        (.then #(eos/deploy tkn-acc "contracts/effect-token/effect-token"))
-       eos/wait-block
-       eos/wait-block
        (.then #(eos/update-auth stake-acc "active"
                                 [{:permission {:actor token-acc :permission "eosio.code"}
                                   :weight 1}
@@ -43,14 +39,12 @@
                                   :weight 1}
                                  {:permission {:actor tkn-acc :permission "eosio.code"}
                                   :weight 1}]))
-       eos/wait-block
        (.then #(eos/transact token-acc "create"
                              {:issuer stake-acc :maximum_supply total-supply}))
        (.then #(eos/transact token-acc "create"
                              {:issuer stake-acc :maximum_supply (str "1000.0000 " claim-sym)}))
        (.then #(eos/transact tkn-acc "create"
                              {:issuer stake-acc :maximum_supply total-supply}))
-       eos/wait-block
        (.then
         #(eos/transact token-acc "issue"
                        {:to owner-acc :quantity (str "500.0000 " sym) :memo "hi"}
@@ -101,39 +95,44 @@
 (deftest stake
   (async
    done
-   (->
-    ;; needs open stake entry
-    (eos/transact token-acc "transfer"
-                  {:from owner-acc :to stake-acc :quantity (str "100.0000 " sym) :memo "stake"}
-                  owner-perm)
-    (util/should-fail-with "you must open a stake before staking")
-    (.then
-     #(eos/transact [{:account stake-acc :name "open"
-                      :authorization owner-perm
-                      :data {:owner owner-acc :ram_payer owner-acc}}
-                     {:account token-acc :name "transfer"
-                      :authorization owner-perm
-                      :data {:from owner-acc :to stake-acc :quantity (str "100.0000 " sym)
-                             :memo "stake"}}]))
-    (util/should-succeed "can perform a stake")
-    ;; needs specific memo
-    (.then #(eos/transact token-acc "transfer"
-                         {:from owner-acc :to stake-acc :quantity (str "1.0000 " sym) :memo ""}
-                         [{:actor owner-acc :permission "active"}]))
-    (util/should-fail-with "only stake transactions are accepted")
-    ;; needs specific asset
-    (.then #(eos/transact token-acc "transfer"
-                         {:from owner-acc :to stake-acc :quantity (str "2.0000 " claim-sym) :memo "stake"}
-                         [{:actor owner-acc :permission "active"}]))
-    (util/should-fail-with "asset cannot be staked")
-    ;; cant stake from a different token contract
-    (.then
-     #(eos/transact tkn-acc "transfer"
-                    {:from owner-acc :to stake-acc :quantity (str "100.0000 " sym) :memo "stake"}
-                    [{:actor owner-acc :permission "active"}]))
-    (util/should-fail-with "wrong token contract")
-    (eos/wait-block 3)
-    (.then done))))
+   (let [stk-amount (str "100.0000 " sym)]
+     (->
+      ;; needs open stake entry
+      (eos/transact token-acc "transfer"
+                    {:from owner-acc :to stake-acc :quantity stk-amount :memo "stake"}
+                    owner-perm)
+      (util/should-fail-with "you must open a stake before staking")
+      (.then
+       #(eos/transact [{:account stake-acc :name "open"
+                        :authorization owner-perm
+                        :data {:owner owner-acc :ram_payer owner-acc}}
+                       {:account token-acc :name "transfer"
+                        :authorization owner-perm
+                        :data {:from owner-acc :to stake-acc :quantity stk-amount
+                               :memo "stake"}}]))
+      (util/should-succeed "can perform a stake")
+      ;; needs specific memo
+      (.then #(eos/transact token-acc "transfer"
+                            {:from owner-acc :to stake-acc :quantity (str "1.0000 " sym) :memo ""}
+                            [{:actor owner-acc :permission "active"}]))
+      (util/should-fail-with "only stake transactions are accepted")
+      ;; needs specific asset
+      (.then #(eos/transact token-acc "transfer"
+                            {:from owner-acc :to stake-acc :quantity (str "2.0000 " claim-sym) :memo "stake"}
+                            [{:actor owner-acc :permission "active"}]))
+      (util/should-fail-with "asset cannot be staked")
+      ;; cant stake from a different token contract
+      ;; the transfer is allowed, but shouldnt affect stake
+      (.then
+       #(eos/transact tkn-acc "transfer"
+                      {:from owner-acc :to stake-acc :quantity stk-amount :memo "stake"}
+                      [{:actor owner-acc :permission "active"}]))
+      (util/should-succeed "can transfer from different account")
+      (.then #(eos/get-table-rows stake-acc owner-acc "stake"))
+      (.then #(is (= (get-in % [0 "amount"]) stk-amount)
+                  "cant stake from different account"))
+      (eos/wait-block 3)
+      (.then done)))))
 
 
 

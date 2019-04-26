@@ -32,9 +32,7 @@
               (->
                (eos/create-account owner-acc swap-acc)
                (.then #(eos/create-account owner-acc bk-acc))
-               (.catch prn)
                (.then #(println (str "> Created SWAP account " swap-acc)))
-               eos/wait-block
                (.then #(eos/deploy swap-acc "contracts/swap/swap"))
                (.catch prn)
                (.then #(eos/update-auth swap-acc "active"
@@ -42,7 +40,6 @@
                                           :weight 1}
                                          {:permission {:actor owner-acc :permission "active"}
                                           :weight 1}]))
-               eos/wait-block
                (.then #(eos/transact token-acc "create"
                                      {:issuer swap-acc :maximum_supply total-supply}))
                (.catch prn)
@@ -80,7 +77,6 @@
     (.then #(eos/transact swap-acc "init" init-config))
     (util/should-succeed "can perform init")
     (.then #(eos/get-table-rows swap-acc swap-acc "config"))
-
     (.then #(is (= (vals (first %)) (vals init-config)) "config incorrect"))
     eos/wait-block
     ;; cant set config twice
