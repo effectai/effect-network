@@ -7,6 +7,7 @@
 #include <eosiolib/crypto.h>
 #include <eosiolib/time.hpp>
 #include <eosiolib/singleton.hpp>
+#include <eosiolib/transaction.hpp>
 #include <string>
 
 using namespace eosio;

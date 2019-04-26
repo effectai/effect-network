@@ -2,4 +2,5 @@ build
 *.abi
 *.wasm
 node_modules
+.idea/
 .vscode/
