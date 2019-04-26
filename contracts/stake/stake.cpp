@@ -29,54 +29,59 @@ void stake::init(name token_contract, const symbol& stake_symbol,
 }
 
 void stake::transfer_handler(name from, name to, asset quantity, std::string memo) {
+  config_table config_tbl(_self, _self.value);
+
   // stake when receiving funds
-  if (to == get_self()) {
-    // stakes transfers require a specific memo
-    eosio::check(memo == STAKE_MEMO, "only stake transactions are accepted");
-    auto sym = quantity.symbol;
-
-    // validate the asset
-    config_table config_tbl(_self, _self.value);
-    eosio::check(config_tbl.exists(), "not initialized");
+  if (to == get_self() && config_tbl.exists()) {
     auto config = config_tbl.get();
-    eosio::check(config.stake_symbol == sym, "asset cannot be staked");
 
-    // validate the contract that is staking
-    eosio::check(config.token_contract == get_code(), "wrong token contract");
+    // if the transfer originates from a different contract then pass through
+    if (config.token_contract == get_code()) {
+      // stakes transfers require a specific memo
+      eosio::check(memo == STAKE_MEMO, "only stake transactions are accepted");
+      auto sym = quantity.symbol;
 
-    stake_table stakes_tbl(get_self(), from.value);
-    auto stakes = stakes_tbl.find(sym.code().raw());
+      // validate the asset
+      eosio::check(config.stake_symbol == sym, "asset cannot be staked");
 
-    eosio::check(stakes != stakes_tbl.end(), "you must open a stake before staking");
+      // validate the contract that is staking
+      // redundant check that is also in the if statement above
+      eosio::check(config.token_contract == get_code(), "wrong token contract");
 
-    uint32_t start_age = 0;
-    if (time_point_sec(now()) <= config.stake_bonus_deadline) {
-      start_age += config.stake_bonus_age;
-    }
+      stake_table stakes_tbl(get_self(), from.value);
+      auto stakes = stakes_tbl.find(sym.code().raw());
 
-    if (stakes->amount.amount == 0) {
-      // this is a new stake
-      stakes_tbl.modify(stakes, eosio::same_payer,
-                        [&](auto& st)
-                        {
-                          st.amount = quantity;
-                          st.last_claim_time = time_point_sec(now());
-                          st.last_claim_age = start_age;
-                        });
-    } else {
-      // top-up an existing stake; a claim is mandatory
-      eosio::check(stakes->last_claim_time == time_point_sec(now()),
-                   "you must claim before you can top-up a stake");
+      eosio::check(stakes != stakes_tbl.end(), "you must open a stake before staking");
 
-      asset new_amount = stakes->amount + quantity;
-      uint32_t new_last_claim_age = ((stakes->last_claim_age * stakes->amount.amount) + (start_age * quantity.amount))  / new_amount.amount;
+      uint32_t start_age = 0;
+      if (time_point_sec(now()) <= config.stake_bonus_deadline) {
+        start_age += config.stake_bonus_age;
+      }
 
-      stakes_tbl.modify(stakes, eosio::same_payer,
-                        [&](auto& stk)
-                        {
-                          stk.last_claim_age = new_last_claim_age;
-                          stk.amount = new_amount;
-                        });
+      if (stakes->amount.amount == 0) {
+        // this is a new stake
+        stakes_tbl.modify(stakes, eosio::same_payer,
+                          [&](auto& st)
+                          {
+                            st.amount = quantity;
+                            st.last_claim_time = time_point_sec(now());
+                            st.last_claim_age = start_age;
+                          });
+      } else {
+        // top-up an existing stake; a claim is mandatory
+        eosio::check(stakes->last_claim_time == time_point_sec(now()),
+                     "you must claim before you can top-up a stake");
+
+        asset new_amount = stakes->amount + quantity;
+        uint32_t new_last_claim_age = ((stakes->last_claim_age * stakes->amount.amount) + (start_age * quantity.amount))  / new_amount.amount;
+
+        stakes_tbl.modify(stakes, eosio::same_payer,
+                          [&](auto& stk)
+                          {
+                            stk.last_claim_age = new_last_claim_age;
+                            stk.amount = new_amount;
+                          });
+      }
     }
   }
 }

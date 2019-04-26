@@ -1,6 +1,6 @@
 (ns jungle
   (:require
-   [eos-deploys.core :as eos]
+   [eos-cljs.core :as eos]
    [cljs.core :refer [*command-line-args*]]
    [clojure.string :as string]
    (clojure.pprint :refer [pprint])))
@@ -25,7 +25,9 @@
                    :stake_bonus_deadline "2019-04-18T15:59:44.500"})
 
 (def swap-config {:token_contract token-acc :token_symbol tkn-sym
-                  :issue_memo (str "Welcome to EOS " tkn-sym "!")})
+                  :issue_memo (str "Welcome to EOS " tkn-sym "!")
+                  :tx_max_age 10000
+                  :min_tx_value 1 :max_tx_value 100000})
 
 (defn usage [opts]
   (->> ["Run as `npm run deploy jungle <PRIVATE KEY FOR SIGNING>`"

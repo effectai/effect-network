@@ -1,12 +1,15 @@
 #include "swap.hpp"
 
 void swap::init(const name token_contract, const symbol_code token_symbol,
-                const std::string issue_memo, uint32_t tx_max_age) {
+                const std::string issue_memo, uint32_t tx_max_age,
+                uint64_t min_tx_value, uint64_t max_tx_value) {
   require_auth(get_self());
 
   eosio::check(token_symbol.is_valid(), "invalid symbol name");
   eosio::check(issue_memo.size() <= 256, "memo has more than 256 bytes");
   eosio::check(tx_max_age > 0, "tx max age must be positive");
+  eosio::check(min_tx_value >= 0, "tx min value must be positive");
+  eosio::check(max_tx_value >= 0, "tx max value must be positive");
 
   config_table config_tbl(_self, _self.value);
   eosio::check(!config_tbl.exists(), "already initialized");
@@ -14,14 +17,20 @@ void swap::init(const name token_contract, const symbol_code token_symbol,
   config_tbl.set(config{token_contract,
                         token_symbol,
                         issue_memo,
-                        tx_max_age}, get_self());
+                        tx_max_age,
+                        min_tx_value,
+                        max_tx_value}, get_self());
 }
 
 void swap::posttx(const name bookkeeper, const std::vector<char> rawtx, const name to,
                   const fixed_bytes<20> asset_hash, const int64_t value) {
   require_auth(bookkeeper);
 
-  eosio::check(value >= MIN_TX_VALUE && value <= MAX_TX_VALUE, "invalid value");
+  config_table config_tbl(_self, _self.value);
+  auto config = config_tbl.get();
+
+  eosio::check(value >= config.min_tx_value, "value below min limit");
+  eosio::check(value <= config.max_tx_value, "value above max limit");
 
   auto bk = _bookkeeper.find(bookkeeper.value);
   eosio::check(bk != _bookkeeper.end(), "not a bookkeeper");
