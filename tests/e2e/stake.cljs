@@ -67,6 +67,25 @@
                   :stake_bonus_age 60
                   :stake_bonus_deadline "2019-05-18T14:37:30"})
 
+(def update-config (select-keys init-config [:unstake_delay_sec :stake_bonus_age
+                                             :stake_bonus_deadline]))
+
+(deftest update-bofore-init
+  (async
+   done
+   (->
+    ;; needs swap account authority
+    (eos/transact stake-acc "update" update-config
+                  [{:actor tkn-acc :permission "active"}])
+    (util/should-fail-with (str "missing authority of " stake-acc)
+                           "only stake account can update")
+    ;; cant update before init
+    (.then #(eos/transact stake-acc "update" update-config
+                          [{:actor stake-acc :permission "owner"}]))
+    (util/should-fail-with "not initialized"
+                           "cant call update before init")
+    (.then done))))
+
 (deftest initialize
   (async
    done
@@ -89,6 +108,23 @@
     (util/should-fail-with "already initialized"
                            "can only initialize once")
     (.then done))))
+
+(deftest update-after-init
+  (async
+   done
+   (let [new-update-config (update-in update-config [:stake_bonus_age] inc)
+         new-config (update-in init-config [:stake_bonus_age] inc)]
+     (->
+      ;; can perform update
+      (eos/transact stake-acc "update" new-update-config
+                    [{:actor stake-acc :permission "owner"}])
+      (util/should-succeed "can perform update")
+      (.then #(eos/get-table-rows stake-acc stake-acc "config"))
+      ;; compare
+      (.then #(do
+                (is (not (= (vals (first %)) (vals init-config))) "config incorrect")
+                (is (= (vals (first %)) (vals new-config)) "config incorrect")))
+      (.then done)))))
 
 (def owner-perm [{:actor owner-acc :permission "active"}])
 
