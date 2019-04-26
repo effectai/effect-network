@@ -59,10 +59,10 @@
                  permission)))
 
 (def init-config {:token_contract token-acc :token_symbol sym
-                  :issue_memo "Token Swap" :tx_max_age 100000000
+                  :tx_max_age 100000000
                   :min_tx_value 1 :max_tx_value "10000000000"})
 
-(def update-config (select-keys init-config [:issue_memo :tx_max_age :min_tx_value :max_tx_value]))
+(def update-config (select-keys init-config [:tx_max_age :min_tx_value :max_tx_value]))
 
 (deftest update-bofore-init
   (async

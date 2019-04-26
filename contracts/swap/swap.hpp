@@ -20,14 +20,12 @@ class [[eosio::contract("swap")]] swap : public contract {
   [[eosio::action]]
     void init(name token_contract,
               symbol_code token_symbol,
-              std::string issue_memo,
               uint32_t tx_max_age,
               uint64_t min_tx_value,
               uint64_t max_tx_value);
 
   [[eosio::action]]
-    void update(std::string issue_memo,
-                uint32_t tx_max_age,
+    void update(uint32_t tx_max_age,
                 uint64_t min_tx_value,
                 uint64_t max_tx_value);
 
@@ -53,7 +51,6 @@ class [[eosio::contract("swap")]] swap : public contract {
   struct [[eosio::table]] config {
     name token_contract;
     symbol_code token_symbol;
-    std::string issue_memo;
     uint32_t tx_max_age;
     uint64_t min_tx_value;
     uint64_t max_tx_value;

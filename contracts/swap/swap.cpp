@@ -1,12 +1,11 @@
 #include "swap.hpp"
 
 void swap::init(const name token_contract, const symbol_code token_symbol,
-                const std::string issue_memo, uint32_t tx_max_age,
-                uint64_t min_tx_value, uint64_t max_tx_value) {
+                uint32_t tx_max_age, uint64_t min_tx_value, uint64_t max_tx_value) {
   require_auth(get_self());
 
   eosio::check(token_symbol.is_valid(), "invalid symbol name");
-  eosio::check(issue_memo.size() <= 256, "memo has more than 256 bytes");
+
   eosio::check(tx_max_age > 0, "tx max age must be positive");
   eosio::check(min_tx_value >= 0, "tx min value must be positive");
   eosio::check(max_tx_value >= 0, "tx max value must be positive");
@@ -16,26 +15,22 @@ void swap::init(const name token_contract, const symbol_code token_symbol,
 
   config_tbl.set(config{token_contract,
                         token_symbol,
-                        issue_memo,
                         tx_max_age,
                         min_tx_value,
                         max_tx_value}, get_self());
 }
 
-void swap::update(const std::string issue_memo, uint32_t tx_max_age,
-                  uint64_t min_tx_value, uint64_t max_tx_value) {
+void swap::update(uint32_t tx_max_age, uint64_t min_tx_value, uint64_t max_tx_value) {
   require_auth(get_self());
 
   config_table config_tbl(_self, _self.value);
 
   eosio::check(config_tbl.exists(), "config table not initialized");
-  eosio::check(issue_memo.size() <= 256, "memo has more than 256 bytes");
   eosio::check(tx_max_age > 0, "tx max age must be positive");
   eosio::check(min_tx_value >= 0, "tx min value must be positive");
   eosio::check(max_tx_value >= 0, "tx max value must be positive");
 
   auto config = config_tbl.get();
-  config.issue_memo = issue_memo;
   config.tx_max_age = tx_max_age;
   config.min_tx_value = min_tx_value;
   config.max_tx_value = max_tx_value;
@@ -94,13 +89,13 @@ void swap::issue(const checksum256 txid) {
                             n.issued = true;
                           });
 
-  // TODO: fetch precision from token stat table?
+  // TODO: fetch precision from token stat table
   symbol sym = symbol(config.token_symbol, 4);
 
   action(permission_level{_self, "active"_n},
          config.token_contract,
          "issue"_n,
-         std::make_tuple(tx.to, asset(tx.value, sym), config.issue_memo)
+         std::make_tuple(tx.to, asset(tx.value, sym), std::string("efx swap"))
          ).send();
 }
 
