@@ -28,6 +28,24 @@ void stake::init(name token_contract, const symbol& stake_symbol,
                         stake_bonus_deadline}, get_self());
 }
 
+void stake::update(uint32_t unstake_delay_sec, uint32_t stake_bonus_age,
+                   time_point_sec stake_bonus_deadline) {
+  require_auth(get_self());
+
+  config_table config_tbl(_self, _self.value);
+
+  eosio::check(config_tbl.exists(), "config table not initialized");
+  eosio::check(unstake_delay_sec > 0, "unstake delay must be positive");
+  eosio::check(stake_bonus_age > 0, "stake bonus age must be positive");
+
+  auto config = config_tbl.get();
+  config.unstake_delay_sec = unstake_delay_sec;
+  config.stake_bonus_age = stake_bonus_age;
+  config.stake_bonus_deadline = stake_bonus_deadline;
+
+  config_tbl.set(config, get_self());
+}
+
 void stake::transfer_handler(name from, name to, asset quantity, std::string memo) {
   // stake when receiving funds
   if (to == get_self()) {
@@ -222,7 +240,7 @@ extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
                           &stake::transfer_handler);
   } else if (code == receiver) {
     switch(action) {
-      EOSIO_DISPATCH_HELPER(stake, (init)(open)(unstake)(refund)(claim));
+      EOSIO_DISPATCH_HELPER(stake, (init)(update)(open)(unstake)(refund)(claim));
     }
   }
 }

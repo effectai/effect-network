@@ -59,8 +59,25 @@
                  permission)))
 
 (def init-config {:token_contract token-acc :token_symbol sym
-                  :issue_memo "Token Swap" :tx_max_age 100000000
+                  :tx_max_age 100000000
                   :min_tx_value 1 :max_tx_value "10000000000"})
+
+(def update-config (select-keys init-config [:tx_max_age :min_tx_value :max_tx_value]))
+
+(deftest update-bofore-init
+  (async
+   done
+   (->
+    ;; needs swap account authority
+    (eos/transact swap-acc "update" update-config
+                          [{:actor bk-acc :permission "active"}])
+    (util/should-fail-with (str "missing authority of " swap-acc)
+                           "only swap account can update")
+    ;; cant update before init
+    (.then #(eos/transact swap-acc "update" update-config))
+    (util/should-fail-with "not initialized"
+                           "cant call update before init")
+    (.then done))))
 
 (deftest initialize
   (async
@@ -88,6 +105,25 @@
     (util/should-fail-with "already initialized"
                            "can only initialize once")
     (.then done))))
+
+(deftest update-after-init
+  (async
+   done
+   (let [new-update-config (update-in update-config [:tx_max_age] inc)
+   new-config (update-in init-config [:tx_max_age] inc)]
+   (->
+    ;; can perform update
+    (eos/transact swap-acc "update" new-update-config)
+    (util/should-succeed "can perform update")
+
+    (.then #(eos/get-table-rows swap-acc swap-acc "config"))
+
+    ;; compare
+    (.then #(do
+        (is (not (= (vals (first %)) (vals init-config))) "config incorrect")
+        (is (= (vals (first %)) (vals new-config)) "config incorrect")
+        ))
+    (.then done)))))
 
 (deftest bookkeeper-add
   (async
