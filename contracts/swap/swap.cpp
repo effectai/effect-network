@@ -73,6 +73,16 @@ void swap::posttx(const name bookkeeper, const std::vector<char> rawtx, const na
   print("inserted: ", id);
 }
 
+void swap::cleartx(const checksum256 txid) {
+  // only allowed by self
+  require_auth(get_self());
+
+  auto txids = _nep5.get_index<"txid"_n>();
+  auto& tx = txids.get(txid, "tx does not exist");
+
+  _nep5.erase(tx);
+}
+
 void swap::issue(const checksum256 txid) {
   config_table config_tbl(_self, _self.value);
   eosio::check(config_tbl.exists(), "not initialized");
@@ -128,4 +138,4 @@ capi_checksum256 swap::neo_hash(const std::vector<char> data) {
   return blockhash;
 }
 
-EOSIO_DISPATCH(swap, (init)(update)(posttx)(issue)(mkbookkeeper)(rmbookkeeper));
+EOSIO_DISPATCH(swap, (init)(update)(posttx)(cleartx)(issue)(mkbookkeeper)(rmbookkeeper));

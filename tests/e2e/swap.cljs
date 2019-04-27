@@ -20,8 +20,10 @@
 (def total-supply (str total-amount " " sym))
 
 (def tx1-raw "d10153081027000000000000141b00234a5dcafb17ae645c203617f709450e8c5b141b00234a5dcafb17ae645c203617f709450e8c5b53c1087472616e7366657267f9e6e770af783d809bd1a65e1bb5b6042953bcac000000000000000003201b00234a5dcafb17ae645c203617f709450e8c5bf0096c617572656e732e78f00d31353533353036343939313139000001414088b6a244963ae20183dba549b38affc4255c0f20d5ffccf94f00ad9e1ba0063f33ef9a0be05799e7c3a7f191e6d7e57b896179f49f4246af3f03d0d99368c43c2321023c626ad1b80d7d7bf4620fe15ff43eea073a1ccb707d786942a68546a89fee7eac")
+(def tx2-raw "d1015c08307c97389c000000149bd53e0aa2df30567ef559a8c61520010ea6cc46145ad9ffcd1e2a0e4d8388e00a1dc028203f7b2bb953c1087472616e7366657267f9e6e770af783d809bd1a65e1bb5b6042953bcacf1660682ba9ce83307000000000000000001205ad9ffcd1e2a0e4d8388e00a1dc028203f7b2bb90000014140ebfadb9335a01a0753d046954e2bfee843565d98b5aee080be7f6e57216307af73114d6b2bf84dc271a895e1095df908855325300d9d3899ff974683dda89f842321035b5d8d4824b495e5a9c0bb0523c8c72cc6cb826d8cb8edaf0da68cd2f044ee65ac")
 
 (def tx1 (.deserialize Neon/tx.Transaction tx1-raw))
+(def tx2 (.deserialize Neon/tx.Transaction tx2-raw))
 (def tx-hash (.reverseHex Neon/u (.-hash tx1)))
 (def tx-parsed (util/parse-nep5 tx1))
 
@@ -148,7 +150,7 @@
            (eos/transact swap-acc "mkbookkeeper" {:account owner-acc}
                          [{:actor swap-acc :permission "owner"}])
            (.then #(eos/transact swap-acc "mkbookkeeper" {:account owner-acc}
-                                 [{:actor swap-acc :permission "owner"}]))
+                                 [{:actor swap-acc :permission "active"}]))
            (util/should-fail-with "assertion failure with message: already registered"
                                   "cant add existing bookkeeper"))])
     done)))
@@ -210,6 +212,28 @@
     (.then #(do-posttx bk-acc [{:actor owner-acc :permission "active"}]))
     (util/should-fail-with (str "missing authority of " bk-acc)
                            "require bookkeeper signature")
+    (.then done))))
+
+(deftest cleartx
+  (async
+   done
+   (->
+    ;; tx must exist
+    (eos/transact swap-acc "cleartx" {:txid (.reverseHex Neon/u (.-hash tx2))}
+                  [{:actor swap-acc :permission "owner"}])
+    (util/should-fail-with "tx does not exist")
+    (.then #(eos/transact swap-acc "posttx"
+                          {:bookkeeper bk-acc :rawtx (.serialize tx2 false)
+                           :asset_hash (:script-hash tx-parsed) :value (:value tx-parsed) :to owner-acc}
+                          [{:actor bk-acc :permission "active"}]))
+    ;; requires contract auth
+    (.then #(eos/transact swap-acc "cleartx" {:txid (.reverseHex Neon/u (.-hash tx2))}
+                          [{:actor bk-acc :permission "active"}]))
+    (util/should-fail-with (str "missing authority of " swap-acc))
+    ;; success
+    (.then #(eos/transact swap-acc "cleartx" {:txid (.reverseHex Neon/u (.-hash tx2))}
+                          [{:actor swap-acc :permission "owner"}]))
+    (util/should-succeed "can clear tx")
     (.then done))))
 
 (deftest issue-success
