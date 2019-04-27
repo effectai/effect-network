@@ -90,6 +90,9 @@
                           [{:actor bk-acc :permission "active"}]))
     (util/should-fail-with (str "missing authority of " swap-acc)
                            "only swap account can init")
+    ;; cant init with invalid name
+    (.then #(eos/transact swap-acc "init" (assoc  init-config :token_contract "noaccount")))
+    (util/should-fail-with "token contract does not exsist")
     ;; can set config
     (.then #(eos/transact swap-acc "init" init-config))
     (util/should-succeed "can perform init")
@@ -142,10 +145,9 @@
                                   "adding a bookkeeper requires owner permission"))
           (->
            ;; cant add same bookkeeper twice
-           (eos/transact swap-acc "mkbookkeeper" {:account "acc3"}
+           (eos/transact swap-acc "mkbookkeeper" {:account owner-acc}
                          [{:actor swap-acc :permission "owner"}])
-           eos/wait-block
-           (.then #(eos/transact swap-acc "mkbookkeeper" {:account "acc3"}
+           (.then #(eos/transact swap-acc "mkbookkeeper" {:account owner-acc}
                                  [{:actor swap-acc :permission "owner"}]))
            (util/should-fail-with "assertion failure with message: already registered"
                                   "cant add existing bookkeeper"))])
@@ -159,7 +161,7 @@
      js/Promise
      #js [(->
            ;; can remove bookkeeper
-           (eos/transact swap-acc "rmbookkeeper" {:account "acc3"}
+           (eos/transact swap-acc "rmbookkeeper" {:account owner-acc}
                          [{:actor swap-acc :permission "active"}])
            eos/wait-block
            (.then #(eos/get-table-rows swap-acc swap-acc "bookkeeper"))
@@ -174,7 +176,7 @@
            ;; cant remove non-existing bookkeeper
            (eos/transact swap-acc "rmbookkeeper" {:account "acc4"}
                          [{:actor swap-acc :permission "active"}])
-           (util/should-fail-with "assertion failure with message: not registered"
+           (util/should-fail-with "registered"
                                   "cant remove non exisinting bookkeeper"))])
     done)))
 

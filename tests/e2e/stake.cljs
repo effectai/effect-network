@@ -95,6 +95,10 @@
                   [{:actor owner-acc :permission "active"}])
     (util/should-fail-with (str "missing authority of " stake-acc)
                            "only stake account can init")
+    ;; cant init with invalid name
+    (.then #(eos/transact stake-acc "init" (assoc  init-config :token_contract "noaccount")
+                            [{:actor stake-acc :permission "owner"}]))
+    (util/should-fail-with "token contract does not exsist")
     ;; can set config
     (.then #(eos/transact stake-acc "init" init-config
                           [{:actor stake-acc :permission "owner"}]))

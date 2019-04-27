@@ -6,6 +6,7 @@ void stake::init(name token_contract, const symbol& stake_symbol,
                  uint32_t stake_bonus_age, time_point_sec stake_bonus_deadline) {
   require_auth(get_self());
 
+  eosio::check(is_account(token_contract), "token contract does not exsist");
   eosio::check(stake_symbol.is_valid(), "invalid stake symbol");
   eosio::check(claim_symbol.is_valid(), "invalid claim symbol");
   eosio::check(age_limit > 0, "age limit must be positive");

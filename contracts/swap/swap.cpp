@@ -4,8 +4,8 @@ void swap::init(const name token_contract, const symbol_code token_symbol,
                 uint32_t tx_max_age, uint64_t min_tx_value, uint64_t max_tx_value) {
   require_auth(get_self());
 
+  eosio::check(is_account(token_contract), "token contract does not exsist");
   eosio::check(token_symbol.is_valid(), "invalid symbol name");
-
   eosio::check(tx_max_age > 0, "tx max age must be positive");
   eosio::check(min_tx_value >= 0, "tx min value must be positive");
   eosio::check(max_tx_value >= 0, "tx max value must be positive");
@@ -102,6 +102,7 @@ void swap::issue(const checksum256 txid) {
 void swap::mkbookkeeper(name account) {
   require_auth(get_self());
 
+  eosio::check(eosio::is_account(account), "account does not exsist");
   auto bk = _bookkeeper.find(account.value);
   eosio::check(bk == _bookkeeper.end(), "already registered");
 
