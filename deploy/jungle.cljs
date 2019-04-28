@@ -7,11 +7,11 @@
 
 (def token-acc "forbeginners")
 (def swap-acc "dontworrybet")
-(def stake-acc "upandrunning")
+(def stake-acc "stktest11111")
 (def bk-acc "foreveryoung")
 
-(def tkn-sym "TKN")
-(def clm-sym "CLM")
+(def tkn-sym "UTL")
+(def clm-sym "GOV")
 (def tkn-total-supply "650000000.0000")
 (def clm-total-supply "20000000000.0000")
 
