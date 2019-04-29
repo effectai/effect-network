@@ -1,7 +1,8 @@
 #include "swap.hpp"
 
 void swap::init(const name token_contract, const symbol_code token_symbol,
-                uint32_t tx_max_age, uint64_t min_tx_value, uint64_t max_tx_value) {
+                uint32_t tx_max_age, uint64_t min_tx_value, uint64_t max_tx_value,
+                uint64_t global_swap_limit, uint32_t limit_reset_time_sec) {
   require_auth(get_self());
 
   eosio::check(token_symbol.is_valid(), "invalid symbol name");
@@ -9,6 +10,7 @@ void swap::init(const name token_contract, const symbol_code token_symbol,
   eosio::check(tx_max_age > 0, "tx max age must be positive");
   eosio::check(min_tx_value >= 0, "tx min value must be positive");
   eosio::check(max_tx_value >= 0, "tx max value must be positive");
+  eosio::check(max_tx_value >= 0, "limit reset time must be positive");
 
   config_table config_tbl(_self, _self.value);
   eosio::check(!config_tbl.exists(), "already initialized");
@@ -17,7 +19,12 @@ void swap::init(const name token_contract, const symbol_code token_symbol,
                         token_symbol,
                         tx_max_age,
                         min_tx_value,
-                        max_tx_value}, get_self());
+                        max_tx_value,
+                        global_swap_limit,
+                        limit_reset_time_sec}, get_self());
+
+  global_table global_tbl(_self, _self.value);
+  global_tbl.set(global{0, time_point_sec(now())}, get_self());
 }
 
 void swap::update(uint32_t tx_max_age, uint64_t min_tx_value, uint64_t max_tx_value) {
@@ -47,6 +54,20 @@ void swap::posttx(const name bookkeeper, const std::vector<char> rawtx, const na
 
   eosio::check(value >= config.min_tx_value, "value below min limit");
   eosio::check(value <= config.max_tx_value, "value above max limit");
+
+  global_table global_tbl(_self, _self.value);
+  auto global = global_tbl.get();
+  const uint64_t new_swap_total = global.swap_total + value;
+
+  eosio::check(new_swap_total <= config.global_swap_limit,
+               "global swap limit reached");
+
+  global.swap_total = new_swap_total;
+  auto time_now = time_point_sec(now());
+  if (time_now >= global.last_limit_reset + config.limit_reset_time_sec) {
+    global.last_limit_reset = time_now;
+  }
+  global_tbl.set(global, get_self());
 
   auto bk = _bookkeeper.find(bookkeeper.value);
   eosio::check(bk != _bookkeeper.end(), "not a bookkeeper");
