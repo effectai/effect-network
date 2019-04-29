@@ -10,7 +10,8 @@ void swap::init(const name token_contract, const symbol_code token_symbol,
   eosio::check(tx_max_age > 0, "tx max age must be positive");
   eosio::check(min_tx_value >= 0, "tx min value must be positive");
   eosio::check(max_tx_value >= 0, "tx max value must be positive");
-  eosio::check(max_tx_value >= 0, "limit reset time must be positive");
+  eosio::check(global_swap_limit >= 0, "global swap limit must be positive");
+  eosio::check(limit_reset_time_sec >= 0, "limit reset time must be positive");
 
   config_table config_tbl(_self, _self.value);
   eosio::check(!config_tbl.exists(), "already initialized");
