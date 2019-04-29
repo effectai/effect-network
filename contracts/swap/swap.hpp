@@ -39,6 +39,9 @@ class [[eosio::contract("swap")]] swap : public contract {
                 int64_t value);
 
   [[eosio::action]]
+    void cleartx(checksum256 txid);
+
+  [[eosio::action]]
     void issue(checksum256 txid);
 
   [[eosio::action]]
