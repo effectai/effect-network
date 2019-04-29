@@ -22,12 +22,16 @@ class [[eosio::contract("swap")]] swap : public contract {
               symbol_code token_symbol,
               uint32_t tx_max_age,
               uint64_t min_tx_value,
-              uint64_t max_tx_value);
+              uint64_t max_tx_value,
+              uint64_t global_swap_limit,
+              uint32_t limit_reset_time_sec);
 
   [[eosio::action]]
     void update(uint32_t tx_max_age,
                 uint64_t min_tx_value,
-                uint64_t max_tx_value);
+                uint64_t max_tx_value,
+                uint64_t global_swap_limit,
+                uint32_t limit_reset_time_sec);
 
   [[eosio::action]]
     void posttx(name bookkeeper,
@@ -49,7 +53,7 @@ class [[eosio::contract("swap")]] swap : public contract {
     void rmbookkeeper(name account);
 
  private:
-  capi_checksum256 neo_hash(const std::vector<char> data);
+  capi_checksum256 neo_hash(std::vector<char> data);
 
   struct [[eosio::table]] config {
     name token_contract;
@@ -57,6 +61,13 @@ class [[eosio::contract("swap")]] swap : public contract {
     uint32_t tx_max_age;
     uint64_t min_tx_value;
     uint64_t max_tx_value;
+    uint64_t global_swap_limit;
+    uint32_t limit_reset_time_sec;
+  };
+
+  struct [[eosio::table]] global {
+    uint64_t swap_total;
+    time_point_sec last_limit_reset;
   };
 
   struct [[eosio::table]] nep5 {
@@ -76,6 +87,7 @@ class [[eosio::contract("swap")]] swap : public contract {
   };
 
   typedef singleton<"config"_n, config> config_table;
+  typedef singleton<"global"_n, global> global_table;
   typedef multi_index<"nep5"_n, nep5, indexed_by<"txid"_n, const_mem_fun<nep5, checksum256, &nep5::by_txid>>> nep5_table;
   typedef multi_index<"bookkeeper"_n, bookkeeper> bookkeeper_table;
 
