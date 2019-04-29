@@ -29,7 +29,9 @@ class [[eosio::contract("swap")]] swap : public contract {
   [[eosio::action]]
     void update(uint32_t tx_max_age,
                 uint64_t min_tx_value,
-                uint64_t max_tx_value);
+                uint64_t max_tx_value,
+                uint64_t global_swap_limit,
+                uint32_t limit_reset_time_sec);
 
   [[eosio::action]]
     void posttx(name bookkeeper,

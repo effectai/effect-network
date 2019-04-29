@@ -28,7 +28,9 @@ void swap::init(const name token_contract, const symbol_code token_symbol,
   global_tbl.set(global{0, time_point_sec(now())}, get_self());
 }
 
-void swap::update(uint32_t tx_max_age, uint64_t min_tx_value, uint64_t max_tx_value) {
+void swap::update(uint32_t tx_max_age, uint64_t min_tx_value,
+                  uint64_t max_tx_value, uint64_t global_swap_limit,
+                  uint32_t limit_reset_time_sec) {
   require_auth(get_self());
 
   config_table config_tbl(_self, _self.value);
@@ -37,11 +39,15 @@ void swap::update(uint32_t tx_max_age, uint64_t min_tx_value, uint64_t max_tx_va
   eosio::check(tx_max_age > 0, "tx max age must be positive");
   eosio::check(min_tx_value >= 0, "tx min value must be positive");
   eosio::check(max_tx_value >= 0, "tx max value must be positive");
+  eosio::check(global_swap_limit >= 0, "global swap limit must be positive");
+  eosio::check(limit_reset_time_sec >= 0, "limit reset time must be positive");
 
   auto config = config_tbl.get();
   config.tx_max_age = tx_max_age;
   config.min_tx_value = min_tx_value;
   config.max_tx_value = max_tx_value;
+  config.global_swap_limit = global_swap_limit;
+  config.limit_reset_time_sec = limit_reset_time_sec;
 
   config_tbl.set(config, get_self());
 }
