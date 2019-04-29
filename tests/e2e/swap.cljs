@@ -68,7 +68,8 @@
                   :global_swap_limit 100000
                   :limit_reset_time_sec 3})
 
-(def update-config (select-keys init-config [:tx_max_age :min_tx_value :max_tx_value]))
+(def update-config (select-keys init-config [:tx_max_age :min_tx_value :max_tx_value
+                                             :global_swap_limit :limit_reset_time_sec]))
 
 (deftest update-bofore-init
   (async

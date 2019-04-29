@@ -5,7 +5,7 @@
   "license": "ISC",
   "dependencies": {
     "@cityofzion/neon-js": "^4.3.3",
-    "eos-deploys": "./eos-cljs"
+    "eos-cljs": "./eos-cljs"
   },
   "scripts": {
     "test": "lumo -c tests -m e2e.test",
