@@ -217,17 +217,23 @@
     ;; cant unstake too much
     (.then #(eos/transact stake-acc "unstake"
                           {:owner owner-acc :quantity (str "101.0000 " sym)} owner-perm))
+    ;; (.catch #(do (util/pprint-json % ) (throw %)))
     (util/should-fail-with "not enough staked")
     ;; refund fails
     (.then #(eos/transact stake-acc "refund" {:owner owner-acc} owner-perm))
     (util/should-fail-with "unstake is still pending")
-    ;; refund succeeds
+    ;; deferred should be created and executed
+    (.then eos/get-scheduled-txs)
+    (.then #(is (not (empty? (:transactions %)))))
     (eos/wait-block 5)
-    (.then #(eos/transact stake-acc "refund" {:owner owner-acc} owner-perm))
+    (.then eos/get-scheduled-txs)
+    (.then #(is (empty? (:transactions %))))
     (.then #(eos/get-table-rows token-acc owner-acc "accounts"))
     (.then #(is (= (get-in % [0 "balance"]) (str "401.0000 " sym)) "stake refund is correct"))
     (.then #(eos/get-table-rows stake-acc owner-acc "unstake"))
     (.then #(is (= (empty? %)) "unstake table is empty"))
+    ;; test refund action when deferred fails?
+    ;; (.then #(eos/transact stake-acc "refund" {:owner owner-acc} owner-perm))
     (.then done))))
 
 (deftest dilute

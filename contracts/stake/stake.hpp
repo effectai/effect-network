@@ -17,8 +17,8 @@ class [[eosio::contract("stake")]] stake : public contract {
   using contract::contract;
 
   inline static const std::string STAKE_MEMO = "stake";
-  inline static const std::string CLAIM_MEMO = "stake claim";
-  inline static const std::string REFUND_MEMO = "unstake refund";
+  inline static const std::string CLAIM_MEMO = "claim";
+  inline static const std::string REFUND_MEMO = "unstake";
 
   static const uint32_t SECONDS_PER_DAY = 86400;
 

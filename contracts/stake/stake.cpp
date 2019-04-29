@@ -174,17 +174,13 @@ void stake::unstake(name owner, asset quantity) {
   }
 
   // Auto claim unstaked tokens after tokens have matured
-  transaction t;
-  t.actions.emplace_back(
-    permission_level{_self, "active"_n},
-    config.token_contract,
-    "refund"_n,
-    owner
-  );
-  t.delay_sec = config.unstake_delay_sec;
-  t.send(owner.value, owner, true);
-
-  print("Scheduled claim with a delay of ", config.unstake_delay_sec);
+  eosio::transaction out{};
+  out.actions.emplace_back(permission_level{_self, "active"_n},
+                           _self, "refund"_n,
+                           owner);
+  out.delay_sec = config.unstake_delay_sec;
+  cancel_deferred(owner.value); // TODO: Remove this line when replacing deferred trxs is fixed
+  out.send(owner.value, owner, true);
 }
 
 void stake::refund(name owner) {
@@ -194,7 +190,7 @@ void stake::refund(name owner) {
   unstake_table unstake_tbl(get_self(), owner.value);
   const auto& unstakes = unstake_tbl.get(config.stake_symbol.code().raw(), "no unstake exists");
 
-  eosio::check(time_point_sec(now()) > unstakes.time, "unstake is still pending");
+  eosio::check(time_point_sec(now()) >= unstakes.time, "unstake is still pending");
 
   asset refund_amount = unstakes.amount;
 

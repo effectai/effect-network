@@ -147,10 +147,11 @@
                                   "adding a bookkeeper requires owner permission"))
           (->
            ;; cant add same bookkeeper twice
-           (eos/transact swap-acc "mkbookkeeper" {:account owner-acc}
+           (eos/transact swap-acc "mkbookkeeper" {:account token-acc}
                          [{:actor swap-acc :permission "owner"}])
-           (.then #(eos/transact swap-acc "mkbookkeeper" {:account owner-acc}
-                                 [{:actor swap-acc :permission "active"}]))
+           eos/wait-block
+           (.then #(eos/transact swap-acc "mkbookkeeper" {:account token-acc}
+                                 [{:actor swap-acc :permission "owner"}]))
            (util/should-fail-with "assertion failure with message: already registered"
                                   "cant add existing bookkeeper"))])
     done)))
@@ -163,7 +164,7 @@
      js/Promise
      #js [(->
            ;; can remove bookkeeper
-           (eos/transact swap-acc "rmbookkeeper" {:account owner-acc}
+           (eos/transact swap-acc "rmbookkeeper" {:account token-acc}
                          [{:actor swap-acc :permission "active"}])
            eos/wait-block
            (.then #(eos/get-table-rows swap-acc swap-acc "bookkeeper"))
