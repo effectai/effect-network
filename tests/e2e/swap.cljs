@@ -21,9 +21,11 @@
 
 (def tx1-raw "d10153081027000000000000141b00234a5dcafb17ae645c203617f709450e8c5b141b00234a5dcafb17ae645c203617f709450e8c5b53c1087472616e7366657267f9e6e770af783d809bd1a65e1bb5b6042953bcac000000000000000003201b00234a5dcafb17ae645c203617f709450e8c5bf0096c617572656e732e78f00d31353533353036343939313139000001414088b6a244963ae20183dba549b38affc4255c0f20d5ffccf94f00ad9e1ba0063f33ef9a0be05799e7c3a7f191e6d7e57b896179f49f4246af3f03d0d99368c43c2321023c626ad1b80d7d7bf4620fe15ff43eea073a1ccb707d786942a68546a89fee7eac")
 (def tx2-raw "d1015c08307c97389c000000149bd53e0aa2df30567ef559a8c61520010ea6cc46145ad9ffcd1e2a0e4d8388e00a1dc028203f7b2bb953c1087472616e7366657267f9e6e770af783d809bd1a65e1bb5b6042953bcacf1660682ba9ce83307000000000000000001205ad9ffcd1e2a0e4d8388e00a1dc028203f7b2bb90000014140ebfadb9335a01a0753d046954e2bfee843565d98b5aee080be7f6e57216307af73114d6b2bf84dc271a895e1095df908855325300d9d3899ff974683dda89f842321035b5d8d4824b495e5a9c0bb0523c8c72cc6cb826d8cb8edaf0da68cd2f044ee65ac")
+(def tx3-raw "d1015c08600badec31050000142fb9bf175c31d76d6e1fdbf7cb39c39795a58ff9145ad9ffcd1e2a0e4d8388e00a1dc028203f7b2bb953c1087472616e7366657267f9e6e770af783d809bd1a65e1bb5b6042953bcacf16606426384930657000000000000000001205ad9ffcd1e2a0e4d8388e00a1dc028203f7b2bb90000")
 
 (def tx1 (.deserialize Neon/tx.Transaction tx1-raw))
 (def tx2 (.deserialize Neon/tx.Transaction tx2-raw))
+(def tx3 (.deserialize Neon/tx.Transaction tx3-raw))
 (def tx-hash (.reverseHex Neon/u (.-hash tx1)))
 (def tx-parsed (util/parse-nep5 tx1))
 
@@ -52,14 +54,19 @@
   "Helper for the posttx action"
   ([] (do-posttx bk-acc))
   ([bk-acc] (do-posttx bk-acc [{:actor bk-acc :permission "active"}]))
-  ([bk-acc permission] (eos/transact swap-acc "posttx"
-                 {:bookkeeper bk-acc :rawtx (.serialize tx1 false)
-                  :asset_hash (:script-hash tx-parsed) :value (:value tx-parsed) :to owner-acc}
-                 permission)))
+  ([bk-acc permission] (eos/transact
+                        [{:account  swap-acc :name "posttx"
+                          :authorization permission
+                          :data
+                          {:bookkeeper bk-acc :rawtx (.serialize tx1 false)
+                           :asset_hash (:script-hash tx-parsed) :value (:value tx-parsed)
+                           :to owner-acc}}])))
 
 (def init-config {:token_contract token-acc :token_symbol sym
                   :tx_max_age 100000000
-                  :min_tx_value 1 :max_tx_value "10000000000"})
+                  :min_tx_value 1 :max_tx_value "10000000000"
+                  :global_swap_limit 100000
+                  :limit_reset_time_sec 3})
 
 (def update-config (select-keys init-config [:tx_max_age :min_tx_value :max_tx_value]))
 
@@ -193,7 +200,6 @@
              (let [console-out (eos/tx-get-console tx)]
                (is (string/starts-with? console-out "inserted"))
                console-out)))
-    eos/wait-block
     (.then #(let [id (re-find #"\d+" %)]
               (is (= (int? id)))
               (eos/get-table-row swap-acc swap-acc "nep5" id)))
@@ -202,18 +208,25 @@
                (is (= (get row "txid") tx-hash))
                (is (= (get row "value") (:value tx-parsed))))))
     ;; cant create same tx twice
-    (.then #(do-posttx))
-    (util/should-fail-with "assertion failure with message: tx already posted"
-                           "cant post same tx twice")
     eos/wait-block
+    (.then #(do-posttx))
+    (util/should-fail-with "tx already posted")
     ;; requires bookkeeper and signature
     (.then #(do-posttx owner-acc))
-    (util/should-fail-with "assertion failure with message: not a bookkeeper"
-                           "require registered bookkeeper")
+    (util/should-fail-with "not a bookkeeper" "require registered bookkeeper")
     (.then #(do-posttx bk-acc [{:actor owner-acc :permission "active"}]))
     (util/should-fail-with (str "missing authority of " bk-acc)
                            "require bookkeeper signature")
     (.then done))))
+
+(defn do-posttx-n
+  ([t] (do-posttx-n t (:value tx-parsed)))
+  ([t v]
+   (eos/transact swap-acc "posttx"
+                     {:bookkeeper bk-acc :rawtx (.serialize t false)
+                      :asset_hash (:script-hash tx-parsed)
+                      :value v :to owner-acc}
+                     [{:actor bk-acc :permission "active"}])))
 
 (deftest cleartx
   (async
@@ -223,10 +236,7 @@
     (eos/transact swap-acc "cleartx" {:txid (.reverseHex Neon/u (.-hash tx2))}
                   [{:actor swap-acc :permission "owner"}])
     (util/should-fail-with "tx does not exist")
-    (.then #(eos/transact swap-acc "posttx"
-                          {:bookkeeper bk-acc :rawtx (.serialize tx2 false)
-                           :asset_hash (:script-hash tx-parsed) :value (:value tx-parsed) :to owner-acc}
-                          [{:actor bk-acc :permission "active"}]))
+    (.then #(do-posttx-n tx2))
     ;; requires contract auth
     (.then #(eos/transact swap-acc "cleartx" {:txid (.reverseHex Neon/u (.-hash tx2))}
                           [{:actor bk-acc :permission "active"}]))
@@ -236,6 +246,35 @@
                           [{:actor swap-acc :permission "owner"}]))
     (util/should-succeed "can clear tx")
     (.then done))))
+
+(deftest swap-limits
+  (async
+   done
+   (-> (eos/get-table-rows swap-acc swap-acc "global")
+       (.then
+        (fn [[{swap-total "swap_total"  last-reset "last_limit_resert"}]]
+          (is (= swap-total (* 2 (:value tx-parsed))) "correct swap total")
+          ;; post a new tx and see that it updates
+          (-> (do-posttx-n tx2)
+              (.then #(eos/get-table-rows swap-acc swap-acc "global"))
+              (.then #(is (= (get-in % [0 "swap_total"])
+                             (+ swap-total (:value tx-parsed)))
+                          "swap total do update"))
+              (.then #(do-posttx-n tx3 (dec (:global_swap_limit init-config))))
+              (util/should-fail-with "global swap limit reached")
+              ;; wait until limit reset
+              (eos/wait-block (* 2 (:limit_reset_time_sec init-config)))
+              ;; can post txs again
+              (.then #(do-posttx-n tx3 (:global_swap_limit init-config)))
+              util/should-succeed
+              ;; limits should have updated
+              (.then #(eos/get-table-rows swap-acc swap-acc "global"))
+              (.then #(do (is (= (get-in % [0 "swap_total"])
+                                 (:global_swap_limit init-config))
+                              "swap total updated")
+                          (is (not (= (get-in % [0 "last_limit_reset"]) last-reset
+                                      "limit reset time is updated"))))))))
+       (.then done))))
 
 (deftest issue-success
   (async

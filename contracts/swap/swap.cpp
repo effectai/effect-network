@@ -57,16 +57,19 @@ void swap::posttx(const name bookkeeper, const std::vector<char> rawtx, const na
 
   global_table global_tbl(_self, _self.value);
   auto global = global_tbl.get();
-  const uint64_t new_swap_total = global.swap_total + value;
 
+  auto time_now = time_point_sec(now());
+  if (time_now >= global.last_limit_reset + config.limit_reset_time_sec) {
+    global.last_limit_reset = time_now;
+    global.swap_total = 0;
+  }
+
+  const uint64_t new_swap_total = global.swap_total + value;
   eosio::check(new_swap_total <= config.global_swap_limit,
                "global swap limit reached");
 
   global.swap_total = new_swap_total;
-  auto time_now = time_point_sec(now());
-  if (time_now >= global.last_limit_reset + config.limit_reset_time_sec) {
-    global.last_limit_reset = time_now;
-  }
+
   global_tbl.set(global, get_self());
 
   auto bk = _bookkeeper.find(bookkeeper.value);
