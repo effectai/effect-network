@@ -229,10 +229,10 @@ void stake::claim(name owner) {
   double min_part = std::min(1.0, 1.0 - limitf);
   double max_part = std::max(0.0, limitf);
   double avg = (((age_last + age_new) / 2.0) * min_part) + (age_new * max_part);
-  uint64_t claim_amount = (stakes.amount.amount * aged * avg) / (double) config.scale_factor;
+  uint64_t claim_amount = (stakes.amount.amount * aged * (avg / SECONDS_PER_DAY)) / \
+    (double) (config.scale_factor / 10000.0);
 
   print("claiming ", claim_amount, " for age ", (uint64_t) age_new);
-
 
   stakes_tbl.modify(stakes, eosio::same_payer, [&](auto& a)
                                                {
