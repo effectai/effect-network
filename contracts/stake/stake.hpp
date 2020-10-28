@@ -1,13 +1,12 @@
 #pragma once
 
-#include <eosiolib/eosio.hpp>
-#include <eosiolib/print.hpp>
-#include <eosiolib/types.h>
-#include <eosiolib/asset.hpp>
-#include <eosiolib/crypto.h>
-#include <eosiolib/time.hpp>
-#include <eosiolib/singleton.hpp>
-#include <eosiolib/transaction.hpp>
+#include <eosio/eosio.hpp>
+#include <eosio/print.hpp>
+#include <eosio/asset.hpp>
+#include <eosio/crypto.hpp>
+#include <eosio/time.hpp>
+#include <eosio/singleton.hpp>
+#include <eosio/transaction.hpp>
 #include <string>
 
 using namespace eosio;
@@ -30,12 +29,15 @@ class [[eosio::contract("stake")]] stake : public contract {
               uint64_t scale_factor,
               uint32_t unstake_delay_sec,
               uint32_t stake_bonus_age,
-              time_point_sec stake_bonus_deadline);
+              time_point_sec stake_bonus_deadline,
+              time_point_sec claim_stop_time,
+              time_point_sec claim_stop_time2);
 
   [[eosio::action]]
     void update(uint32_t unstake_delay_sec,
                 uint32_t stake_bonus_age,
-                time_point_sec stake_bonus_deadline);
+                time_point_sec stake_bonus_deadline,
+                time_point_sec claim_stop_time);
 
   [[eosio::action]]
     void unstake(name owner,
@@ -63,6 +65,7 @@ class [[eosio::contract("stake")]] stake : public contract {
     uint32_t unstake_delay_sec;
     uint32_t stake_bonus_age;
     time_point_sec stake_bonus_deadline;
+    time_point_sec claim_stop_time;
   };
 
   struct [[eosio::table]] stakeentry {

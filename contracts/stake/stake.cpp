@@ -1,9 +1,14 @@
 #include "stake.hpp"
 
+inline uint32_t now() {
+   static uint32_t current_time = current_time_point().sec_since_epoch();
+   return current_time;
+}
+
 void stake::init(name token_contract, const symbol& stake_symbol,
                  const symbol& claim_symbol, uint32_t age_limit,
                  uint64_t scale_factor, uint32_t unstake_delay_sec,
-                 uint32_t stake_bonus_age, time_point_sec stake_bonus_deadline) {
+                 uint32_t stake_bonus_age, time_point_sec stake_bonus_deadline, time_point_sec claim_stop_time) {
   require_auth(get_self());
 
   eosio::check(is_account(token_contract), "token contract does not exsist");
@@ -26,11 +31,12 @@ void stake::init(name token_contract, const symbol& stake_symbol,
                         scale_factor,
                         unstake_delay_sec,
                         stake_bonus_age,
-                        stake_bonus_deadline}, get_self());
+                        stake_bonus_deadline,
+                        claim_stop_time}, get_self());
 }
 
 void stake::update(uint32_t unstake_delay_sec, uint32_t stake_bonus_age,
-                   time_point_sec stake_bonus_deadline) {
+                   time_point_sec stake_bonus_deadline, time_point_sec claim_stop_time) {
   require_auth(get_self());
 
   config_table config_tbl(_self, _self.value);
@@ -43,6 +49,7 @@ void stake::update(uint32_t unstake_delay_sec, uint32_t stake_bonus_age,
   config.unstake_delay_sec = unstake_delay_sec;
   config.stake_bonus_age = stake_bonus_age;
   config.stake_bonus_deadline = stake_bonus_deadline;
+  config.claim_stop_time = claim_stop_time;
 
   config_tbl.set(config, get_self());
 }
@@ -217,7 +224,7 @@ void stake::claim(name owner) {
 
   // calculate the new and old stake age
   auto cur = time_point_sec(now());
-  auto age = (microseconds) (cur - stakes.last_claim_time);
+  auto age = (microseconds) (std::min(cur, config.claim_stop_time) - stakes.last_claim_time);
   uint32_t age_last = stakes.last_claim_age;
   double aged = age.to_seconds();
   double age_new = std::min(age_last + aged, (double) config.age_limit);
