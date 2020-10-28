@@ -30,8 +30,7 @@ class [[eosio::contract("stake")]] stake : public contract {
               uint32_t unstake_delay_sec,
               uint32_t stake_bonus_age,
               time_point_sec stake_bonus_deadline,
-              time_point_sec claim_stop_time,
-              time_point_sec claim_stop_time2);
+              time_point_sec claim_stop_time);
 
   [[eosio::action]]
     void update(uint32_t unstake_delay_sec,
