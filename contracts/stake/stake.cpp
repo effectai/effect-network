@@ -60,7 +60,7 @@ void stake::transfer_handler(name from, name to, asset quantity, std::string mem
     auto config = config_tbl.get();
 
     // if the transfer originates from a different contract then pass through
-    if (config.token_contract == get_code()) {
+    if (config.token_contract == get_first_receiver()) {
       // stakes transfers require a specific memo
       eosio::check(memo == STAKE_MEMO, "only stake transactions are accepted");
       auto sym = quantity.symbol;
@@ -70,7 +70,7 @@ void stake::transfer_handler(name from, name to, asset quantity, std::string mem
 
       // validate the contract that is staking
       // redundant check that is also in the if statement above
-      eosio::check(config.token_contract == get_code(), "wrong token contract");
+      eosio::check(config.token_contract == get_first_receiver(), "wrong token contract");
 
       stake_table stakes_tbl(get_self(), from.value);
       auto stakes = stakes_tbl.find(sym.code().raw());
