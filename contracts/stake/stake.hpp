@@ -20,6 +20,7 @@ class [[eosio::contract("stake")]] stake : public contract {
   inline static const std::string REFUND_MEMO = "unstake";
 
   static const uint32_t SECONDS_PER_DAY = 86400;
+  static const uint32_t CLAIM_STOP_TIME = 1603969300;
 
   [[eosio::action]]
     void init(name token_contract,
@@ -29,14 +30,13 @@ class [[eosio::contract("stake")]] stake : public contract {
               uint64_t scale_factor,
               uint32_t unstake_delay_sec,
               uint32_t stake_bonus_age,
-              time_point_sec stake_bonus_deadline,
-              time_point_sec claim_stop_time);
+              time_point_sec stake_bonus_deadline);
 
   [[eosio::action]]
     void update(uint32_t unstake_delay_sec,
                 uint32_t stake_bonus_age,
                 time_point_sec stake_bonus_deadline,
-                time_point_sec claim_stop_time);
+                uint32_t age_limit);
 
   [[eosio::action]]
     void unstake(name owner,
@@ -64,7 +64,6 @@ class [[eosio::contract("stake")]] stake : public contract {
     uint32_t unstake_delay_sec;
     uint32_t stake_bonus_age;
     time_point_sec stake_bonus_deadline;
-    time_point_sec claim_stop_time;
   };
 
   struct [[eosio::table]] stakeentry {

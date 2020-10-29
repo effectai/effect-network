@@ -8,7 +8,7 @@ inline uint32_t now() {
 void stake::init(name token_contract, const symbol& stake_symbol,
                  const symbol& claim_symbol, uint32_t age_limit,
                  uint64_t scale_factor, uint32_t unstake_delay_sec,
-                 uint32_t stake_bonus_age, time_point_sec stake_bonus_deadline, time_point_sec claim_stop_time) {
+                 uint32_t stake_bonus_age, time_point_sec stake_bonus_deadline) {
   require_auth(get_self());
 
   eosio::check(is_account(token_contract), "token contract does not exsist");
@@ -31,12 +31,11 @@ void stake::init(name token_contract, const symbol& stake_symbol,
                         scale_factor,
                         unstake_delay_sec,
                         stake_bonus_age,
-                        stake_bonus_deadline,
-                        claim_stop_time}, get_self());
+                        stake_bonus_deadline}, get_self());
 }
 
 void stake::update(uint32_t unstake_delay_sec, uint32_t stake_bonus_age,
-                   time_point_sec stake_bonus_deadline, time_point_sec claim_stop_time) {
+                   time_point_sec stake_bonus_deadline, uint32_t age_limit) {
   require_auth(get_self());
 
   config_table config_tbl(_self, _self.value);
@@ -44,12 +43,14 @@ void stake::update(uint32_t unstake_delay_sec, uint32_t stake_bonus_age,
   eosio::check(config_tbl.exists(), "config table not initialized");
   eosio::check(unstake_delay_sec > 0, "unstake delay must be positive");
   eosio::check(stake_bonus_age > 0, "stake bonus age must be positive");
+  eosio::check(age_limit > 0, "age limit must be positive");
+
 
   auto config = config_tbl.get();
   config.unstake_delay_sec = unstake_delay_sec;
   config.stake_bonus_age = stake_bonus_age;
   config.stake_bonus_deadline = stake_bonus_deadline;
-  config.claim_stop_time = claim_stop_time;
+  config.age_limit = age_limit;
 
   config_tbl.set(config, get_self());
 }
@@ -224,28 +225,33 @@ void stake::claim(name owner) {
 
   // calculate the new and old stake age
   auto cur = time_point_sec(now());
-  auto age = (microseconds) (std::min(cur, config.claim_stop_time) - stakes.last_claim_time);
+  auto age = (microseconds) (cur - stakes.last_claim_time);
+  auto claim_age = (microseconds) (std::min(cur, time_point_sec(CLAIM_STOP_TIME)) - stakes.last_claim_time);
   uint32_t age_last = stakes.last_claim_age;
   double aged = age.to_seconds();
+  double claim_aged = claim_age.to_seconds();
   double age_new = std::min(age_last + aged, (double) config.age_limit);
+  double claim_age_new = std::min(age_last + claim_aged, (double) config.age_limit);
 
   eosio::check(aged > 0.0, "nothing to claim");
 
-  // calculate the claimable amount
-  double limitf = (aged - (double) (config.age_limit - age_last)) / aged;
-  double min_part = std::min(1.0, 1.0 - limitf);
-  double max_part = std::max(0.0, limitf);
-  double avg = (((age_last + age_new) / 2.0) * min_part) + (age_new * max_part);
-  uint64_t claim_amount = (stakes.amount.amount * aged * (avg / SECONDS_PER_DAY)) / \
-    (double) (config.scale_factor / 10000.0);
-
-  print("claiming ", claim_amount, " for age ", (uint64_t) age_new);
-
   stakes_tbl.modify(stakes, eosio::same_payer, [&](auto& a)
-                                               {
-                                                 a.last_claim_time = cur;
-                                                 a.last_claim_age = age_new;
-                                               });
+                                              {
+                                                a.last_claim_time = cur;
+                                                a.last_claim_age = age_new;
+                                              });
+
+  if (claim_aged > 0.0) {
+    // calculate the claimable amount
+    double limitf = (claim_aged - (double) (config.age_limit - age_last)) / claim_aged;
+    double min_part = std::min(1.0, 1.0 - limitf);
+    double max_part = std::max(0.0, limitf);
+    double avg = (((age_last + claim_age_new) / 2.0) * min_part) + (claim_age_new * max_part);
+    uint64_t claim_amount = (stakes.amount.amount * claim_aged * (avg / SECONDS_PER_DAY)) / \
+      (double) (config.scale_factor / 10000.0);
+
+    print("claiming ", claim_amount, " for age ", (uint64_t) claim_age_new);
+
 
     if (claim_amount > 0) {
       action(permission_level{_self, "active"_n},
@@ -254,6 +260,7 @@ void stake::claim(name owner) {
              std::make_tuple(owner, asset(claim_amount, config.claim_symbol), CLAIM_MEMO)
              ).send();
     }
+  }
 }
 
 extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
