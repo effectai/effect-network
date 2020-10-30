@@ -223,7 +223,7 @@ void stake::claim(name owner) {
   // calculate the new and old stake age
   auto cur = time_point_sec(now());
   auto claim_stop_time = time_point_sec(CLAIM_STOP_TIME);
-  auto age_limit = 1000 * SECONDS_PER_DAY;
+  auto age_limit = MAX_STAKE_AGE_DAYS * SECONDS_PER_DAY;
   if (stakes.last_claim_time < claim_stop_time) {
     cur = std::min(cur,claim_stop_time);
     age_limit = config.age_limit; // 200 days
