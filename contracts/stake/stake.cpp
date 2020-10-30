@@ -97,7 +97,7 @@ void stake::transfer_handler(name from, name to, asset quantity, std::string mem
                      "you must claim before you can top-up a stake");
 
         asset new_amount = stakes->amount + quantity;
-        uint32_t new_last_claim_age = ((stakes->last_claim_age * stakes->amount.amount) + (start_age * quantity.amount))  / new_amount.amount;
+        uint32_t new_last_claim_age = ((stakes->last_claim_age * ((double) stakes->amount.amount / new_amount.amount)) + (start_age * ((double) quantity.amount / new_amount.amount)));
 
         stakes_tbl.modify(stakes, eosio::same_payer,
                           [&](auto& stk)
