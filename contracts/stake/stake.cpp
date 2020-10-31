@@ -1,5 +1,10 @@
 #include "stake.hpp"
 
+inline uint32_t now() {
+   static uint32_t current_time = current_time_point().sec_since_epoch();
+   return current_time;
+}
+
 void stake::init(name token_contract, const symbol& stake_symbol,
                  const symbol& claim_symbol, uint32_t age_limit,
                  uint64_t scale_factor, uint32_t unstake_delay_sec,
@@ -55,7 +60,7 @@ void stake::transfer_handler(name from, name to, asset quantity, std::string mem
     auto config = config_tbl.get();
 
     // if the transfer originates from a different contract then pass through
-    if (config.token_contract == get_code()) {
+    if (config.token_contract == get_first_receiver()) {
       // stakes transfers require a specific memo
       eosio::check(memo == STAKE_MEMO, "only stake transactions are accepted");
       auto sym = quantity.symbol;
@@ -65,7 +70,7 @@ void stake::transfer_handler(name from, name to, asset quantity, std::string mem
 
       // validate the contract that is staking
       // redundant check that is also in the if statement above
-      eosio::check(config.token_contract == get_code(), "wrong token contract");
+      eosio::check(config.token_contract == get_first_receiver(), "wrong token contract");
 
       stake_table stakes_tbl(get_self(), from.value);
       auto stakes = stakes_tbl.find(sym.code().raw());
@@ -92,7 +97,7 @@ void stake::transfer_handler(name from, name to, asset quantity, std::string mem
                      "you must claim before you can top-up a stake");
 
         asset new_amount = stakes->amount + quantity;
-        uint32_t new_last_claim_age = ((stakes->last_claim_age * stakes->amount.amount) + (start_age * quantity.amount))  / new_amount.amount;
+        uint32_t new_last_claim_age = ((stakes->last_claim_age * ((double) stakes->amount.amount / new_amount.amount)) + (start_age * ((double) quantity.amount / new_amount.amount)));
 
         stakes_tbl.modify(stakes, eosio::same_payer,
                           [&](auto& stk)
@@ -217,28 +222,30 @@ void stake::claim(name owner) {
 
   // calculate the new and old stake age
   auto cur = time_point_sec(now());
+  auto claim_stop_time = time_point_sec(CLAIM_STOP_TIME);
+  auto age_limit = MAX_STAKE_AGE_DAYS * SECONDS_PER_DAY;
+  if (stakes.last_claim_time < claim_stop_time) {
+    cur = std::min(cur,claim_stop_time);
+    age_limit = config.age_limit; // 200 days
+  }
   auto age = (microseconds) (cur - stakes.last_claim_time);
   uint32_t age_last = stakes.last_claim_age;
   double aged = age.to_seconds();
-  double age_new = std::min(age_last + aged, (double) config.age_limit);
+  double age_new = std::min(age_last + aged, (double) age_limit);
 
   eosio::check(aged > 0.0, "nothing to claim");
 
-  // calculate the claimable amount
-  double limitf = (aged - (double) (config.age_limit - age_last)) / aged;
-  double min_part = std::min(1.0, 1.0 - limitf);
-  double max_part = std::max(0.0, limitf);
-  double avg = (((age_last + age_new) / 2.0) * min_part) + (age_new * max_part);
-  uint64_t claim_amount = (stakes.amount.amount * aged * (avg / SECONDS_PER_DAY)) / \
-    (double) (config.scale_factor / 10000.0);
+  if (stakes.last_claim_time < claim_stop_time) {
+    // calculate the claimable amount
+    double limitf = (aged - (double) (age_limit - age_last)) / aged;
+    double min_part = std::min(1.0, 1.0 - limitf);
+    double max_part = std::max(0.0, limitf);
+    double avg = (((age_last + age_new) / 2.0) * min_part) + (age_new * max_part);
+    uint64_t claim_amount = (stakes.amount.amount * aged * (avg / SECONDS_PER_DAY)) / \
+      (double) (config.scale_factor / 10000.0);
 
-  print("claiming ", claim_amount, " for age ", (uint64_t) age_new);
+    print("claiming ", claim_amount, " for age ", (uint64_t) age_new);
 
-  stakes_tbl.modify(stakes, eosio::same_payer, [&](auto& a)
-                                               {
-                                                 a.last_claim_time = cur;
-                                                 a.last_claim_age = age_new;
-                                               });
 
     if (claim_amount > 0) {
       action(permission_level{_self, "active"_n},
@@ -247,6 +254,13 @@ void stake::claim(name owner) {
              std::make_tuple(owner, asset(claim_amount, config.claim_symbol), CLAIM_MEMO)
              ).send();
     }
+  }
+
+  stakes_tbl.modify(stakes, eosio::same_payer, [&](auto& a)
+                                            {
+                                              a.last_claim_time = cur;
+                                              a.last_claim_age = age_new;
+                                            });
 }
 
 extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
