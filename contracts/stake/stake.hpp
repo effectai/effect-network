@@ -11,6 +11,11 @@
 
 using namespace eosio;
 
+inline uint32_t now() {
+  static uint32_t current_time = current_time_point().sec_since_epoch();
+  return current_time;
+}
+
 class [[eosio::contract("stake")]] stake : public contract {
  public:
   using contract::contract;
