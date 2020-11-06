@@ -34,3 +34,7 @@
    (-> p
        (.then #(is nil msg))
        (.catch #(is (string/ends-with? (.-message %) chk) msg)))))
+
+(defn wait [msec]
+  (js/Promise. (fn [resolve reject] (js/setTimeout (fn [] (resolve true)) msec))))
+

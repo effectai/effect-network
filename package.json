@@ -5,10 +5,12 @@
   "license": "ISC",
   "dependencies": {
     "@cityofzion/neon-js": "^4.3.3",
-    "eos-cljs": "./eos-cljs"
+    "eos-cljs": "./eos-cljs",
+    "andare": "^1.1.587"
   },
   "scripts": {
     "test": "lumo -c tests -m e2e.test",
-    "deploy": "lumo -c deploy -m "
+    "deploy": "lumo -c deploy -m ",
+    "lumo": "lumo -K -c tests -m "
   }
 }
