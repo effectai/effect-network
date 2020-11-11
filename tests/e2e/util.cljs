@@ -38,3 +38,12 @@
 (defn wait [msec]
   (js/Promise. (fn [resolve reject] (js/setTimeout (fn [] (resolve true)) msec))))
 
+(defn p-all
+  "Shorthand for applyin js/Promise.all to its arguments"
+  [& ps]
+  (js/Promise.all (clj->js (map #(.catch % (fn [e] (prn e))) ps))))
+
+(defn p-all-may-fall
+  "Like `p-all` but where each promise may fail"
+  [& ps]
+  (js/Promise.all (clj->js (map #(.catch % (fn [e] (prn e))) ps))))
