@@ -54,7 +54,8 @@ class [[eosio::contract("stake")]] stake : public contract {
                  asset quantity);
 
   [[eosio::action]]
-    void refund(name owner);
+    void refund(name owner,
+                const symbol& symbol);
 
   [[eosio::action]]
     void open(name owner,

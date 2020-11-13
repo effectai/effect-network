@@ -221,13 +221,13 @@ void stake::unstake(name owner, asset quantity) {
   out.send(owner.value, owner, true);
 }
 
-void stake::refund(name owner) {
-  config_table config_tbl(_self, _self.value);
-  auto config = config_tbl.get();
+void stake::refund(name owner, const eosio::symbol& symbol) {
+  auto sym_code_raw = symbol.code().raw();
+  stat_table stat_tbl(_self, sym_code_raw);
+  const auto& stat = stat_tbl.get(sym_code_raw, "symbol is not set up for staking");
 
   unstake_table unstake_tbl(get_self(), owner.value);
-  const auto& unstakes = unstake_tbl.get(config.stake_symbol.code().raw(),
-                                         "no unstake exists");
+  const auto& unstakes = unstake_tbl.get(sym_code_raw, "no unstake exists");
 
   eosio::check(time_point_sec(now()) >= unstakes.time, "unstake is still pending");
 
@@ -236,7 +236,7 @@ void stake::refund(name owner) {
   unstake_tbl.erase(unstakes);
 
   action(permission_level{_self, "active"_n},
-         config.token_contract,
+         stat.token_contract,
          "transfer"_n,
          std::make_tuple(_self, owner, refund_amount, REFUND_MEMO))
     .send();
