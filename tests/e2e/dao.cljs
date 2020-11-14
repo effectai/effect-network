@@ -29,14 +29,19 @@
   (async
    done
    (go
-     ;; duplicate terms
+     ;; can register terms
      (<p! (eos/transact dao-acc "newmemterms" (first terms)))
+     (let [rows (<p! (eos/get-table-rows dao-acc dao-acc "memberterms"))]
+       (is (= (count rows) 1) "there should be 1 terms")
+       (is (= (get-in rows [0 "hash"]) (-> terms first :hash)) "wrong term hash"))
+
+     ;; duplicate terms
      (<p! (util/wait 1000))
      (<p!
       (util/should-fail-with
        (eos/transact dao-acc "newmemterms" (first terms))
        "terms are a duplicate of the latest"))
-     
+
      ;; needs legal hash
      (<p!
       (js/Promise.all
@@ -46,6 +51,15 @@
             (util/should-fail-with
              (eos/transact dao-acc "newmemterms" {:hash "aabbaabbaabbaabbaabb"})
              "incorrect size")]))
+
+     ;; can register more terms
+     (<p! (eos/transact dao-acc "newmemterms" (second terms)))
+     (<p! (eos/transact dao-acc "newmemterms" (first terms)))
+     (<p! (util/wait 500))
+     (let [rows (<p! (eos/get-table-rows dao-acc dao-acc "memberterms"))]
+       (prn rows)
+       (is (= (count rows) 3) "there should be 3 terms")
+       (is (= (get-in rows [0 "hash"]) (-> terms first :hash)) "wrong term hash"))
      (done))))
 ;
 (deftest member-register
@@ -60,7 +74,7 @@
            "agreed terms are not the latest"))
      (is (empty? (<p! (eos/get-table-rows dao-acc dao-acc "member")))
          "there shouldn't be any registered members")
-     
+
      ;; can register
      (<p! (util/should-succeed
            (eos/transact dao-acc "memberreg"
@@ -70,7 +84,7 @@
      (as-> (<p! (eos/get-table-rows dao-acc dao-acc "member")) $
        (group-by #(get % "account") $)
        (get-in $ [dao-acc 0 "agreedtermsversion"])
-       (is (= $ 0) "incorrect terms version"))
+       (is (= $ 2) "incorrect terms version"))
      (<p! (util/wait 500))
 
      ;; cant regiser someone else
@@ -80,8 +94,8 @@
                           :agreedterms (:hash (first terms))}
                          [{:actor owner-acc :permission "active"}])
            (str "missing authority of " dao-acc)))
-     
-     ;; can register with new terms
+
+     ;; can update terms of existing registration
      (<p! (eos/transact dao-acc "newmemterms" (second terms)))
      (<p! (util/should-succeed
            (eos/transact dao-acc "memberreg"
@@ -91,7 +105,7 @@
      (as-> (<p! (eos/get-table-rows dao-acc dao-acc "member")) $
        (group-by #(get % "account") $)
        (get-in $ [dao-acc 0 "agreedtermsversion"])
-       (is (= $ 1) "member not found in table"))
+       (is (= $ 3) "member not found in table"))
      (done))))
 
 (deftest member-unregister
@@ -112,7 +126,7 @@
      (<p! (util/should-succeed
            (eos/transact dao-acc "memberunreg" {:account dao-acc})))
      (as-> (<p! (eos/get-table-rows dao-acc dao-acc "member")) $
-       (is (empty? $) "unregistered member found in table"))     
+       (is (empty? $) "unregistered member found in table"))
      (done))))
 
 (defn -main [& args]
