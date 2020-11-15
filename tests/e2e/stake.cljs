@@ -148,21 +148,28 @@
   (async
    done
    (go
+     ;; only owner can create stake token
+     (<p! (util/should-fail-with
+           (eos/transact stake-acc "create"
+                         {:stake_symbol (str "4," sym) :claim_symbol (str "4," claim-sym)
+                          :token_contract token-acc :unstake_delay_sec 2}
+                         [{:actor owner-acc :permission "owner"}])
+           (str "missing authority of " stake-acc)))
      (<p! (util/should-succeed
            (eos/transact stake-acc "create"
-                         {:stake_symbol (str "4," sym) :claim_symbol (str "4," sym)
+                         {:stake_symbol (str "4," sym) :claim_symbol (str "4," claim-sym)
                           :token_contract token-acc :unstake_delay_sec 2}
                          [{:actor stake-acc :permission "owner"}])
-           "success"))
-     (prn "================== creat ethingy")
-     ;; (->
-     ;;  (eos/get-table-rows token-acc "stat" "EFX")
-     ;;  (.then prn))
-     ;; (let [[row & rest] (<p! (eos/get-table-rows stake-acc "stat" "EFX"))]
-     ;;   (is (and (empty? rest)
-     ;;            (= (:symbol row) "4,EFX")
-     ;;            (= (:contract row) token-acc))
-     ;;       "stat table is not filled correctly after `create`"))
+           "can create first token"))
+
+     ;; stat table is filled correctly
+     (<p! (util/wait 500))
+     (let [[row & rest] (<p! (eos/get-table-rows stake-acc sym "stat"))]
+       (is (empty? rest))
+       (is (= (row "stake_symbol") (str "4," sym)))
+       (is (= (row "claim_symbol") (str "4," claim-sym)))
+       (is (= (row "token_contract") token-acc)))
+
      (done))))
 
 (deftest stake
@@ -291,6 +298,100 @@
                  (is (> last-age new-age) "age has diluted")
                  (is (= amount (str "199.0000 " sym)) "stake is added")))
         (.then done)))))))
+
+;; Test the smart contract with a scenario of a multitude of tokens with large
+;; stakes.
+(deftest multi-token-scenario
+  (async
+   done
+   (go
+     (let [tokens [["AFX" "200.0000" 1] ["BFX" "650000000.0000" 5]
+                   ["CFX" "10200000000.0000" 10] ["DFX" "382829842.0000" nil]]]
+       ;; create the tokens and issue full supply
+       (<p! (apply
+             util/p-all
+             (for [[t supply & _] tokens]
+               (let [max-supply (str supply " " t)]
+                 (eos/transact [{:account token-acc :name "create"
+                                 :data {:issuer owner-acc :maximum_supply max-supply}
+                                 :authorization [{:actor token-acc :permission "owner"}]}
+                                {:account token-acc :name "issue"
+                                 :data {:to owner-acc :quantity (str supply " " t) :memo ""}
+                                 :authorization [{:actor owner-acc :permission "active"}]}])))))
+
+       ;; enable the first 3 for staking
+       (<p! (apply util/p-all
+                   (for [[t _ unstake-delay] (take 3 tokens)]
+                     (let [sym (str "4," t)]
+                       (eos/transact
+                        [{:account stake-acc :name "create"
+                          :data {:stake_symbol sym :claim_symbol sym
+                                 :token_contract token-acc
+                                 :unstake_delay_sec unstake-delay}
+                          :authorization [{:actor stake-acc :permission "owner"}]}
+                         {:account stake-acc :name "open"
+                          :data {:owner owner-acc :symbol sym :ram_payer owner-acc}
+                          :authorization [{:actor owner-acc :permission "owner"}]}])))))
+
+       (doseq [[t _ delay] tokens]
+         (let [row (<p! (eos/get-table-rows stake-acc t "stat"))]
+           (is (= (get-in row [0 "unstake_delay_sec"]) delay)
+               "multiple tokens can be created")))
+
+       ;; stake the full supply
+       (<p! (apply
+             util/p-all
+             (for [[t supply & _] tokens]
+               (eos/transact token-acc "transfer"
+                             {:from owner-acc :to stake-acc
+                              :quantity (str supply " " t) :memo "stake"}
+                             [{:actor owner-acc :permission "active"}]))))
+       (let [rows (<p! (eos/get-table-rows stake-acc owner-acc "stake"))]
+         (is (= (count rows) 4) "multiple tokens can be staked")
+         (doseq [[t supply _] (take 3 tokens)]
+           (let [row (->> rows (filter #(string/ends-with? (% "amount") t)) first)]
+             (is (= (get row "amount") (str supply " " t))
+                 "the full supply of tokens can be staked")))
+         (let [last-row (filter #(string/ends-with? (% "amount") "DFX") rows)]
+           (is (empty? last-row) "non-stakeble token can not be staked")))
+
+       ;; non-stakable tokens are transferred to stake contract
+       (let [rows (<p! (eos/get-table-rows token-acc stake-acc "accounts"))]
+         (let [[t supply _] (last tokens)
+               row (->> rows (filter #(string/ends-with? (% "balance") t)) first)]
+           (is (= (get row "balance") (str supply " " t))
+               "stake contract receives unstakable tokens")))
+
+       ;; unstake all tokens
+       (<p! (util/wait 1000))
+       (doseq [[t supply _] (take 3 tokens)]
+         (<p! (util/should-succeed
+               (eos/transact stake-acc "unstake"
+                             {:owner owner-acc
+                              :quantity (str supply " " t)}
+                             [{:actor owner-acc :permission "active"}])
+               "can always unstake")))
+
+       ;; refund should now only work for low delay tokens
+       (<p! (util/wait 5000))
+       (doseq [[t supply delay] (take 3 tokens)]
+         (if (<= delay 5)
+           (<p! (util/should-succeed
+                 (eos/transact stake-acc "refund"
+                               {:owner owner-acc
+                                :symbol (str "4," t)}
+                               [{:actor owner-acc :permission "active"}])
+                 "can refund token with low unstake delay"))
+           (<p! (util/should-fail-with
+                 (eos/transact stake-acc "refund"
+                               {:owner owner-acc
+                                :symbol (str "4," t)}
+                               [{:actor owner-acc :permission "active"}])
+                 "unstake is still pending"))))
+       (let [rows (<p! (eos/get-table-rows stake-acc owner-acc "unstake"))]
+         (= (count rows) 1))
+
+       (done)))))
 
 (defn -main [& args]
   (run-tests))
