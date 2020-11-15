@@ -1,13 +1,12 @@
 #pragma once
 
-#include <eosiolib/eosio.hpp>
-#include <eosiolib/print.hpp>
-#include <eosiolib/types.h>
-#include <eosiolib/asset.hpp>
-#include <eosiolib/crypto.h>
-#include <eosiolib/time.hpp>
-#include <eosiolib/singleton.hpp>
-#include <eosiolib/transaction.hpp>
+#include <eosio/eosio.hpp>
+#include <eosio/print.hpp>
+#include <eosio/asset.hpp>
+#include <eosio/crypto.hpp>
+#include <eosio/time.hpp>
+#include <eosio/singleton.hpp>
+#include <eosio/transaction.hpp>
 #include <string>
 
 using namespace eosio;
@@ -21,6 +20,8 @@ class [[eosio::contract("stake")]] stake : public contract {
   inline static const std::string REFUND_MEMO = "unstake";
 
   static const uint32_t SECONDS_PER_DAY = 86400;
+  static const uint32_t CLAIM_STOP_TIME = 1604188799; // Saturday, 31 October 2020 23:59:59 (GMT)
+  static const uint32_t MAX_STAKE_AGE_DAYS = 1000;
 
   [[eosio::action]]
     void init(name token_contract,
