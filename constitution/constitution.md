@@ -12,7 +12,8 @@ administered through the medium of Blockchain technology. This Constitution is
 recorded permanently on the Blockchain and can be amended only with the methods
 and requirements stated herein.
 
-&nbsp;&nbsp;&nbsp; **1.2** The EffectDAO is founded on the following core principles:
+&nbsp;&nbsp;&nbsp; **1.2** The EffectDAO is founded on the following core
+principles:
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **1.2.1 Growth of The Effect Network:** The
 primary objective of the DAO is to grow the products and services, community,
@@ -108,8 +109,8 @@ cause, by Special Resolution of the High Guard (“Party Termination Event”).
 &nbsp;&nbsp;&nbsp; **3.7** A Guardian is entitled to participate in Governance
 of the DAO by means of the submission of Proposals, Voting, and Fee Distribution.
 
-&nbsp;&nbsp;&nbsp; **3.8** A Guardian may resign his office by unregistering as
-a Member or by unstaking his EFX and/or NFX Tokens in such a way that Guardian
+&nbsp;&nbsp;&nbsp; **3.8** A Guardian may resign from office by unregistering as
+a Member or by unstaking their EFX and/or NFX Tokens in such a way that Guardian
 no longer meets the necessary requirements as prescribed by the Staking
 Directive (“Party Termination Event”).
 
@@ -162,7 +163,7 @@ your stake functions as a multiplier on the rewards you will receive.
 over time by means of a Special Resolution and is always reflected in the
 Staking Directive and the Foundational Code.
 
-# 6. **PROPOSALS & VOTING**
+# 6. **PROPOSALS AND VOTING**
 
 &nbsp;&nbsp;&nbsp; **6.1** Any Member shall be entitled to submit Proposals for
 the consideration and determination of the Guardians in accordance with the
@@ -237,7 +238,7 @@ restate, or other modification of any profusion of this Constitution and same
 shall thereupon and without more be effective and binding on or against each
 Member of the EffectDAO.
 
-# 10. **RELEASE OF LIABILITY and INDEMNIFICATION**
+# 10. **RELEASE OF LIABILITY AND INDEMNIFICATION**
 
 &nbsp;&nbsp;&nbsp; **10.1** Subject to the limitations hereinafter provided,
 Members shall release and hold harmless the EffectDAO, High Guard, Genesis
@@ -270,9 +271,9 @@ with legal, administrative, or investigative proceedings any person who acted
 honestly and in good faith with a view to the best interests of the EffectDAO
 and was not aware that their conduct was unlawful.
 
-&nbsp;&nbsp;&nbsp; **10.3** The High Guard may restrict indemnification of any
-person on the prerequisite that the person acted honestly and in good faith with
-a view to the best interests of the EffectDAO.
+&nbsp;&nbsp;&nbsp; **10.3** The High Guard may restrict the indemnification of
+any person on the prerequisite that the person acted honestly and in good faith
+with a view to the best interests of the EffectDAO.
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **10.3.1** The decision by the EffectDAO
 High Guard as to whether the Person acted honestly and in good faith and with a
@@ -325,9 +326,9 @@ and/or High Guard shall cooperate in good faith to resolve any Dispute,
 controversy, or claim arising out of, relating to or in connection with the
 Constitution or the DAO, including with respect to the formation, applicability,
 breach, termination, validity or enforceability thereof (“Dispute”). All
-resolutions are subject to final approval by the Genesis Guard. If the Parties
-to any Dispute are unable to resolve a Dispute within ninety (90) days of notice
-of such Dispute being received by all Parties thereof, such Dispute shall be
+resolutions are subject to final approval by the High Guard. If the Parties to
+any Dispute are unable to resolve a Dispute within ninety (90) days of notice of
+such Dispute being received by all Parties thereof, such Dispute shall be
 finally settled by High Guard Arbitration, as defined hereinafter.
 
 &nbsp;&nbsp;&nbsp; **14.2** High Guard Arbitration: Any Dispute not resolved
@@ -467,50 +468,50 @@ expressions shall bear the meanings set opposite them respectively.
 | 1.2.3 | **Constitution** | Means this Constitution as originally framed or as from time to time amended, restated, supplemented, or otherwise modified in accordance with the Constitution. |
 | 1.2.4 | **DAO** | Means the Decentralized Autonomous Organization of Members governed by and administered in accordance with the Terms and Conditions of the Constitution, which the community of Members shall be bound to. Collectively referred to as the "EffectDAO" or "DAO". |
 | 1.2.5 | **dApp** | Means a decentralized application running on a Blockchain. |
-| 1.2.6 | **Digital Signature** | Means a transaction on the Blockchain The Effect Network operates, which confirms that a person controls a respective Wallet address and which includes the hash to this Agreement.  |
+| 1.2.6 | **Digital Signature** | Means a transaction on the Blockchain The Effect Network operates, which confirms that a person controls a respective Wallet address and which includes the hash to this Agreement. |
 | 1.2.7 | **Digitally Signed** | Means executing a transaction on the Blockchain that The Effect Network Operates on that includes a hash to this Agreement. |
 | 1.2.8 | **Distribution Directive** | Means rules and regulations, approved by Special Resolution, as amended, restated, supplemented or otherwise modified from time to time, prescribing the procedure, qualifications (including Staking and Voting) and mechanism for the Fee Distribution to Guardians of the DAO. |
-| 1.2.9 | **Dispute** | Means any dispute arising out of or in connection with this Agreement, including any question regarding its existence, validity or termination as well as any tort or other non-contractual claim.  |
+| 1.2.9 | **Dispute** | Means any dispute arising out of or in connection with this Agreement, including any question regarding its existence, validity or termination as well as any tort or other non-contractual claim. |
 | 1.2.10 | **Effect Dashboard** | Means the dApp platform published and maintained by or on behalf of the EffectDAO at the URL prescribed by Resolution. |
-| 1.2.11 | **Effect Staking Protocol** | Means the Triforce of EFX and its Stake AGE and NFX. The Staking Protocol determines the number of Votes a Guardian has and also determines a Guardian's DAO Rank.  |
+| 1.2.11 | **Effect Staking Protocol** | Means the Triforce of EFX and its Stake AGE and NFX. The Staking Protocol determines the number of Votes a Guardian has and also determines a Guardian's DAO Rank. |
 | 1.2.12 | **EffectDAO** | Means a Decentralized Autonomous Organization of Members Governed by and administered in accordance with the Terms and Conditions of the Constitution, which community of Members shall be collectively referred to as the "EffectDAO" or "DAO". |
-| 1.2.13 | **EFX** | Means the cryptographic Token that fuels The Effect Network.  |
+| 1.2.13 | **EFX** | Means the cryptographic Token that fuels The Effect Network. |
 | 1.2.14 | **Extraordinary Resolution** | Means a Resolution, determination or decision consented to by not less than 84% of the High Guard constituting the High Guard casting Votes on such Resolution, determination or decision |
 | 1.2.15 | **Fee Distribution** | Means the distribution of value created within The Effect Network and distributed through the EffectDAO in the form of EFX Tokens or other assets. |
-| 1.2.16 | **Fork** | Means a change to the underlying protocol of a Blockchain that results in more than one version of that Blockchain.  |
+| 1.2.16 | **Fork** | Means a change to the underlying protocol of a Blockchain that results in more than one version of that Blockchain. |
 | 1.2.17 | **Foundational Code** | Means the Smart Contracts and the integration between such Smart Contracts and the EffectDAO and The Effect Network. |
 | 1.2.18 | **Genesis Guard** | Means a group of Members who joined the DAO as a Guardian before December 19th, 2020. |
-| 1.2.19 | **High Guard Arbitration** | Means the deliberation and final decision process conducted by members of the High Guard on disputes that arise between Members and/or Guardians regarding matters relating to the EffectDAO. The High Guard Arbitration decision is final and binding on the parties thereto.  |
+| 1.2.19 | **High Guard Arbitration** | Means the deliberation and final decision process conducted by members of the High Guard on disputes that arise between Members and/or Guardians regarding matters relating to the EffectDAO. The High Guard Arbitration decision is final and binding on the parties thereto. |
 | 1.2.20 | **Governance** | Means the act or process of governing or overseeing the control and direction of any aspect or function or process of the EffectDAO and its related activities. |
-| 1.2.21 | **Governance Proposal** | Means a proposal that directly affects the governance rules of the DAO. These include smart contract upgrades, Constitution updates, updates to the intrinsic parameters that affect the working of smart contracts, changes of members of the High Guard, and similar.  |
+| 1.2.21 | **Governance Proposal** | Means a proposal that directly affects the governance rules of the DAO. These include smart contract upgrades, Constitution updates, updates to the intrinsic parameters that affect the working of smart contracts, changes of Members of the High Guard, and similar. |
 | 1.2.22 | **Guardian** | Means a Member of the DAO who is within the minimum requirements of staking to receive Fee Distribution and has digitally signed the EffectDAO Constitution. |
 | 1.2.22 | **High Guard** | Means the representative and Governance board of the DAO and shall consist of a maximum of thirteen (13) persons appointed by the Members in accordance with the provisions of the Constitution. |
 | 1.2.23 | **High Guard Member** | Means a member of the High Guard. High Guard Members of the DAO are tasked with making final acceptance on work and Governance Proposals and voting on Special Resolutions. |
 | 1.2.24 | **Member** | Means a Member of the EffectDAO who digitally signed this Constitution and has obtained a Membership. |
 | 1.2.25 | **Membership** | Means a mandatory prerequisite for using and/or participating in any way the Proposal, Voting, and Governance aspects of the EffectDAO. |
-| 1.2.26 | **NFX** | Means the Governance token of The Effect Network. It gives access to the DAO, is part of Governance, and gives the right to vote as well as access to the distribution of value created within The Effect Network.  |
+| 1.2.26 | **NFX** | Means the Governance token of The Effect Network. It gives access to the DAO, is part of Governance, and gives the right to vote as well as access to the distribution of value created within The Effect Network. |
 | 1.2.27 | **Nomination Directive** | Means rules and regulations, approved by Special Resolution, as amended, restated, supplemented or otherwise modified from time to time, prescribing the procedure, qualifications (including staking) and mechanism for the nomination, election and appointment of High Guard members. |
 | 1.2.28 | **Party** | Means the EffectDAO, and Members of the EffectDAO who are subject to the Terms and Conditions and the Constitution. Also referred to as “Parties” collectively. |
 | 1.2.29 | **Party Termination Event** | Means a written intent, submitted by the Member who wishes to cease membership and subsequent participation within the EffectDAO; a proposal and successful resolution of the High Guard resulting in the removal of membership from a Party for cause. All Party Termination events are recorded on the Blockchain operated on by The Effect Network and the EffectDAO. |
-| 1.2.30 | **Person** | Means an individual, a corporation, a trust, the estate of a deceased individual, a partnership, or an unincorporated association of persons.  |
+| 1.2.30 | **Person** | Means an individual, a corporation, a trust, the estate of a deceased individual, a partnership, or an unincorporated association of persons. |
 | 1.2.31 | **Priority Proposal** | Means a special Proposal submitted by a High Guard member directly to the High Guard for consideration and determination by the High Guard. |
-| 1.2.32 | **Proposal** | Means a proposal submitted by any Member, Guardian, or High Guard member for consideration and determination by Votes and ultimately passed by the High Guard.  |
+| 1.2.32 | **Proposal** | Means a proposal submitted by any Member, Guardian, or High Guard member for consideration and determination by Votes and ultimately passed by the High Guard. |
 | 1.2.33 | **Proposal Directive** | Means rules and regulations, approved by Special Resolution, as amended, restated, supplemented or otherwise modified from time to time, prescribing the subject matter of, and the procedure, qualifications, and mechanism for, the submission of Proposals by Members to the Guardians for their consideration and determination |
 | 1.2.34 | **Rank** | Means a position in the hierarchy within the EffectDAO. |
-| 1.2.35 | **Related Parties** | Means the Parties' parents, subsidiaries, affiliates, assigns, transferees as well as any of their representatives, principals, agents, directors, officers, employees, consultants, members, shareholders, or guarantors, past or future.  |
-| 1.2.36 | **Resolution** | Means a formal expression of opinion, will, or intention voted by an official body.  |
-| 1.2.37 | **Smart Contract** | Means the autonomous software code that is deployed on the Blockchain that The Effect Network and the EffectDAO operate on.  |
+| 1.2.35 | **Related Parties** | Means the Parties' parents, subsidiaries, affiliates, assigns, transferees as well as any of their representatives, principals, agents, directors, officers, employees, consultants, members, shareholders, or guarantors, past or future. |
+| 1.2.36 | **Resolution** | Means a formal expression of opinion, will, or intention voted by an official body. |
+| 1.2.37 | **Smart Contract** | Means the autonomous software code that is deployed on the Blockchain that The Effect Network and the EffectDAO operate on. |
 | 1.2.38 | **Special Resolution** | Means a resolution, determination or decision consented to by not less than 75% of the High Guard casting Votes on such resolution, determination, or decision. |
 | 1.2.39 | **Stake** | Means a Stake or Staking refers to the proof of holding tokens of a project to show confidence and support by locking tokens rendering them nontransferable. These locked tokens cannot be transferred while they are being staked. When used in reference to EFX and NFX tokens refers to the mechanism by which these tokens are rendered non-transferable by the holder thereof, and upon such terms and for such period, as prescribed by any nomination, Proposal or Voting and/or pursuant to the Constitution. |
-| 1.2.40 | **Stake AGE** | Means a factor that increases the weight of staked tokens linearly over time; the longer the tokens are staked the more EFX Power they will have.  |
+| 1.2.40 | **Stake AGE** | Means a factor that increases the weight of staked tokens linearly over time; the longer the tokens are staked the more EFX Power they will have. |
 | 1.2.41 | **Staking Directive** | Means rules and regulations, approved by Special Resolution, as amended, restated, supplemented or otherwise modified from time to time, prescribing the selection of Guardians and their associated Rank, based on the Effect Staking Protocol. |
 | 1.2.42 | **Terms and Conditions``** | Means the terms and conditions relating to the DAO, attached to the Schedule to this Constitution, and incorporated into this Constitution. Also referred to as "T&C". |
 | 1.2.43 | **The Effect Network** | Means an open, democratic & decentralized network for Artificial Intelligence comprised of several platforms that run smart contracts deployed on the Blockchain. |
-| 1.2.44 | **The Effect Network Foundation** | Means the branch of The Effect Network whose mission is to advance the understanding of Artificial Intelligence, Blockchain technology, and crowdsourcing within nations and aims to develop technology that supports transparency, equality, and opportunity for people and organizations around the world.  |
-| 1.2.45 | **Token** | Means any cryptographically secured digital representation of a set of rights, including Smart Contracts, provided on a digital platform and includes any fractional part thereof.  |
+| 1.2.44 | **The Effect Network Foundation** | Means the branch of The Effect Network whose mission is to advance the understanding of Artificial Intelligence, Blockchain technology, and crowdsourcing within nations and aims to develop technology that supports transparency, equality, and opportunity for people and organizations around the world. |
+| 1.2.45 | **Token** | Means any cryptographically secured digital representation of a set of rights, including Smart Contracts, provided on a digital platform and includes any fractional part thereof. |
 | 1.2.46 | **Vote** | Means the act of voting. |
 | 1.2.47 | **Voting Directive** | Means rules and regulations, approved by Special Resolution, as amended, restated, supplemented or otherwise modified from time to time, prescribing the subject matter of (where applicable), and the procedure, qualifications and mechanism for, Voting by Guardians and High Guard members, including but not limited to quorums, consensus and Rank. |
-| 1.2.48 | **Wallet** | Means a wallet through which EffectDAO Members have access to and control of their private keys.  |
+| 1.2.48 | **Wallet** | Means a wallet through which EffectDAO Members have access to and control of their private keys. |
 | 1.2.49 | **We, Our, Us** | Means at all times and refers to the Related Parties and the EffectDAO. |
 | 1.2.50 | **You, Your, Yourself** | Means at all times and refers to each EffectDAO Member subject to this Agreement and Constitution. |
 
@@ -857,5 +858,3 @@ The Effect Network or The Effect Network Foundation may assign their rights or
 duties arising out of or in connection with this Agreement to any of their
 affiliates or in connection with a merger or other disposition of all or
 substantially all of their assets.
-
-*END*
