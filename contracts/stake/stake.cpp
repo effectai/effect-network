@@ -47,28 +47,58 @@ void stake::update(uint32_t unstake_delay_sec, uint32_t stake_bonus_age,
   config_tbl.set(config, get_self());
 }
 
+void stake::create(const symbol& stake_symbol, const symbol& claim_symbol,
+                   name token_contract, uint32_t unstake_delay_sec) {
+  require_auth(_self);
+
+  stat_table stat_tbl(_self, stake_symbol.code().raw());
+
+  eosio::check(stake_symbol.is_valid(), "invalid stake symbol");
+  eosio::check(claim_symbol.is_valid(), "invalid claim symbol");
+  eosio::check(unstake_delay_sec > 0, "unstake delay must be positive");
+
+  auto existing = stat_tbl.find(stake_symbol.code().raw());
+  eosio::check(existing == stat_tbl.end(), "stake symbol already exsists");
+
+  stat_tbl.emplace(_self,
+                   [&](auto& s)
+                   {
+                     s.stake_symbol = stake_symbol;
+                     s.claim_symbol = claim_symbol;
+                     s.unstake_delay_sec = unstake_delay_sec;
+                     s.token_contract = token_contract;
+                   });
+
+}
+
 void stake::transfer_handler(name from, name to, asset quantity, std::string memo) {
   config_table config_tbl(_self, _self.value);
 
   // stake when receiving funds
-  if (to == get_self() && config_tbl.exists()) {
-    auto config = config_tbl.get();
+  if (to == get_self()) {
+    // validate the asset symbol
+    auto sym = quantity.symbol;
+    auto raw_sym_code = sym.code().raw();
+    eosio::check(sym.is_valid(), "invalid symbol name");
+    stat_table stat_tbl(_self, raw_sym_code);
+    auto existing = stat_tbl.find(raw_sym_code);
+    const auto& st = *existing;
 
-    // if the transfer originates from a different contract then pass through
-    if (config.token_contract == get_first_receiver()) {
+    // if the symbol is not created for staking or the transfer originates from
+    // a different contract then pass through
+    if (existing != stat_tbl.end() && st.token_contract == get_first_receiver()) {
+      auto config = config_tbl.get();
+
+
       // stakes transfers require a specific memo
       eosio::check(memo == STAKE_MEMO, "only stake transactions are accepted");
-      auto sym = quantity.symbol;
-
-      // validate the asset
-      eosio::check(config.stake_symbol == sym, "asset cannot be staked");
 
       // validate the contract that is staking
       // redundant check that is also in the if statement above
-      eosio::check(config.token_contract == get_first_receiver(), "wrong token contract");
+      eosio::check(st.token_contract == get_first_receiver(), "wrong token contract");
 
-      stake_table stakes_tbl(get_self(), from.value);
-      auto stakes = stakes_tbl.find(sym.code().raw());
+      stake_table stakes_tbl(_self, from.value);
+      auto stakes = stakes_tbl.find(raw_sym_code);
 
       eosio::check(stakes != stakes_tbl.end(), "you must open a stake before staking");
 
@@ -94,7 +124,8 @@ void stake::transfer_handler(name from, name to, asset quantity, std::string mem
         asset new_amount = stakes->amount + quantity;
         uint32_t new_last_claim_age = ((stakes->last_claim_age * ((double) stakes->amount.amount / new_amount.amount)) + (start_age * ((double) quantity.amount / new_amount.amount)));
 
-        stakes_tbl.modify(stakes, eosio::same_payer,
+        stakes_tbl.modify(stakes,
+                          eosio::same_payer,
                           [&](auto& stk)
                           {
                             stk.last_claim_age = new_last_claim_age;
@@ -105,25 +136,25 @@ void stake::transfer_handler(name from, name to, asset quantity, std::string mem
   }
 }
 
-void stake::open(name owner, name ram_payer) {
-   require_auth(ram_payer);
+void stake::open(name owner, const eosio::symbol& symbol, name ram_payer) {
+  require_auth(ram_payer);
 
-   config_table config_tbl(_self, _self.value);
-   eosio::check(config_tbl.exists(), "not initialized");
-   auto config = config_tbl.get();
+  auto sym_code_raw = symbol.code().raw();
+  stat_table stat_tbl(_self, sym_code_raw);
+  const auto& st = stat_tbl.get(sym_code_raw, "symbol is not set up for staking");
+  eosio::check(st.stake_symbol == symbol, "symbol precision mismatch");
 
-   auto symbol = config.stake_symbol;
-
-   stake_table stakes_tbl(get_self(), owner.value);
-   auto stakes = stakes_tbl.find(symbol.code().raw());
-   if(stakes == stakes_tbl.end() ) {
-      stakes_tbl.emplace(ram_payer, [&](auto& a)
-                                    {
-                                      a.amount = eosio::asset{0, symbol};
-                                      a.last_claim_time = time_point_sec(now());
-                                      a.last_claim_age = 0;
-                                    });
-   }
+  stake_table stakes_tbl(_self, owner.value);
+  auto stakes = stakes_tbl.find(sym_code_raw);
+  if(stakes == stakes_tbl.end()) {
+    stakes_tbl.emplace(ram_payer,
+                       [&](auto& a)
+                       {
+                         a.amount = eosio::asset{0, symbol};
+                         a.last_claim_time = time_point_sec(now());
+                         a.last_claim_age = 0;
+                       });
+  }
 }
 
 void stake::unstake(name owner, asset quantity) {
@@ -135,37 +166,43 @@ void stake::unstake(name owner, asset quantity) {
   eosio::check(quantity.is_valid(), "invalid quantity");
   eosio::check(quantity.amount > 0, "must unstake positive quantity");
 
+  auto sym_code_raw = sym.code().raw();
+  stat_table stat_tbl(_self, sym_code_raw);
+  const auto& stat = stat_tbl.get(sym_code_raw, "symbol is not set up for staking");
+
   stake_table stakes_tbl(get_self(), owner.value);
-  auto& stakes = stakes_tbl.get(sym.code().raw(), "no stake found");
+  auto& stakes = stakes_tbl.get(sym_code_raw, "no stake found");
   eosio::check(stakes.amount.amount >= quantity.amount, "not enough staked");
+  eosio::check(stakes.amount.symbol == sym, "symbol precision mismatch");
 
   // users should claim before they unstake! any unclaimed tokens are
   // lost or reduced.
   if (stakes.amount.amount == quantity.amount) {
     stakes_tbl.erase(stakes);
   } else {
-    stakes_tbl.modify(stakes, eosio::same_payer, [&](auto& stk)
-                                                 {
-                                                   stk.amount -= quantity;
-                                                 });
+    stakes_tbl.modify(stakes,
+                      eosio::same_payer,
+                      [&](auto& stk)
+                      {
+                        stk.amount -= quantity;
+                      });
   }
 
-  config_table config_tbl(_self, _self.value);
-  auto config = config_tbl.get();
-
-  auto unstake_time = time_point_sec(now()) + config.unstake_delay_sec;
+  auto unstake_time = time_point_sec(now()) + stat.unstake_delay_sec;
 
   unstake_table unstake_tbl(get_self(), owner.value);
-  auto to = unstake_tbl.find(sym.code().raw());
+  auto to = unstake_tbl.find(sym_code_raw);
 
   if (to == unstake_tbl.end()) {
-    unstake_tbl.emplace(owner, [&](auto& stk)
-                               {
-                                 stk.amount = quantity;
-                                 stk.time = unstake_time;
-                               });
+    unstake_tbl.emplace(owner,
+                        [&](auto& stk)
+                        {
+                          stk.amount = quantity;
+                          stk.time = unstake_time;
+                        });
   } else {
-    unstake_tbl.modify(to, eosio::same_payer,
+    unstake_tbl.modify(to,
+                       eosio::same_payer,
                        [&](auto& stk)
                        {
                          stk.amount += quantity;
@@ -173,22 +210,24 @@ void stake::unstake(name owner, asset quantity) {
                        });
   }
 
-  // Auto claim unstaked tokens after tokens have matured
+  // auto claim unstaked tokens after tokens have matured
   eosio::transaction out{};
   out.actions.emplace_back(permission_level{_self, "active"_n},
-                           _self, "refund"_n,
-                           owner);
-  out.delay_sec = config.unstake_delay_sec;
+                           _self,
+                           "refund"_n,
+                           std::make_tuple(owner, sym));
+  out.delay_sec = stat.unstake_delay_sec;
   cancel_deferred(owner.value); // TODO: Remove this line when replacing deferred trxs is fixed
   out.send(owner.value, owner, true);
 }
 
-void stake::refund(name owner) {
-  config_table config_tbl(_self, _self.value);
-  auto config = config_tbl.get();
+void stake::refund(name owner, const eosio::symbol& symbol) {
+  auto sym_code_raw = symbol.code().raw();
+  stat_table stat_tbl(_self, sym_code_raw);
+  const auto& stat = stat_tbl.get(sym_code_raw, "symbol is not set up for staking");
 
   unstake_table unstake_tbl(get_self(), owner.value);
-  const auto& unstakes = unstake_tbl.get(config.stake_symbol.code().raw(), "no unstake exists");
+  const auto& unstakes = unstake_tbl.get(sym_code_raw, "no unstake exists");
 
   eosio::check(time_point_sec(now()) >= unstakes.time, "unstake is still pending");
 
@@ -197,21 +236,25 @@ void stake::refund(name owner) {
   unstake_tbl.erase(unstakes);
 
   action(permission_level{_self, "active"_n},
-         config.token_contract,
+         stat.token_contract,
          "transfer"_n,
-         std::make_tuple(_self, owner, refund_amount, REFUND_MEMO)
-         ).send();
+         std::make_tuple(_self, owner, refund_amount, REFUND_MEMO))
+    .send();
 }
 
-void stake::claim(name owner) {
+void stake::claim(name owner, const eosio::symbol& symbol) {
   require_auth(owner);
 
   config_table config_tbl(_self, _self.value);
   eosio::check(config_tbl.exists(), "not initialized");
   auto config = config_tbl.get();
 
-  stake_table stakes_tbl(get_self(), owner.value);
-  const auto& stakes_chk = stakes_tbl.find(config.stake_symbol.code().raw());
+  auto sym_code_raw = symbol.code().raw();
+  stat_table stat_tbl(_self, sym_code_raw);
+  const auto& stat = stat_tbl.get(sym_code_raw, "symbol is not set up for staking");
+
+  stake_table stakes_tbl(_self, owner.value);
+  const auto& stakes_chk = stakes_tbl.find(sym_code_raw);
   eosio::check(stakes_chk != stakes_tbl.end(), "stake does not exist");
   const auto& stakes = *stakes_chk;
 
@@ -220,7 +263,7 @@ void stake::claim(name owner) {
   auto claim_stop_time = time_point_sec(CLAIM_STOP_TIME);
   auto age_limit = MAX_STAKE_AGE_DAYS * SECONDS_PER_DAY;
   if (stakes.last_claim_time < claim_stop_time) {
-    cur = std::min(cur,claim_stop_time);
+    cur = std::min(cur, claim_stop_time);
     age_limit = config.age_limit; // 200 days
   }
   auto age = (microseconds) (cur - stakes.last_claim_time);
@@ -241,21 +284,22 @@ void stake::claim(name owner) {
 
     print("claiming ", claim_amount, " for age ", (uint64_t) age_new);
 
-
     if (claim_amount > 0) {
       action(permission_level{_self, "active"_n},
-             config.token_contract,
+             stat.token_contract,
              "issue"_n,
-             std::make_tuple(owner, asset(claim_amount, config.claim_symbol), CLAIM_MEMO)
-             ).send();
+             std::make_tuple(owner, asset(claim_amount, stat.claim_symbol), CLAIM_MEMO))
+        .send();
     }
   }
 
-  stakes_tbl.modify(stakes, eosio::same_payer, [&](auto& a)
-                                            {
-                                              a.last_claim_time = cur;
-                                              a.last_claim_age = age_new;
-                                            });
+  stakes_tbl.modify(stakes,
+                    eosio::same_payer,
+                    [&](auto& a)
+                    {
+                      a.last_claim_time = cur;
+                      a.last_claim_age = age_new;
+                    });
 }
 
 extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
@@ -264,7 +308,7 @@ extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
                           &stake::transfer_handler);
   } else if (code == receiver) {
     switch(action) {
-      EOSIO_DISPATCH_HELPER(stake, (init)(update)(open)(unstake)(refund)(claim));
+      EOSIO_DISPATCH_HELPER(stake, (init)(update)(create)(open)(unstake)(refund)(claim));
     }
   }
 }

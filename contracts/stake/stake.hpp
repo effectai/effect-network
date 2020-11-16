@@ -44,18 +44,27 @@ class [[eosio::contract("stake")]] stake : public contract {
                 time_point_sec stake_bonus_deadline);
 
   [[eosio::action]]
+    void create(const symbol& stake_symbol,
+                const symbol& claim_symbol,
+                name token_contract,
+                uint32_t unstake_delay_sec);
+
+  [[eosio::action]]
     void unstake(name owner,
                  asset quantity);
 
   [[eosio::action]]
-    void refund(name owner);
+    void refund(name owner,
+                const symbol& symbol);
 
   [[eosio::action]]
     void open(name owner,
+              const symbol& symbol,
               name ram_payer);
 
   [[eosio::action]]
-    void claim(name owner);
+   void claim(name owner,
+              const symbol& symbol);
 
   void transfer_handler(name from, name to, asset quantity, std::string memo);
 
@@ -84,7 +93,17 @@ class [[eosio::contract("stake")]] stake : public contract {
     uint64_t primary_key() const { return amount.symbol.code().raw(); }
   };
 
+  struct [[eosio::table]] stakestats {
+    symbol stake_symbol;
+    symbol claim_symbol;
+    name token_contract;
+    uint32_t unstake_delay_sec;
+
+    uint64_t primary_key() const { return stake_symbol.code().raw(); }
+  };
+
   typedef singleton<"config"_n, config> config_table;
   typedef multi_index<"stake"_n, stakeentry> stake_table;
   typedef multi_index<"unstake"_n, unstakeentry> unstake_table;
+  typedef multi_index<"stat"_n, stakestats> stat_table;
 };
