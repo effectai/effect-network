@@ -7,8 +7,8 @@ ABI  = $(WASM:.wasm=.abi)
 
 all: $(WASM) $(ABI)
 
-%.wasm: %.cpp
-	$(EOS_CC) -o $@ $^
+%.wasm: %.cpp %.hpp
+	$(EOS_CC) -o $@ $<
 
 %.abi: %.cpp
 	$(ABI_CC) -contract=$(basename $(^F)) -output $@ $^

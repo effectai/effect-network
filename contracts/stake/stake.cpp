@@ -1,10 +1,5 @@
 #include "stake.hpp"
 
-inline uint32_t now() {
-   static uint32_t current_time = current_time_point().sec_since_epoch();
-   return current_time;
-}
-
 void stake::init(name token_contract, const symbol& stake_symbol,
                  const symbol& claim_symbol, uint32_t age_limit,
                  uint64_t scale_factor, uint32_t unstake_delay_sec,
