@@ -215,7 +215,7 @@ void stake::unstake(name owner, asset quantity) {
   out.actions.emplace_back(permission_level{_self, "active"_n},
                            _self,
                            "refund"_n,
-                           owner);
+                           std::make_tuple(owner, sym));
   out.delay_sec = stat.unstake_delay_sec;
   cancel_deferred(owner.value); // TODO: Remove this line when replacing deferred trxs is fixed
   out.send(owner.value, owner, true);
