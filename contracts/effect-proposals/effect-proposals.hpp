@@ -19,6 +19,8 @@ class [[eosio::contract("effect-proposals")]] proposals : public eosio::contract
 public:
   using contract::contract;
 
+  typedef std::tuple<eosio::extended_asset, eosio::time_point_sec> pay_entry;
+
   enum ProposalState {
     Pending = 0,
     Accepted,
@@ -26,15 +28,6 @@ public:
     Executed,
     Finished,
     InDispute
-  };
-
-  enum ProposalCategory {
-    Governance = 0,
-    Technical,
-    FundingSales,
-    FundingMarketing,
-    FundingDesign,
-    FundingProgramming
   };
 
   enum VoteType {
@@ -48,15 +41,22 @@ public:
   {};
 
   [[eosio::action]]
-  void init();
+  void init(uint32_t cycle_duration_sec,
+            eosio::extended_asset proposal_cost,
+            uint32_t quorum,
+            eosio::time_point_sec first_cycle_start_time,
+            eosio::name dao_contract);
+
+  [[eosio::action]]
+  void update(uint32_t cycle_duration_sec,
+              eosio::extended_asset proposal_cost);
 
   [[eosio::action]]
   void createprop(eosio::name author,
-                  eosio::extended_asset pay,
+                  std::vector<pay_entry> pay,
                   std::string content_hash,
                   uint8_t category,
                   uint16_t cycle,
-                  eosio::time_point_sec deadline,
                   std::optional<eosio::checksum256> transaction_hash);
 
   [[eosio::action]]
@@ -67,9 +67,11 @@ public:
 
   [[eosio::action]]
   void updateprop(uint64_t id,
-                  eosio::extended_asset pay,
+                  std::vector<pay_entry> pay,
                   std::string content_hash,
-                  uint8_t category, uint16_t cycle);
+                  uint8_t category,
+                  uint16_t cycle,
+                  std::optional<eosio::checksum256> transaction_hash);
 
   [[eosio::action]]
   void addvote();
@@ -80,23 +82,25 @@ public:
   [[eosio::action]]
   void addproof();
 
+  [[eosio::action]]
+  void addcycle(std::vector<eosio::extended_asset> budget);
+
 private:
-  void require_cycle_update();
+  void perform_cycle_update();
 
   struct [[eosio::table]] config {
     uint32_t cycle_duration_sec;
-    uint32_t cycle_voting_duration_sec;
     eosio::extended_asset proposal_cost;
+    uint32_t quorum;
     uint16_t current_cycle;
+    eosio::name dao_contract;
   };
 
   struct [[eosio::table]] cycle {
     uint64_t id;
     eosio::time_point_sec start_time;
     std::vector<eosio::extended_asset> budget;
-    std::vector<eosio::extended_asset> paid;
     uint32_t quorum;
-    uint32_t min_vote_power;
     uint64_t primary_key() const { return id; }
   };
 
@@ -104,26 +108,28 @@ private:
     uint64_t id;
     eosio::name author;
     std::string content_hash;
-    eosio::extended_asset pay;
-    eosio::time_point_sec deadline;
+    std::vector<pay_entry> pay;
     std::map<uint8_t, uint32_t> vote_counts;
     uint8_t state;
     uint16_t cycle;
     uint8_t category;
 
-    std::string proof_hash;
-    // std::optional<eosio::checksum256> transaction_hash;
+    std::optional<std::string> proof_hash;
+    std::optional<eosio::checksum256> transaction_hash;
 
     uint64_t primary_key() const { return id; }
     uint64_t by_author() const { return author.value; }
     uint64_t by_cycle() const { return cycle; }
+
+    EOSLIB_SERIALIZE(proposal, (id)(author)(content_hash)(pay)(vote_counts)
+                     (state)(cycle)(category)(proof_hash)(transaction_hash));
   };
 
   struct [[eosio::table]] vote {
     uint64_t id;
     eosio::name voter;
     uint64_t proposal_id;
-    std::optional<uint8_t> type;
+    uint8_t type;
     std::optional<eosio::name> delegatee;
     std::optional<std::string> comment_hash;
 
