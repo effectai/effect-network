@@ -5,7 +5,9 @@
 #include <eosio/crypto.hpp>
 #include <eosio/system.hpp>
 
-class [[eosio::contract("effect-dao")]] dao : public eosio::contract {
+#include "effect-dao-shared.hpp"
+
+class [[eosio::contract("effect-dao")]] effectdao : public eosio::contract {
  public:
   using contract::contract;
 
@@ -17,23 +19,4 @@ class [[eosio::contract("effect-dao")]] dao : public eosio::contract {
 
   [[eosio::action]]
   void memberunreg(eosio::name account);
-
- private:
-  struct [[eosio::table]] member {
-    eosio::name account;
-    uint64_t agreedtermsversion;
-    eosio::time_point_sec registration_time;
-
-    uint64_t primary_key() const { return account.value; }
-  };
-
-  struct [[eosio::table]] memberterms {
-    uint64_t version;
-    eosio::checksum256 hash;
-
-    uint64_t primary_key() const { return version; }
-  };
-
-  typedef eosio::multi_index<"member"_n, member> member_table;
-  typedef eosio::multi_index<"memberterms"_n, memberterms> memterms_table;
 };
