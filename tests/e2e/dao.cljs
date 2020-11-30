@@ -4,9 +4,7 @@
             [cljs.test :refer-macros [deftest is testing run-tests async use-fixtures]]
             [cljs.core.async :refer [go] ]
             [cljs.core.async.interop :refer [<p!]]
-            [eos-cljs.macros :refer [promise->]]
-            e2e.token
-            ))
+            e2e.token))
 
 (def owner-acc e2e.token/owner-acc)
 (def dao-acc (eos/random-account "dao"))
@@ -14,6 +12,19 @@
 
 (def terms [{:hash "1e1fe1b13e6e43d8f9cb3263817b24d7dcf8070a8fcaba3e8ced94ea263dd450"}
             {:hash "09de7554ad8e52ce863d60ab5bb60fa60d9401a8ac78d412c6060cb992465fd7"}])
+
+(defn deploy-dao
+  "Deploy a basic dao account and fill it with data for testing"
+  ([acc] (deploy-dao acc []))
+  ([acc members]
+   (let [terms (first terms)]
+     (go (<p! (eos/create-account owner-acc acc))
+         (<p! (eos/deploy acc "contracts/effect-dao/effect-dao"))
+         (<p! (eos/transact acc "newmemterms" terms))
+         (doseq [m members]
+           (<p! (eos/transact acc "memberreg"
+                              {:account owner-acc :agreedterms (:hash terms)}
+                              [{:actor m :permission "active"}])))))))
 
 (use-fixtures :once
   {:before

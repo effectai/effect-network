@@ -55,6 +55,14 @@ void proposals::createprop(eosio::name author,
   eosio::require_auth(author);
   dao::require_member(_config.get().dao_contract, author);
 
+  // if there is a proposal cost, the user must have bought a reservation
+  if (_config.get().proposal_cost.quantity.amount > 0) {
+    reservation_table reservation_tbl(_self, _self.value);
+    auto it = reservation_tbl.find(author.value);
+    eosio::check(it != reservation_tbl.end(), "no proposal reserved");
+    reservation_tbl.erase(it);
+  }
+
   if (cycle > 0)
     perform_cycle_update();
 
@@ -154,7 +162,7 @@ void proposals::perform_cycle_update() {
   eosio::check(_config.exists(), "not initialized");
 
   auto conf = _config.get();
-  auto cycle_id = _conf.current_cycle;
+  auto cycle_id = conf.current_cycle;
   cycle_table cycle_tbl(_self, _self.value);
   auto& cur_cycle = cycle_tbl.get(cycle_id, "this cycle is not defined");
   auto cur_time_sec = time_point_sec(now());
@@ -170,3 +178,43 @@ void proposals::perform_cycle_update() {
 }
 
 EOSIO_DISPATCH(proposals, (init)(update)(createprop)(updateprop)(addcycle)(clearprops));
+void proposals::transfer_handler(name from, name to, asset quantity, std::string memo) {
+  if (to == get_self() && memo == RESERVATION_MEMO) {
+    auto conf = _config.get();
+    eosio::extended_asset proposal_cost = conf.proposal_cost;
+
+    // validate the asset symbol
+    auto sym = quantity.symbol;
+    auto raw_sym_code = sym.code().raw();
+    eosio::check(sym.is_valid(), "invalid symbol name");
+
+    // check if user already has a proposal reserved
+    reservation_table reservation_tbl(_self, _self.value);
+    auto existing = reservation_tbl.find(from.value);
+    eosio::check(existing == reservation_tbl.end(),
+                 "you already have a proposal reserved");
+
+    if (proposal_cost.contract == get_first_receiver()) {
+
+      // validate the contract that is staking
+      // redundant check that is also in the if statement above
+      eosio::check(proposal_cost.contract == get_first_receiver(),
+                   "wrong token contract");
+
+      eosio::check(proposal_cost.quantity == quantity, "wrong amount");
+
+      reservation_tbl.emplace(_self, [&](auto& r) { r.owner = from; });
+    }
+  }
+}
+
+extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
+  if (action == "transfer"_n.value) {
+    execute_action<proposals>(eosio::name(receiver), eosio::name(code),
+                              &proposals::transfer_handler);
+  } else if (code == receiver) {
+    switch(action) {
+      EOSIO_DISPATCH_HELPER(proposals, (init)(update)(createprop)(updateprop)(addcycle)(clearprops));
+    }
+  }
+}

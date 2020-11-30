@@ -19,6 +19,8 @@ class [[eosio::contract("effect-proposals")]] proposals : public eosio::contract
 public:
   using contract::contract;
 
+  inline static const std::string RESERVATION_MEMO = "proposal";
+
   typedef std::tuple<eosio::extended_asset, eosio::time_point_sec> pay_entry;
 
   enum ProposalState {
@@ -85,6 +87,11 @@ public:
   [[eosio::action]]
   void addcycle(std::vector<eosio::extended_asset> budget);
 
+  void transfer_handler(eosio::name from,
+                        eosio::name to,
+                        eosio::asset quantity,
+                        std::string memo);
+
 private:
   void perform_cycle_update();
 
@@ -125,6 +132,11 @@ private:
                      (state)(cycle)(category)(proof_hash)(transaction_hash));
   };
 
+  struct [[eosio::table]] reservation {
+    eosio::name owner;
+    uint64_t primary_key() const { return owner.value; }
+  };
+
   struct [[eosio::table]] vote {
     uint64_t id;
     eosio::name voter;
@@ -144,6 +156,7 @@ private:
     indexed_by<"cycle"_n, const_mem_fun<proposal, uint64_t, &proposal::by_cycle>>>
   proposal_table;
   typedef multi_index<"cycle"_n, cycle> cycle_table;
+  typedef multi_index<"reservation"_n, reservation> reservation_table;
 
   typedef singleton<"config"_n, config> config_table;
 
