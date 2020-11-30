@@ -44,6 +44,7 @@ public:
 
   [[eosio::action]]
   void init(uint32_t cycle_duration_sec,
+            uint32_t cycle_voting_duration_sec,
             eosio::extended_asset proposal_cost,
             uint32_t quorum,
             eosio::time_point_sec first_cycle_start_time,
@@ -51,6 +52,7 @@ public:
 
   [[eosio::action]]
   void update(uint32_t cycle_duration_sec,
+              uint32_t cycle_voting_duration_sec,
               eosio::extended_asset proposal_cost);
 
   [[eosio::action]]
@@ -97,6 +99,7 @@ private:
 
   struct [[eosio::table]] config {
     uint32_t cycle_duration_sec;
+    uint32_t cycle_voting_duration_sec;
     eosio::extended_asset proposal_cost;
     uint32_t quorum;
     uint16_t current_cycle;

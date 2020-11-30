@@ -5,7 +5,7 @@
             [cljs.core.async :refer [go] ]
             [cljs.core.async.interop :refer [<p!]]
             [e2e.macros :refer-macros [<p-should-fail! <p-should-succeed!
-                                       <p-should-fail-with!]]
+                                       <p-should-fail-with! <p-may-fail!]]
             e2e.token
             e2e.dao))
 
@@ -30,29 +30,26 @@
           (done))))
    :after (fn [])})
 
+(def prop-config {:cycle_duration_sec 1209600 :quorum 2
+                  :cycle_voting_duration_sec 1036800
+                  :proposal_cost {:quantity proposal-cost :contract token-acc}
+                  :dao_contract dao-acc
+                  :first_cycle_start_time "2020-11-18 12:00:00"})
+
 (deftest init
   (async
    done
    (go
      (<p-should-fail-with!
-      (eos/transact prop-acc "update"
-                    {:cycle_duration_sec 10 :quorum 2
-                     :proposal_cost {:quantity proposal-cost :contract token-acc}})
+      (eos/transact prop-acc "update" prop-config)
       "need init to update"
       "not yet initialized")
      (<p-should-succeed!
-      (eos/transact prop-acc "init"
-                    {:cycle_duration_sec 10
-                     :proposal_cost {:quantity proposal-cost :contract token-acc}
-                     :quorum 2
-                     :first_cycle_start_time "2020-12-18 12:00:00"
-                     :dao_contract dao-acc})
+      (eos/transact prop-acc "init" prop-config)
       "can init")
      (<p-should-succeed!
       (eos/transact prop-acc "update"
-                    {:cycle_duration_sec 10 :quorum 2
-                     :proposal_cost {:quantity "0.0000 EFX" :contract token-acc}
-                     })
+                    (assoc-in prop-config [:proposal_cost :quantity] "0.0000 EFX"))
       "can update after init")
      (let [rows (<p! (eos/get-table-rows prop-acc prop-acc "config"))]
        (is (= (count rows) 1)))
@@ -87,19 +84,24 @@
    done
    (go
      (try
-       (<p! (eos/transact prop-acc "update"
-                          {:cycle_duration_sec 10 :quorum 1
-                           :proposal_cost {:quantity proposal-cost :contract token-acc}}))
+       (<p! (eos/transact prop-acc "update" prop-config))
        ;; note: change the content_hash to avoid duplicate transactions
        (<p-should-fail-with!
         (eos/transact prop-acc "createprop" (assoc base-prop :content_hash "ee")
                       [{:actor owner-acc :permission "active"}])
         "need a reservation"
         "no proposal reserved")
-       (<p! (eos/transact token-acc "transfer"
-                          {:from owner-acc :to prop-acc
-                           :quantity proposal-cost :memo "proposal"}
-                          [{:actor owner-acc :permission "active"}]))
+       (<p-should-fail-with! (eos/transact token-acc "transfer"
+                                           {:from owner-acc :to prop-acc
+                                            :quantity "1.5000 EFX" :memo "proposal"}
+                                           [{:actor owner-acc :permission "active"}])
+                             "needs correct amount"
+                             "wrong amount")
+       (<p-should-succeed! (eos/transact token-acc "transfer"
+                                           {:from owner-acc :to prop-acc
+                                            :quantity proposal-cost :memo "proposal"}
+                                           [{:actor owner-acc :permission "active"}])
+                             "can send correct amount")
        (<p-should-succeed!
         (eos/transact prop-acc "createprop" (assoc base-prop :content_hash "bb")
                       [{:actor owner-acc :permission "active"}])

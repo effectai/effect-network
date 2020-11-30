@@ -2,6 +2,7 @@
 #include "../effect-dao/effect-dao-shared.hpp";
 
 void proposals::init(uint32_t cycle_duration_sec,
+                     uint32_t cycle_voting_duration_sec,
                      eosio::extended_asset proposal_cost,
                      uint32_t quorum,
                      eosio::time_point_sec first_cycle_start_time,
@@ -9,10 +10,13 @@ void proposals::init(uint32_t cycle_duration_sec,
   require_auth(_self);
 
   eosio::check(cycle_duration_sec > 0, "cycle duration must be positive");
+  eosio::check(cycle_duration_sec > cycle_voting_duration_sec,
+               "cycle duration must be longer than voting duration");
 
   eosio::check(!_config.exists(), "already initialized");
 
   _config.set(config{cycle_duration_sec,
+                     cycle_voting_duration_sec,
                      proposal_cost,
                      quorum,
                      0,
@@ -33,15 +37,19 @@ void proposals::init(uint32_t cycle_duration_sec,
 };
 
 void proposals::update(uint32_t cycle_duration_sec,
+                       uint32_t cycle_voting_duration_sec,
                        eosio::extended_asset proposal_cost) {
   require_auth(_self);
 
   eosio::check(cycle_duration_sec > 0, "cycle duration must be positive");
+  eosio::check(cycle_duration_sec > cycle_voting_duration_sec,
+               "cycle duration must be longer than voting duration");
 
   eosio::check(_config.exists(), "not yet initialized");
 
   auto conf = _config.get();
   conf.cycle_duration_sec = cycle_duration_sec;
+  conf.cycle_voting_duration_sec = cycle_voting_duration_sec;
   conf.proposal_cost = proposal_cost;
   _config.set(conf, _self);
 };
@@ -127,14 +135,16 @@ void proposals::updateprop(uint64_t id,
   eosio::require_auth(prop.author);
   dao::require_member(_config.get().dao_contract, prop.author);
 
-  // proposal may not be in be the active cycle
-  eosio::check(cur_cycle == 0 || cur_cycle != prop.cycle,
-               "active proposal can't be updated");
-
-  // make sure proposals from past cycles are processed
-  eosio::check(cur_cycle == 0 || prop.cycle > cur_cycle ||
+  // a proposals can only be updated if either:
+  // - the current cycle is genesis
+  // - it's in draft (cycle 0)
+  // - it's assigned to a future cycle
+  // - it was rejected
+  eosio::check(cur_cycle == 0 ||
+               prop.cycle == 0 ||
+               prop.cycle > cur_cycle ||
                prop.state == proposals::Rejected,
-               "proposal results still have to be finalized");
+               "proposal is still active or not yet rejected");
 
   prop_tbl.modify(prop,
                   eosio::same_payer,
@@ -177,7 +187,6 @@ void proposals::perform_cycle_update() {
   }
 }
 
-EOSIO_DISPATCH(proposals, (init)(update)(createprop)(updateprop)(addcycle)(clearprops));
 void proposals::transfer_handler(name from, name to, asset quantity, std::string memo) {
   if (to == get_self() && memo == RESERVATION_MEMO) {
     auto conf = _config.get();
@@ -195,7 +204,6 @@ void proposals::transfer_handler(name from, name to, asset quantity, std::string
                  "you already have a proposal reserved");
 
     if (proposal_cost.contract == get_first_receiver()) {
-
       // validate the contract that is staking
       // redundant check that is also in the if statement above
       eosio::check(proposal_cost.contract == get_first_receiver(),
@@ -214,7 +222,7 @@ extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
                               &proposals::transfer_handler);
   } else if (code == receiver) {
     switch(action) {
-      EOSIO_DISPATCH_HELPER(proposals, (init)(update)(createprop)(updateprop)(addcycle)(clearprops));
+      EOSIO_DISPATCH_HELPER(proposals, (init)(update)(createprop)(updateprop));
     }
   }
 }
