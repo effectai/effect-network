@@ -53,6 +53,7 @@ public:
   [[eosio::action]]
   void update(uint32_t cycle_duration_sec,
               uint32_t cycle_voting_duration_sec,
+              uint32_t quorum,
               eosio::extended_asset proposal_cost);
 
   [[eosio::action]]

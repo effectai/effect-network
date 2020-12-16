@@ -38,6 +38,7 @@ void proposals::init(uint32_t cycle_duration_sec,
 
 void proposals::update(uint32_t cycle_duration_sec,
                        uint32_t cycle_voting_duration_sec,
+                       uint32_t quorum,
                        eosio::extended_asset proposal_cost) {
   require_auth(_self);
 
@@ -50,6 +51,7 @@ void proposals::update(uint32_t cycle_duration_sec,
   auto conf = _config.get();
   conf.cycle_duration_sec = cycle_duration_sec;
   conf.cycle_voting_duration_sec = cycle_voting_duration_sec;
+  conf.quorum = quorum;
   conf.proposal_cost = proposal_cost;
   _config.set(conf, _self);
 };
