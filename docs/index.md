@@ -10,8 +10,8 @@ gh_edit_source: docs
 
 # EffectDAO
 
-The Effect Network is run by a decentralized organization that controls the
-direction and the develoment of the collective. Anyone in the world can join to
+The EffectDAO is a decentralized organization with the goal to create an open
+and democratic environment for AI development. Anyone in the world can join to
 expand the network and get rewarded for their participation.
 {: .fs-6 .fw-300 }
 
@@ -21,20 +21,20 @@ expand the network and get rewarded for their participation.
 
 ## Status
 
-Phase 0 of the DAO will be released on the 19th of December. At this moment
+Phase 1 of the DAO will start on the 1st of January 2021. At this moment
 [Staking](staking) and [Membership](membership) are already fully
-functional. Once Phase 0 is deployed it contains all the primary elements of the
+functional. Once Phase 1 is deployed it contains all the primary elements of the
 DAO. This means it's possible to register, vote, and create proposals. This wiki
 will contain up to date information on the current functioning of the DAO and
-will be updated to reflect any changes.  
+will be updated to reflect any changes.
 {: .warn}
 
 ## Getting started
 
-The EffectDAO is a Decentralized Autonomous Organization (DAO) that is free for
-anyone to join. The rules and regulations that govern the DAO are controlled by
-smart contracts on the blockchain - this makes the organization completely
-transparent and in control by its members.
+The EffectDAO is a Decentralized Autonomous Organization (DAO) that is open for
+anyone to join. The rules and regulations that govern the DAO as well as it's
+smart contracts are controlled by smart contracts on the blockchain - this makes
+the organization completely transparent and in control by its members.
 
 ### Stake your tokens 
 Staking EFX and NFX tokens signals that you will act in best interest of the
