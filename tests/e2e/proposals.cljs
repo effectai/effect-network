@@ -109,5 +109,40 @@
        (catch js/Error e  (prn e)))
      (done))))
 
+(deftest update-proposal
+  (async
+   done
+   (go
+     (<p-should-succeed! (eos/transact prop-acc "updateprop"
+                                       (assoc base-prop :id 0 :cycle 1)
+                                       [{:actor owner-acc :permission "active"}])
+                         "can update proposal")
+     (done))))
+
+(deftest cycle-add
+  (async
+   done
+   (go
+     (<p-should-succeed! (eos/transact prop-acc "cycleupdate" {})
+                         "can progress cycle")
+     (done))))
+
+(deftest vote
+  (async
+   done
+   (go
+     (try
+       (<p-should-succeed!
+        (eos/transact prop-acc "addvote" {:voter prop-acc :prop_id 0 :vote_type 0})
+        "can vote on own proposal")
+       (<p-should-succeed!
+        (eos/transact prop-acc "addvote" {:voter prop-acc :prop_id 0 :vote_type 1})
+        "can update vote")
+       (<p-should-succeed!
+        (eos/transact prop-acc "addvote" {:voter prop-acc :prop_id 0 :vote_type 0})
+        "multiple accounts can vote")
+       (catch js/Error e (prn e)))
+     (done))))
+
 (defn -main [& args]
     (run-tests))

@@ -74,7 +74,7 @@ void proposals::createprop(eosio::name author,
   }
 
   if (cycle > 0)
-    perform_cycle_update();
+    cycleupdate();
 
   auto cur_cycle = _config.get().current_cycle;
 
@@ -102,7 +102,19 @@ void proposals::createprop(eosio::name author,
 }
 
 void proposals::addcycle(std::vector<eosio::extended_asset> budget) {
+  require_auth(_self);
 
+  cycle_table cycle_tbl(_self, _self.value);
+  uint64_t cycle_id = cycle_tbl.available_primary_key();
+
+  cycle_tbl.emplace(_self,
+                    [&](auto& c)
+                    {
+                      c.id = cycle_id;
+                      c.quorum = _config.get().quorum;
+                      c.start_time = eosio::time_point_sec(now());
+                      c.budget = budget;
+                    });
 }
 
 void proposals::executeprop() {
@@ -124,9 +136,6 @@ void proposals::updateprop(uint64_t id,
                            uint8_t category,
                            uint16_t cycle,
                            std::optional<eosio::checksum256> transaction_hash) {
-  if (cycle > 0)
-    perform_cycle_update();
-
   auto cur_cycle = _config.get().current_cycle;
 
   eosio::check(cycle == 0 || cycle > cur_cycle, "cycle must be in the future");
@@ -161,16 +170,71 @@ void proposals::updateprop(uint64_t id,
                   });
 }
 
-void proposals::addvote() {
-}
+void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type) {
+  require_auth(voter);
 
-void proposals::updatevote() {
+  vote_table vote_tbl(_self, _self.value);
+  auto vote_tbl_idx = vote_tbl.get_index<"composite"_n>();
+  uint128_t comp_key = (uint128_t{prop_id} << 64) | voter.value;
+  auto existing = vote_tbl_idx.find(comp_key);
+
+  auto cur_cycle = _config.get().current_cycle;
+
+  proposal_table prop_tbl(_self, _self.value);
+  auto& prop = prop_tbl.get(prop_id, "proposal does not exist");
+
+  // TODO: check proposal is active and votable
+  eosio::check(prop.cycle > 0 && prop.cycle == cur_cycle, "proposal is not active");
+
+  // TODO: calcualte vote weight
+  uint32_t vote_weight = 41;
+
+  if (existing == vote_tbl_idx.end()) {
+    // insert a new vote
+    vote_tbl.emplace(voter,
+                     [&](auto& v)
+                     {
+                       v.id = vote_tbl.available_primary_key();
+                       v.voter = voter;
+                       v.proposal_id = prop_id;
+                       v.type = vote_type;
+                       v.weight = vote_weight;
+                     });
+
+    prop_tbl.modify(prop,
+                    eosio::same_payer,
+                    [&](auto& p)
+                    {
+                      p.vote_counts[vote_type] += vote_weight;
+                    });
+  } else {
+    // update an exisitng vote by account
+
+    // ensure there is no underflow (this should never happen)
+    eosio::check(prop.vote_counts.at(existing->type) >= existing->weight,
+                 "vote count underflow");
+    prop_tbl.modify(prop,
+                    eosio::same_payer,
+                    [&](auto& p)
+                    {
+                      p.vote_counts[existing->type] -= existing->weight;
+                      p.vote_counts[vote_type] += vote_weight;
+                    });
+
+    vote_tbl_idx.modify(existing,
+                        eosio::same_payer,
+                        [&](auto& v)
+                        {
+                          v.type = vote_type;
+                          v.weight = vote_weight;
+                        });
+  }
 }
 
 void proposals::addproof() {
 }
 
-void proposals::perform_cycle_update() {
+void proposals::cycleupdate() {
   eosio::check(_config.exists(), "not initialized");
 
   auto conf = _config.get();
@@ -224,7 +288,8 @@ extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
                               &proposals::transfer_handler);
   } else if (code == receiver) {
     switch(action) {
-      EOSIO_DISPATCH_HELPER(proposals, (init)(update)(createprop)(updateprop));
+      EOSIO_DISPATCH_HELPER(proposals, (init)(update)(addcycle)(createprop)(updateprop)(addvote)
+                            (cycleupdate)(clearvotes));
     }
   }
 }

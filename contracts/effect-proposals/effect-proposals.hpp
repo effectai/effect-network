@@ -79,10 +79,9 @@ public:
                   std::optional<eosio::checksum256> transaction_hash);
 
   [[eosio::action]]
-  void addvote();
-
-  [[eosio::action]]
-  void updatevote();
+  void addvote(eosio::name voter,
+               uint64_t prop_id,
+               uint8_t vote_type);
 
   [[eosio::action]]
   void addproof();
@@ -95,8 +94,11 @@ public:
                         eosio::asset quantity,
                         std::string memo);
 
+  [[eosio::action]]
+  void cycleupdate();
+
 private:
-  void perform_cycle_update();
+
 
   struct [[eosio::table]] config {
     uint32_t cycle_duration_sec;
@@ -146,12 +148,17 @@ private:
     eosio::name voter;
     uint64_t proposal_id;
     uint8_t type;
+    uint32_t weight;
     std::optional<eosio::name> delegatee;
     std::optional<std::string> comment_hash;
 
     uint64_t primary_key() const { return id; }
+    uint128_t composite_key() const { return (uint128_t{proposal_id} << 64) | voter.value; }
     uint64_t by_voter() const { return voter.value; }
     uint64_t by_proposal() const { return proposal_id; }
+
+    EOSLIB_SERIALIZE(vote, (id)(voter)(proposal_id)(type)(weight)(delegatee)
+                     (comment_hash));
   };
 
   typedef multi_index<
@@ -161,6 +168,12 @@ private:
   proposal_table;
   typedef multi_index<"cycle"_n, cycle> cycle_table;
   typedef multi_index<"reservation"_n, reservation> reservation_table;
+  typedef multi_index<
+    "vote"_n, vote,
+    indexed_by<"composite"_n, const_mem_fun<vote, uint128_t, &vote::composite_key>>,
+    indexed_by<"voter"_n, const_mem_fun<vote, uint64_t, &vote::by_voter>>,
+    indexed_by<"proposal"_n, const_mem_fun<vote, uint64_t, &vote::by_proposal>>>
+  vote_table;
 
   typedef singleton<"config"_n, config> config_table;
 
