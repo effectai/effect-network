@@ -83,7 +83,7 @@ void proposals::createprop(eosio::name author,
   proposal_table proposal_tbl(_self, _self.value);
 
   auto id = proposal_tbl.available_primary_key();
-  std::map<uint8_t, uint32_t> vote_counts;
+  std::map<uint8_t, uint32_t> vote_counts = {{Abstain, 0}, {No, 0}, {Yes, 0}};
 
   proposal_tbl.emplace(author,
                        [&](auto& p)
