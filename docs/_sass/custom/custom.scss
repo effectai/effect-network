@@ -1,0 +1,40 @@
+.site-logo {
+    width: 38px;
+    height: 38px;
+    margin-right: 9px;
+    background-image: url("/assets/images/logo.png");
+    background-repeat: no-repeat;
+    background-position: left center;
+    background-size: contain;
+}
+
+$callouts: (
+    info: ($blue-300, rgba($blue-000, .2), 'INFO'),
+    warn: ($yellow-300, rgba($yellow-000, .2), 'NOTE'),
+    danger: ($red-300, rgba($red-000, .2), 'DANGER')
+);
+
+@each $class, $props in $callouts {
+    .#{$class} {
+        background: nth($props, 2);
+        border-left: $border-radius solid nth($props, 1);
+        border-radius: $border-radius;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 3px 10px rgba(0, 0, 0, 0.08);
+        padding: .8rem;
+
+        &::before {
+            color: nth($props, 1);
+            content: nth($props, 3);
+            display: block;
+            font-weight: bold;
+            font-size: .75em;
+            padding-bottom: .125rem;
+        }
+    }
+}
+
+table {
+    th, td {
+        min-width: auto;
+    }
+}
