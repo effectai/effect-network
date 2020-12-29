@@ -67,19 +67,19 @@ on your stake age. The best way to look at this is that your newly added tokens
 have an age of 0 days, when they are added to the older tokens the total amount
 of the stake will increase while the overall age will decrease. Dont worry
 though: even when an up-stake makes your stake younger it will always increase
-your Effect Power.
+your EFX Power.
 
-## Effect Power
+## EFX Power
 
 The power of staked EFX tokens is determined by their stage age. This number is
-called your Effect Power and is used to determine your rank in the
-EffectDAO. Every 200 days of stake age will double the Effect Power of your
+called your EFX Power and is used to determine your rank in the
+EffectDAO. Every 200 days of stake age will double the EFX Power of your
 stake. The maximum effective stake age is capped at 1000 days, so after that
 additional age will no longer benefit your stake.
 
-The following table gives some numerical examples of Effect Power:
+The following table gives some numerical examples of EFX Power:
 
-| Staked EFX | Stake AGE | Effect Power |
+| Staked EFX | Stake AGE | EFX  Power |
 |------------|-----------|--------------|
 | 30,000     | 0         | 30,000       |
 | 30,000     | 200       | 60,000       |
@@ -115,6 +115,7 @@ time, in which case you will have to execute the refund by hand. If this
 happened there will be a clear notification on the dashboard with a button to
 initiate the refund.
 
+<!---
 ---
 
 ## Technical deep-dive
