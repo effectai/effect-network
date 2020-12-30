@@ -68,15 +68,15 @@ a 1,000 Guardians.
 
 ### Commitments
 
-Once the EffectDAO Phase 0 is fully launched it's important for Guardians to
-stay in tune with the voting cycles and changes in the regulations. It's highly
+Once the EffectDAO Phase 1 is launched it's important for Guardians to stay in
+tune with the voting cycles and changes in the regulations. It's highly
 recommended to keep an eye on the [Discord
 server](https://discord.gg/hM3237cYXP).
 
 ## High Guard
 
-The High Guard is an elected group of a minimum of 7 Guardians that represent
-the global community . In
+The High Guard is an elected group of Guardians that represent
+the global community. In
 Phase 0 the High Guard Members are also tasked with approving every proposal
 that is voted in by the Guardians and have the ability to execute Special
 Resolutions to make adjustments to the DAO. This is a security measure to ensure

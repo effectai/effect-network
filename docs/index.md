@@ -22,7 +22,7 @@ effort and get rewarded for their participation.
 ## Status
 
 Phase 1 of the DAO will start on the 1st of January 2021. At this moment
-[Staking](staking) and [Membership](membership) are already functional. Once
+[Staking](staking.html) and [Membership](ranks.html) are already functional. Once
 Phase 1 is deployed it contains all the primary elements of the DAO. This means
 it's possible to register, vote, and create proposals. This wiki will contain up
 to date information on the current functioning of the DAO and will be updated to
@@ -38,11 +38,11 @@ organization completely transparent for anyone to explore.
 
 ### Stake your tokens
 
-[Staking EFX and NFX](staking) tokens is the first step in becoming a member of
+[Staking EFX and NFX](staking.html) tokens is the first step in becoming a member of
 the DAO. Locking up tokens signals that you will act in best interest of the
 project.
 
 ### Become a member
 
-To [become a member](ranks) you will have to sign the consitution. This is a
+To [become a member](ranks.html) you will have to sign the consitution. This is a
 relatively easy thing to do [on the dashboard](https://dashboard.effect.ai).
