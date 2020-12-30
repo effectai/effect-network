@@ -73,9 +73,6 @@ void proposals::createprop(eosio::name author,
     reservation_tbl.erase(it);
   }
 
-  if (cycle > 0)
-    cycleupdate();
-
   auto cur_cycle = _config.get().current_cycle;
 
   eosio::check(cycle == 0 || cycle > cur_cycle, "cycle must be in the future");
