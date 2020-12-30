@@ -1,5 +1,23 @@
 #include "effect-dao.hpp"
 
+void effectdao::init(eosio::name stake_contract, eosio::name proposal_contract,
+                 eosio::extended_symbol utl_token_sym,
+                 eosio::extended_symbol gov_token_sym) {
+  require_auth(get_self());
+
+  eosio::check(is_account(stake_contract), "stake contract does not exsist");
+  eosio::check(is_account(proposal_contract), "proposal contract does not exsist");
+
+  dao::config_table config_tbl(_self, _self.value);
+
+  config_tbl.set(dao::config{
+      stake_contract,
+      proposal_contract,
+      utl_token_sym,
+      gov_token_sym
+    }, get_self());
+}
+
 void effectdao::newmemterms(eosio::checksum256 hash) {
   eosio::require_auth(_self);
 

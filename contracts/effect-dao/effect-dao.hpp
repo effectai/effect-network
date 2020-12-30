@@ -19,4 +19,10 @@ class [[eosio::contract("effect-dao")]] effectdao : public eosio::contract {
 
   [[eosio::action]]
   void memberunreg(eosio::name account);
+
+  [[eosio::action]]
+  void init(eosio::name stake_contract,
+            eosio::name proposal_contract,
+            eosio::extended_symbol utl_token_sym,
+            eosio::extended_symbol gov_token_sym);
 };

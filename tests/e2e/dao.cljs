@@ -4,6 +4,8 @@
             [cljs.test :refer-macros [deftest is testing run-tests async use-fixtures]]
             [cljs.core.async :refer [go] ]
             [cljs.core.async.interop :refer [<p!]]
+            [e2e.macros :refer-macros [<p-should-fail! <p-should-succeed!
+                                       <p-should-fail-with! <p-may-fail!]]
             e2e.token))
 
 (def owner-acc e2e.token/owner-acc)
@@ -35,6 +37,25 @@
           (<p! (eos/deploy dao-acc "contracts/effect-dao/effect-dao"))
           (done))))
    :after (fn [])})
+
+(def dao-config {:stake_contract dao-acc
+                 :proposal_contract dao-acc
+                 :gov_token_sym {:contract dao-acc :sym "4,GOV"}
+                 :utl_token_sym {:contract dao-acc :sym "4,UTL"}})
+
+(deftest init
+  (async
+   done
+   (go
+     (<p-should-succeed! (eos/transact dao-acc "init" dao-config) "can init")
+     (let [rows (<p! (eos/get-table-rows dao-acc dao-acc "config"))]
+       (is (= (count rows) 1))
+       (is (= (get-in rows [0 "stake_contract"]) dao-acc)))
+     (<p-should-succeed!
+      (eos/transact dao-acc "init" (assoc dao-config :stake_contract owner-acc) ) "can update")
+     (let [rows (<p! (eos/get-table-rows dao-acc dao-acc "config"))]
+       (is (= (get-in rows [0 "stake_contract"]) owner-acc)))
+     (done))))
 
 (deftest new-member-terms
   (async
