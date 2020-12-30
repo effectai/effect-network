@@ -202,7 +202,7 @@ void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type) 
                      });
 
     prop_tbl.modify(prop,
-                    eosio::same_payer,
+                    voter, //eosio::same_payer,
                     [&](auto& p)
                     {
                       p.vote_counts[vote_type] += vote_weight;
@@ -214,7 +214,7 @@ void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type) 
     eosio::check(prop.vote_counts.at(existing->type) >= existing->weight,
                  "vote count underflow");
     prop_tbl.modify(prop,
-                    eosio::same_payer,
+                    voter, //eosio::same_payer,
                     [&](auto& p)
                     {
                       p.vote_counts[existing->type] -= existing->weight;
@@ -289,7 +289,7 @@ extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
   } else if (code == receiver) {
     switch(action) {
       EOSIO_DISPATCH_HELPER(proposals, (init)(update)(addcycle)(createprop)(updateprop)(addvote)
-                            (cycleupdate)(clearvotes));
+                            (cycleupdate));
     }
   }
 }
