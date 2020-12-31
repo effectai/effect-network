@@ -10,11 +10,6 @@
 using namespace eosio;
 using namespace std;
 
-inline uint32_t now() {
-  static uint32_t current_time = current_time_point().sec_since_epoch();
-  return current_time;
-}
-
 class [[eosio::contract("effect-proposals")]] proposals : public eosio::contract {
 public:
   using contract::contract;
@@ -87,7 +82,8 @@ public:
   void addproof();
 
   [[eosio::action]]
-  void addcycle(std::vector<eosio::extended_asset> budget);
+  void addcycle(eosio::time_point_sec start_time,
+                std::vector<eosio::extended_asset> budget);
 
   void transfer_handler(eosio::name from,
                         eosio::name to,

@@ -109,7 +109,7 @@ void proposals::addcycle(std::vector<eosio::extended_asset> budget) {
                     {
                       c.id = cycle_id;
                       c.quorum = _config.get().quorum;
-                      c.start_time = eosio::time_point_sec(now());
+                      c.start_time = start_time;
                       c.budget = budget;
                     });
 }
