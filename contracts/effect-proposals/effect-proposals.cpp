@@ -98,7 +98,8 @@ void proposals::createprop(eosio::name author,
                        });
 }
 
-void proposals::addcycle(std::vector<eosio::extended_asset> budget) {
+void proposals::addcycle(eosio::time_point_sec start_time,
+                         std::vector<eosio::extended_asset> budget) {
   require_auth(_self);
 
   cycle_table cycle_tbl(_self, _self.value);
@@ -169,6 +170,7 @@ void proposals::updateprop(uint64_t id,
 
 void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type) {
   require_auth(voter);
+  dao::require_member(_config.get().dao_contract, voter);
 
   vote_table vote_tbl(_self, _self.value);
   auto vote_tbl_idx = vote_tbl.get_index<"composite"_n>();
@@ -180,11 +182,12 @@ void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type) 
   proposal_table prop_tbl(_self, _self.value);
   auto& prop = prop_tbl.get(prop_id, "proposal does not exist");
 
-  // TODO: check proposal is active and votable
+  // TODO: check we're within votable timeframe
   eosio::check(prop.cycle > 0 && prop.cycle == cur_cycle, "proposal is not active");
 
-  // TODO: calcualte vote weight
-  uint32_t vote_weight = 41;
+  // calculate vote weight
+  auto rank = dao::get_rank(_config.get().dao_contract, voter);
+  uint32_t vote_weight = dao::get_vote_power(rank);
 
   if (existing == vote_tbl_idx.end()) {
     // insert a new vote

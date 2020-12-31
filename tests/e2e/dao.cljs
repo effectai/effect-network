@@ -15,18 +15,27 @@
 (def terms [{:hash "1e1fe1b13e6e43d8f9cb3263817b24d7dcf8070a8fcaba3e8ced94ea263dd450"}
             {:hash "09de7554ad8e52ce863d60ab5bb60fa60d9401a8ac78d412c6060cb992465fd7"}])
 
+(def dao-config {:stake_contract dao-acc
+                 :proposal_contract dao-acc
+                 :gov_token_sym {:contract dao-acc :sym "4,GOV"}
+                 :utl_token_sym {:contract dao-acc :sym "4,UTL"}})
+
 (defn deploy-dao
   "Deploy a basic dao account and fill it with data for testing"
-  ([acc] (deploy-dao acc []))
-  ([acc members]
+  ([acc stake-acc prop-acc token-acc utl-sym gov-sym members]
    (let [terms (first terms)]
      (go (<p! (eos/create-account owner-acc acc))
          (<p! (eos/deploy acc "contracts/effect-dao/effect-dao"))
          (<p! (eos/transact acc "newmemterms" terms))
+         (<p! (eos/transact acc "init" {:stake_contract stake-acc
+                                        :proposal_contract prop-acc
+                                        :gov_token_sym {:contract token-acc :sym gov-sym }
+                                        :utl_token_sym {:contract token-acc :sym utl-sym }}))
          (doseq [m members]
            (<p! (eos/transact acc "memberreg"
                               {:account owner-acc :agreedterms (:hash terms)}
-                              [{:actor m :permission "active"}])))))))
+                              [{:actor m :permission "active"}]))
+           (prn "..added  " m " to the dao"))))))
 
 (use-fixtures :once
   {:before
@@ -37,11 +46,6 @@
           (<p! (eos/deploy dao-acc "contracts/effect-dao/effect-dao"))
           (done))))
    :after (fn [])})
-
-(def dao-config {:stake_contract dao-acc
-                 :proposal_contract dao-acc
-                 :gov_token_sym {:contract dao-acc :sym "4,GOV"}
-                 :utl_token_sym {:contract dao-acc :sym "4,UTL"}})
 
 (deftest init
   (async

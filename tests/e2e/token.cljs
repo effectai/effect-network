@@ -19,9 +19,13 @@
    (go (<p! (eos/create-account owner-acc acc))
        (<p! (eos/deploy acc "contracts/effect-token/effect-token"))
        (eos/transact acc "create" {:issuer acc :maximum_supply total-supply})
+       (eos/transact acc "create" {:issuer acc :maximum_supply "120000000.0000 NFX"})
        (doseq [m issues]
          (<p! (eos/transact acc "issue"
-                            {:to m :quantity "1000000.0000 EFX" :memo ""}
+                            {:to m :quantity "300000000.0000 EFX" :memo ""}
+                            [{:actor acc :permission "active"}]))
+         (<p! (eos/transact acc "issue"
+                            {:to m :quantity "1000000.0000 NFX" :memo ""}
                             [{:actor acc :permission "active"}]))))))
 
 ;; Use fixture to deploy

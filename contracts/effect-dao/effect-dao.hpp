@@ -25,4 +25,5 @@ class [[eosio::contract("effect-dao")]] effectdao : public eosio::contract {
             eosio::name proposal_contract,
             eosio::extended_symbol utl_token_sym,
             eosio::extended_symbol gov_token_sym);
+
 };
