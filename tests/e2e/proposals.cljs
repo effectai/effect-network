@@ -27,13 +27,12 @@
      (async
       done
       (go
-        (prn "Fixture Before proposal")
-          (<p! (eos/create-account owner-acc prop-acc))
-          (<p! (eos/deploy prop-acc "contracts/effect-proposals/effect-proposals"))
-          (<! (e2e.token/deploy-token token-acc [owner-acc]))
-          (<! (e2e.stake/deploy-stake stake-acc token-acc "4,EFX" "4,NFX" [owner-acc]))
-          (<! (e2e.dao/deploy-dao dao-acc stake-acc prop-acc token-acc "4,EFX" "4,NFX" [owner-acc]))
-          (done))))
+        (<p! (eos/create-account owner-acc prop-acc))
+        (<p! (eos/deploy prop-acc "contracts/effect-proposals/effect-proposals"))
+        (<! (e2e.token/deploy-token token-acc [owner-acc]))
+        (<! (e2e.stake/deploy-stake stake-acc token-acc "4,EFX" "4,NFX" [owner-acc]))
+        (<! (e2e.dao/deploy-dao dao-acc stake-acc prop-acc token-acc "4,EFX" "4,NFX" [owner-acc]))
+        (done))))
    :after (fn [])})
 
 (def prop-config {:cycle_duration_sec 1209600 :quorum 2
@@ -92,10 +91,6 @@
                                             :quantity proposal-cost :memo "proposal"}
                                            [{:actor owner-acc :permission "active"}])
                              "can send correct amount")
-       ;; (<p-should-succeed!
-       ;;  (eos/transact prop-acc "createprop" (assoc base-prop :content_hash "bb")
-       ;;                [{:actor owner-acc :permission "active"}])
-       ;;  "can make a paid proposal after reservation")
        (catch js/Error e  (prn e)))
      (done))))
 
@@ -114,6 +109,17 @@
      (let [rows (<p! (eos/get-table-rows prop-acc prop-acc "proposal"))]
 
        (is (= (count rows) 1)))
+     (<p! (eos/transact token-acc "transfer"
+                        {:from owner-acc :to prop-acc
+                         :quantity proposal-cost :memo "proposal"}
+                        [{:actor owner-acc :permission "active"}])
+          "can send correct amount")
+     (<p-should-succeed!
+      (eos/transact prop-acc "createprop" (assoc base-prop :content_hash "bb")
+                    [{:actor owner-acc :permission "active"}])
+      "can make a second proposal")
+     (let [rows (<p! (eos/get-table-rows prop-acc prop-acc "proposal"))]
+       (is (= (count rows) 2)))
      (done))))
 
 (deftest update-proposal
@@ -122,6 +128,10 @@
    (go
      (<p-should-succeed! (eos/transact prop-acc "updateprop"
                                        (assoc base-prop :id 0 :cycle 1)
+                                       [{:actor owner-acc :permission "active"}])
+                         "can update proposal")
+     (<p-should-succeed! (eos/transact prop-acc "updateprop"
+                                       (assoc base-prop :id 1 :cycle 1)
                                        [{:actor owner-acc :permission "active"}])
                          "can update proposal")
      (done))))
@@ -153,7 +163,6 @@
    (go
      (try
        (do
-         (prn "ADDING VOTE " owner-acc)
          (<p-should-succeed!
           (eos/transact prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 0} [{:actor owner-acc :permission "active"}])
           "can vote on own proposal")
@@ -161,14 +170,24 @@
           (eos/transact prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 1} [{:actor owner-acc :permission "active"}])
           "can update vote")
          (<p-should-succeed!
-          (eos/transact prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 0} [{:actor owner-acc :permission "active"}])
+          (eos/transact prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 2} [{:actor owner-acc :permission "active"}])
           "multiple accounts can vote")
          (<p! (eos/wait-block (js/Promise.resolve 42) 2))
          (let [rows (<p! (eos/get-table-rows prop-acc prop-acc "proposal"))
-               r (->> rows (filter #(= (% "id") 0)) first)
-               rows-2 (<p! (eos/get-table-rows stake-acc owner-acc "stake"))]
-           (prn "RANK = " (get-in r ["vote_counts" 0 "value"]))
-           (is (= (get-in r ["vote_counts" 0 "value"]) 9))))
+               r (->> rows (filter #(= (% "id") 0)) first)]
+           (prn r)
+           (is (= (get-in r ["vote_counts" 0 "value"]) 0))
+           (is (= (get-in r ["vote_counts" 1 "value"]) 0))
+           (is (= (get-in r ["vote_counts" 2 "value"]) 9)))
+         (<p! (eos/wait-block (js/Promise.resolve 42) 2))
+         (try
+           (<p! (eos/transact dao-acc "newmemterms" {:hash  "ab58606332f813bcf6ea26f732014f49a2197d2d281cc2939e59813721ee5245"}))
+           (<p-should-fail-with!
+            (eos/transact prop-acc "addvote" {:voter owner-acc :prop_id 1 :vote_type 1}
+                          [{:actor owner-acc :permission "active"}])
+            "needs latest terms acceptee"
+            "agreed terms are not the latest")
+           (catch js/Error e (prn e))))
        (catch js/Error e (prn e)))
      (done))))
 

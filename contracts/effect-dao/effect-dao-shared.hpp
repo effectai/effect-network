@@ -53,7 +53,10 @@ namespace dao {
   void require_member(eosio::name dao_contract, eosio::name account) {
     dao::member_table member_tbl(dao_contract, dao_contract.value);
     auto this_member = member_tbl.find(account.value);
-    eosio::check(this_member != member_tbl.end(), "not a dao member"); //
+    eosio::check(this_member != member_tbl.end(), "not a dao member");
+    auto latest_terms = (--memterms_table(dao_contract, dao_contract.value).end());
+    eosio::check(latest_terms->version == this_member->agreedtermsversion,
+                 "agreed terms are not the latest");
   }
 
   // level => [efx_power, nfx]
