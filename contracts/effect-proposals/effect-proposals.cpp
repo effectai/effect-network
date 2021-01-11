@@ -177,13 +177,21 @@ void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type) 
   uint128_t comp_key = (uint128_t{prop_id} << 64) | voter.value;
   auto existing = vote_tbl_idx.find(comp_key);
 
-  auto cur_cycle = _config.get().current_cycle;
+  auto conf = _config.get();
 
   proposal_table prop_tbl(_self, _self.value);
+
   auto& prop = prop_tbl.get(prop_id, "proposal does not exist");
 
-  // TODO: check we're within votable timeframe
-  eosio::check(prop.cycle > 0 && prop.cycle == cur_cycle, "proposal is not active");
+  // check we're within votable timeframe
+  cycle_table cycle_tbl(_self, _self.value);
+  auto& cur_cycle = cycle_tbl.get(conf.current_cycle, "this cycle is not defined");
+  auto cur_time_sec = time_point_sec(now());
+
+  eosio::check(cur_time_sec >= cur_cycle.start_time &&
+               cur_time_sec <= cur_cycle.start_time + conf.cycle_voting_duration_sec,
+               "not in voting period");
+  eosio::check(prop.cycle > 0 && prop.cycle == conf.current_cycle, "proposal is not active");
 
   // calculate vote weight
   auto rank = dao::get_rank(_config.get().dao_contract, voter);

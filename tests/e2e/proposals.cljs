@@ -36,7 +36,7 @@
    :after (fn [])})
 
 (def prop-config {:cycle_duration_sec 1209600 :quorum 2
-                  :cycle_voting_duration_sec 1036800
+                  :cycle_voting_duration_sec 0
                   :proposal_cost {:quantity proposal-cost :contract token-acc}
                   :dao_contract dao-acc
                   :first_cycle_start_time "2020-11-18 12:00:00"})
@@ -163,6 +163,15 @@
    (go
      (try
        (do
+         ;; needs to be in voting period
+         (<p-should-fail-with!
+          (eos/transact prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 0} [{:actor owner-acc :permission "active"}])
+          "can vote on own proposal"
+          "not in voting period")
+         (<p! (eos/transact prop-acc "update"
+                            (assoc prop-config
+                                   :cycle_duration_sec (inc 9e6)
+                                   :cycle_voting_duration_sec 9e6)))
          (<p-should-succeed!
           (eos/transact prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 0} [{:actor owner-acc :permission "active"}])
           "can vote on own proposal")
