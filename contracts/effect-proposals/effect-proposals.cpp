@@ -148,11 +148,9 @@ void proposals::updateprop(uint64_t id,
   // - the current cycle is genesis
   // - it's in draft (cycle 0)
   // - it's assigned to a future cycle
-  // - it was rejected
   eosio::check(cur_cycle == 0 ||
                prop.cycle == 0 ||
-               prop.cycle > cur_cycle ||
-               prop.state == proposals::Rejected,
+               prop.cycle > cur_cycle,
                "proposal is still active or not yet rejected");
 
   prop_tbl.modify(prop,
