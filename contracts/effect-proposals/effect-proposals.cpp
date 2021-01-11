@@ -189,7 +189,11 @@ void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type) 
   eosio::check(cur_time_sec >= cur_cycle.start_time &&
                cur_time_sec <= cur_cycle.start_time + conf.cycle_voting_duration_sec,
                "not in voting period");
-  eosio::check(prop.cycle > 0 && prop.cycle == conf.current_cycle, "proposal is not active");
+
+  eosio::check(prop.state == proposals::Pending &&
+               prop.cycle > 0 &&
+               prop.cycle == conf.current_cycle,
+               "proposal is not active");
 
   // calculate vote weight
   auto rank = dao::get_rank(_config.get().dao_contract, voter);
