@@ -6,6 +6,7 @@
 #include <eosio/crypto.hpp>
 #include <eosio/system.hpp>
 #include <eosio/singleton.hpp>
+#include <eosio/binary_extension.hpp>
 
 using namespace eosio;
 using namespace std;
@@ -31,6 +32,11 @@ public:
     Abstain = 0,
     Yes = 1,
     No = 2
+  };
+
+  enum CycleState {
+    CyclePending = 0,
+    CycleFinalized = 1
   };
 
   proposals(eosio::name receiver, eosio::name code, eosio::datastream<const char*> ds) :
@@ -60,12 +66,6 @@ public:
                   std::optional<eosio::checksum256> transaction_hash);
 
   [[eosio::action]]
-  void executeprop();
-
-  [[eosio::action]]
-  void processprop(uint64_t id);
-
-  [[eosio::action]]
   void updateprop(uint64_t id,
                   std::vector<pay_entry> pay,
                   std::string content_hash,
@@ -79,9 +79,6 @@ public:
                uint8_t vote_type);
 
   [[eosio::action]]
-  void addproof();
-
-  [[eosio::action]]
   void addcycle(eosio::time_point_sec start_time,
                 std::vector<eosio::extended_asset> budget);
 
@@ -93,9 +90,11 @@ public:
   [[eosio::action]]
   void cycleupdate();
 
+  [[eosio::action]]
+  void processcycle(eosio::name account,
+                    uint64_t id);
+
 private:
-
-
   struct [[eosio::table]] config {
     uint32_t cycle_duration_sec;
     uint32_t cycle_voting_duration_sec;
@@ -110,6 +109,9 @@ private:
     eosio::time_point_sec start_time;
     std::vector<eosio::extended_asset> budget;
     uint32_t quorum;
+    eosio::binary_extension<uint8_t> state;
+    eosio::binary_extension<std::vector<eosio::extended_asset>> spent;
+    eosio::binary_extension<uint64_t> total_vote_weight;
     uint64_t primary_key() const { return id; }
   };
 
@@ -138,6 +140,12 @@ private:
     eosio::name owner;
     uint64_t primary_key() const { return owner.value; }
   };
+
+  // struct [[eosio::table]] fee {
+  //   uint64_t cycle_id;
+  //   std::vector<eosio::extended_asset> amounts;
+  //   uint64_t primary_key() const { return cycle; }
+  // };
 
   struct [[eosio::table]] vote {
     uint64_t id;

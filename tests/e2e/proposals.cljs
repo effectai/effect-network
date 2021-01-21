@@ -29,13 +29,15 @@
       (go
         (<p! (eos/create-account owner-acc prop-acc))
         (<p! (eos/deploy prop-acc "contracts/effect-proposals/effect-proposals"))
-        (<! (e2e.token/deploy-token token-acc [owner-acc]))
-        (<! (e2e.stake/deploy-stake stake-acc token-acc "4,EFX" "4,NFX" [owner-acc]))
-        (<! (e2e.dao/deploy-dao dao-acc stake-acc prop-acc token-acc "4,EFX" "4,NFX" [owner-acc]))
+        (<! (e2e.token/deploy-token token-acc [owner-acc token-acc]))
+        (<! (e2e.stake/deploy-stake stake-acc token-acc "4,EFX" "4,NFX" [[owner-acc "1056569.0000 EFX" "37276.0000 NFX"]
+                                                                         [token-acc "606645.0000 EFX" "24042.0000 NFX"]]))
+        (<! (e2e.dao/deploy-dao dao-acc stake-acc prop-acc token-acc "4,EFX" "4,NFX" [owner-acc token-acc]))
         (done))))
    :after (fn [])})
 
-(def prop-config {:cycle_duration_sec 1209600 :quorum 2
+(def prop-config {:cycle_duration_sec 1209600
+                  :quorum 12
                   :cycle_voting_duration_sec 0
                   :proposal_cost {:quantity proposal-cost :contract token-acc}
                   :dao_contract dao-acc
@@ -118,6 +120,7 @@
       (eos/transact prop-acc "createprop" (assoc base-prop :content_hash "bb")
                     [{:actor owner-acc :permission "active"}])
       "can make a second proposal")
+
      (let [rows (<p! (eos/get-table-rows prop-acc prop-acc "proposal"))]
        (is (= (count rows) 2)))
      (done))))
@@ -127,11 +130,11 @@
    done
    (go
      (<p-should-succeed! (eos/transact prop-acc "updateprop"
-                                       (assoc base-prop :id 0 :cycle 1)
+                                       (assoc base-prop :id 0 :cycle 2)
                                        [{:actor owner-acc :permission "active"}])
                          "can update proposal")
      (<p-should-succeed! (eos/transact prop-acc "updateprop"
-                                       (assoc base-prop :id 1 :cycle 1)
+                                       (assoc base-prop :id 1 :cycle 2)
                                        [{:actor owner-acc :permission "active"}])
                          "can update proposal")
      (done))))
@@ -144,7 +147,15 @@
                                        {:start_time "2021-01-01 12:00:00"
                                         :budget [{:quantity (str "326000.0000 EFX")
                                                   :contract token-acc}]}))
-     (let [[{cycle "current_cycle"}] (<p! (eos/get-table-rows prop-acc prop-acc "config"))]
+     (<p-should-succeed! (eos/transact prop-acc "addcycle"
+                                       {:start_time "2021-01-01 12:00:00"
+                                        :budget [{:quantity (str "500.1000 EFX")
+                                                  :contract token-acc}]}))
+     (<p-should-succeed! (eos/transact prop-acc "addcycle"
+                                       {:start_time "2021-01-01 12:00:00"
+                                        :budget [{:quantity (str "326000.2000 EFX")
+                                                  :contract token-acc}]}))
+     (let [[{cycle "current_cycle"} ] (<p! (eos/get-table-rows prop-acc prop-acc "config"))]
        (is (= cycle 0)))
      (<p-should-succeed! (eos/transact prop-acc "cycleupdate" {})
                          "can progress cycle")
@@ -154,8 +165,11 @@
      (<p-should-succeed! (eos/transact prop-acc "cycleupdate" {})
                          "can progress cycle")
      (let [[{cycle "current_cycle"}] (<p! (eos/get-table-rows prop-acc prop-acc "config"))]
-       (is (= cycle 1)))
+       (is (= cycle 2)))
      (done))))
+
+(defn eos-tx-owner [contr action args]
+  (eos/transact contr action args [{:actor owner-acc :permission "active"}]))
 
 (deftest vote
   (async
@@ -165,7 +179,7 @@
        (do
          ;; needs to be in voting period
          (<p-should-fail-with!
-          (eos/transact prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 0} [{:actor owner-acc :permission "active"}])
+          (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 0})
           "can vote on own proposal"
           "not in voting period")
          (<p! (eos/transact prop-acc "update"
@@ -173,30 +187,49 @@
                                    :cycle_duration_sec (inc 9e6)
                                    :cycle_voting_duration_sec 9e6)))
          (<p-should-succeed!
-          (eos/transact prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 0} [{:actor owner-acc :permission "active"}])
+          (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 0})
           "can vote on own proposal")
          (<p-should-succeed!
-          (eos/transact prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 1} [{:actor owner-acc :permission "active"}])
+          (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 1})
           "can update vote")
          (<p-should-succeed!
-          (eos/transact prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 2} [{:actor owner-acc :permission "active"}])
-          "multiple accounts can vote")
+          (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 2})
+          "can update vote twice")
          (<p! (eos/wait-block (js/Promise.resolve 42) 2))
+         (<p! (eos/transact prop-acc "addvote" {:voter token-acc :prop_id 0 :vote_type 1} [{:actor token-acc :permission "active"}])
+              "multiple accounts can vote")
          (let [rows (<p! (eos/get-table-rows prop-acc prop-acc "proposal"))
                r (->> rows (filter #(= (% "id") 0)) first)]
            (prn r)
            (is (= (get-in r ["vote_counts" 0 "value"]) 0))
-           (is (= (get-in r ["vote_counts" 1 "value"]) 0))
-           (is (= (get-in r ["vote_counts" 2 "value"]) 9)))
+           (is (= (get-in r ["vote_counts" 1 "value"]) 2))
+           (is (= (get-in r ["vote_counts" 2 "value"]) 5)))
          (<p! (eos/wait-block (js/Promise.resolve 42) 2))
+         (<p! (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 1 :vote_type 1})
+              "multiple accounts can vote")
          (try
-           (<p! (eos/transact dao-acc "newmemterms" {:hash  "ab58606332f813bcf6ea26f732014f49a2197d2d281cc2939e59813721ee5245"}))
+           (<p! (eos/transact dao-acc "newmemterms" {:hash "ab58606332f813bcf6ea26f732014f49a2197d2d281cc2939e59813721ee5246"}))
            (<p-should-fail-with!
-            (eos/transact prop-acc "addvote" {:voter owner-acc :prop_id 1 :vote_type 1}
-                          [{:actor owner-acc :permission "active"}])
-            "needs latest terms acceptee"
+            (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 1 :vote_type 3})
+            "needs latest terms accepted"
             "agreed terms are not the latest")
            (catch js/Error e (prn e))))
+       (catch js/Error e (prn e)))
+     (done))))
+
+(deftest process-cycle
+  (async
+   done
+   (go
+     (try
+       (<p-should-fail-with!
+        (eos-tx-owner prop-acc "processcycle" {:account owner-acc :id 2})
+        "cycle needs to be in the past"
+        "cycle is not in the past")
+       (<p! (eos/transact prop-acc "update" (assoc prop-config :cycle_duration_sec 1)))
+       (<p! (eos/transact prop-acc "cycleupdate" {}))
+       (<p-should-succeed! (eos-tx-owner prop-acc "processcycle" {:account owner-acc :id 2})
+        "can finalize cycle")
        (catch js/Error e (prn e)))
      (done))))
 

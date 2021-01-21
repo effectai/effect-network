@@ -93,17 +93,17 @@
                              :token_contract token-acc :unstake_delay_sec 2}
                             [{:actor acc :permission "owner"}]))
          (catch js/Error e (prn e)))
-       (doseq [m members]
+       (doseq [[m efx nfx] members]
          (try
            (<p! (eos/transact acc "open" {:owner m :ram_payer m :symbol stake-sym}
                               [{:actor m :permission "active"}]))
            (<p! (eos/transact acc "open" {:owner m :ram_payer m :symbol claim-sym}
                               [{:actor m :permission "active"}]))           
            (<p! (eos/transact token-acc "transfer"
-                              {:from m :to acc :quantity "1840152.0000 EFX" :memo "stake"}
+                              {:from m :to acc :quantity efx  :memo "stake"}
                               [{:actor m :permission "active"}]))
            (<p! (eos/transact token-acc "transfer"
-                              {:from m :to acc :quantity "57797.0000 NFX" :memo "stake"}
+                              {:from m :to acc :quantity nfx :memo "stake"}
                               [{:actor m :permission "active"}]))
            (prn "ADDED STAKES FOR m " m)
            (catch js/Error e (prn e)))))))

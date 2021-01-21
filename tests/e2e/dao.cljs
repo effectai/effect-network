@@ -33,8 +33,9 @@
                                         :utl_token_sym {:contract token-acc :sym utl-sym }}))
          (doseq [m members]
            (<p! (eos/transact acc "memberreg"
-                              {:account owner-acc :agreedterms (:hash terms)}
+                              {:account m :agreedterms (:hash terms)}
                               [{:actor m :permission "active"}]))
+
            (prn "..added  " m " to the dao"))))))
 
 (use-fixtures :once
