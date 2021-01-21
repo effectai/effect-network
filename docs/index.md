@@ -15,19 +15,9 @@ and democratic environment for AI development. Anyone in the world can join the
 effort and get rewarded for their participation.
 {: .fs-6 .fw-300 }
 
-[Get started now](#getting-started){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 } [Open the Effect dashboard](https://dashboard.effect.ai){: .btn .fs-5 .mb-4 .mb-md-0 }
+[Open the Effect dashboard](https://dashboard.effect.ai){: .btn .fs-5 .mb-4 .mb-md-0 }
 
 ---
-
-## Status
-
-Phase 1 of the DAO will start on the 1st of January 2021. At this moment
-[Staking](staking.html) and [Membership](ranks.html) are already functional. Once
-Phase 1 is deployed it contains all the primary elements of the DAO. This means
-it's possible to register, vote, and create proposals. This wiki will contain up
-to date information on the current functioning of the DAO and will be updated to
-reflect any changes.
-{: .warn}
 
 ## Getting started
 
