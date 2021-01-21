@@ -15,6 +15,7 @@ public:
   using contract::contract;
 
   inline static const std::string RESERVATION_MEMO = "proposal";
+  inline static const std::string ADD_FEES_MEMO = "add fees";
 
   typedef std::tuple<eosio::extended_asset, eosio::time_point_sec> pay_entry;
 
@@ -59,11 +60,11 @@ public:
                   uint16_t cycle,
                   std::optional<eosio::checksum256> transaction_hash);
 
-  [[eosio::action]]
-  void executeprop();
+  // [[eosio::action]]
+  // void approveprop(uint64_t id);
 
   [[eosio::action]]
-  void processprop(uint64_t id);
+  void rejectprop(uint64_t id);
 
   [[eosio::action]]
   void updateprop(uint64_t id,
@@ -94,7 +95,8 @@ public:
   void cycleupdate();
 
 private:
-
+  void processprop(uint64_t prop,
+                   bool approve);
 
   struct [[eosio::table]] config {
     uint32_t cycle_duration_sec;
@@ -109,6 +111,8 @@ private:
     uint64_t id;
     eosio::time_point_sec start_time;
     std::vector<eosio::extended_asset> budget;
+    std::vector<eosio::extended_asset> spent;
+    uint8_t state;
     uint32_t quorum;
     uint64_t primary_key() const { return id; }
   };
@@ -138,6 +142,12 @@ private:
     eosio::name owner;
     uint64_t primary_key() const { return owner.value; }
   };
+
+  // struct [[eosio::table]] fee {
+  //   uint64_t cycle_id;
+  //   std::vector<eosio::extended_asset> amounts;
+  //   uint64_t primary_key() const { return cycle; }
+  // };
 
   struct [[eosio::table]] vote {
     uint64_t id;

@@ -115,17 +115,67 @@ void proposals::addcycle(eosio::time_point_sec start_time,
                     });
 }
 
-void proposals::executeprop() {
+// void proposals::approveprop(uint64_t id) {
+//   processprop(id, true);
+// }
 
+void proposals::rejectprop(uint64_t id) {
+  // only authorized accounts can finalize proposal
+  require_auth(_self);
+
+  processprop(id, false);
 }
 
-void proposals::processprop(uint64_t id) {
+bool proposals::checkprop(uint64_t id) {
+}
+
+void proposals::require_passed_vote(proposals::proposal prop) {
+  cycle_table cycle_tbl(_self, _self.value);
+  auto& prop_cycle = cycle_tbl.get(prop.cycle, "proposal cycle is not defined");
+
+  uint32_t yes_votes = prop.vote_counts.at(proposals::Yes);
+  uint32_t no_votes = prop.vote_counts.at(proposals::No);
+  uint32_t abstain_votes = prop.vote_counts.at(proposals::Abstain);
+
+  eosio::check(yes_votes > no_votes, "proposal did not pass vote");
+  eosio::check(yes_votes + no_votes + abstain_votes > prop_cycle.quorum,
+               "proposal did not pass quorum");
+}
+
+void proposals::processprop(proposals::proposal p) {
   proposal_table prop_tbl(_self, _self.value);
   auto& prop = prop_tbl.get(id, "proposal does not exist");
-  auto cur_cycle = _config.get().current_cycle;
-  if (cur_cycle <= prop.cycle)
-    return;
-  // process results of prop to either Accepted or Rejected
+  cycle_table cycle_tbl(_self, _self.value);
+  auto& prop_cycle = cycle_tbl.get(prop.cycle, "proposal cycle is not defined");
+
+  auto cur_time_sec = time_point_sec(now());
+  auto conf = _config.get();
+  eosio::check(prop.state == proposals::Pending, "proposal is already processed");
+  eosio::check(cur_time_sec >= prop_cycle.start_time + conf.cycle_voting_duration_sec,
+               "voting period hasn't ended");
+
+  if (approve == true) {
+    uint32_t yes_votes = prop.vote_counts.at(proposals::Yes);
+    uint32_t no_votes = prop.vote_counts.at(proposals::No);
+    uint32_t abstain_votes = prop.vote_counts.at(proposals::Abstain);
+
+    eosio::check(yes_votes > no_votes, "proposal did not pass vote");
+
+    eosio::check(yes_votes + no_votes + abstain_votes > prop_cycle.quorum,
+                 "proposal did not pass quorum");
+  }
+
+  prop_tbl.modify(prop,
+                  eosio::same_payer,
+                  [&](auto& p)
+                  {
+                    if (approve == true) {
+                      p.state = proposals::Accepted;
+                    } else {
+                      p.state = proposals::Rejected;
+                    }
+                  });
+
 }
 
 void proposals::updateprop(uint64_t id,
@@ -148,6 +198,7 @@ void proposals::updateprop(uint64_t id,
   // - the current cycle is genesis
   // - it's in draft (cycle 0)
   // - it's assigned to a future cycle
+
   eosio::check(cur_cycle == 0 ||
                prop.cycle == 0 ||
                prop.cycle > cur_cycle,
@@ -178,7 +229,6 @@ void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type) 
   auto conf = _config.get();
 
   proposal_table prop_tbl(_self, _self.value);
-
   auto& prop = prop_tbl.get(prop_id, "proposal does not exist");
 
   // check we're within votable timeframe
@@ -264,31 +314,41 @@ void proposals::cycleupdate() {
 }
 
 void proposals::transfer_handler(name from, name to, asset quantity, std::string memo) {
-  if (to == get_self() && memo == RESERVATION_MEMO) {
-    auto conf = _config.get();
-    eosio::extended_asset proposal_cost = conf.proposal_cost;
-
+  if (to == get_self()) {
     // validate the asset symbol
     auto sym = quantity.symbol;
     auto raw_sym_code = sym.code().raw();
     eosio::check(sym.is_valid(), "invalid symbol name");
 
-    // check if user already has a proposal reserved
-    reservation_table reservation_tbl(_self, _self.value);
-    auto existing = reservation_tbl.find(from.value);
-    eosio::check(existing == reservation_tbl.end(),
-                 "you already have a proposal reserved");
+    auto conf = _config.get();
+    eosio::extended_asset proposal_cost = conf.proposal_cost;
 
-    if (proposal_cost.contract == get_first_receiver()) {
-      // validate the contract that is staking
-      // redundant check that is also in the if statement above
-      eosio::check(proposal_cost.contract == get_first_receiver(),
-                   "wrong token contract");
+    if (memo == RESERVATION_MEMO) {
+      // check if user already has a proposal reserved
+      reservation_table reservation_tbl(_self, _self.value);
+      auto existing = reservation_tbl.find(from.value);
+      eosio::check(existing == reservation_tbl.end(),
+                   "you already have a proposal reserved");
 
-      eosio::check(proposal_cost.quantity == quantity, "wrong amount");
+      if (proposal_cost.contract == get_first_receiver()) {
+        // redundant check that is also in the if statement above
+        eosio::check(proposal_cost.contract == get_first_receiver(),
+                     "wrong token contract");
 
-      reservation_tbl.emplace(_self, [&](auto& r) { r.owner = from; });
+        eosio::check(proposal_cost.quantity == quantity, "wrong amount");
+
+        reservation_tbl.emplace(_self, [&](auto& r) { r.owner = from; });
+      }
     }
+    // else if (memo == ADD_FEES_MEMO) {
+    //   // for now fees must match the proposal cost asset
+    //   if (proposal_cost.contract == get_first_receiver()) {
+    //     // redundant check that is also in the if statement above
+    //     eosio::check(proposal_cost.contract == get_first_receiver(),
+    //                  "wrong token contract");
+    //   }
+
+    // }
   }
 }
 
@@ -299,7 +359,7 @@ extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
   } else if (code == receiver) {
     switch(action) {
       EOSIO_DISPATCH_HELPER(proposals, (init)(update)(addcycle)(createprop)(updateprop)(addvote)
-                            (cycleupdate));
+                            (cycleupdate)(rejectprop));
     }
   }
 }
