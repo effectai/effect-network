@@ -29,13 +29,15 @@
       (go
         (<p! (eos/create-account owner-acc prop-acc))
         (<p! (eos/deploy prop-acc "contracts/effect-proposals/effect-proposals"))
-        (<! (e2e.token/deploy-token token-acc [owner-acc]))
-        (<! (e2e.stake/deploy-stake stake-acc token-acc "4,EFX" "4,NFX" [owner-acc]))
-        (<! (e2e.dao/deploy-dao dao-acc stake-acc prop-acc token-acc "4,EFX" "4,NFX" [owner-acc]))
+        (<! (e2e.token/deploy-token token-acc [owner-acc token-acc]))
+        (<! (e2e.stake/deploy-stake stake-acc token-acc "4,EFX" "4,NFX" [[owner-acc "1056569.0000 EFX" "37276.0000 NFX"]
+                                                                         [token-acc "606645.0000 EFX" "24042.0000 NFX"]]))
+        (<! (e2e.dao/deploy-dao dao-acc stake-acc prop-acc token-acc "4,EFX" "4,NFX" [owner-acc token-acc]))
         (done))))
    :after (fn [])})
 
-(def prop-config {:cycle_duration_sec 1209600 :quorum 2
+(def prop-config {:cycle_duration_sec 1209600
+                  :quorum 2
                   :cycle_voting_duration_sec 0
                   :proposal_cost {:quantity proposal-cost :contract token-acc}
                   :dao_contract dao-acc
@@ -127,11 +129,11 @@
    done
    (go
      (<p-should-succeed! (eos/transact prop-acc "updateprop"
-                                       (assoc base-prop :id 0 :cycle 1)
+                                       (assoc base-prop :id 0 :cycle 2)
                                        [{:actor owner-acc :permission "active"}])
                          "can update proposal")
      (<p-should-succeed! (eos/transact prop-acc "updateprop"
-                                       (assoc base-prop :id 1 :cycle 1)
+                                       (assoc base-prop :id 1 :cycle 2)
                                        [{:actor owner-acc :permission "active"}])
                          "can update proposal")
      (done))))
@@ -144,7 +146,12 @@
                                        {:start_time "2021-01-01 12:00:00"
                                         :budget [{:quantity (str "326000.0000 EFX")
                                                   :contract token-acc}]}))
-     (let [[{cycle "current_cycle"}] (<p! (eos/get-table-rows prop-acc prop-acc "config"))]
+     (<p-should-succeed! (eos/transact prop-acc "addcycle"
+                                       {:start_time "2021-01-01 12:00:20"
+                                        :budget [{:quantity (str "326000.0000 EFX")
+                                                  :contract token-acc}]}))     
+     (let [[{cycle "current_cycle"} ] (<p! (eos/get-table-rows prop-acc prop-acc "config"))]
+
        (is (= cycle 0)))
      (<p-should-succeed! (eos/transact prop-acc "cycleupdate" {})
                          "can progress cycle")
@@ -154,7 +161,7 @@
      (<p-should-succeed! (eos/transact prop-acc "cycleupdate" {})
                          "can progress cycle")
      (let [[{cycle "current_cycle"}] (<p! (eos/get-table-rows prop-acc prop-acc "config"))]
-       (is (= cycle 1)))
+       (is (= cycle 2)))
      (done))))
 
 (deftest vote
@@ -180,15 +187,18 @@
           "can update vote")
          (<p-should-succeed!
           (eos/transact prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 2} [{:actor owner-acc :permission "active"}])
-          "multiple accounts can vote")
+          "can update vote twice")
          (<p! (eos/wait-block (js/Promise.resolve 42) 2))
+         (<p! (eos/transact prop-acc "addvote" {:voter token-acc :prop_id 0 :vote_type 1} [{:actor token-acc :permission "active"}])
+              "multiple accounts can vote")
          (let [rows (<p! (eos/get-table-rows prop-acc prop-acc "proposal"))
                r (->> rows (filter #(= (% "id") 0)) first)]
            (prn r)
            (is (= (get-in r ["vote_counts" 0 "value"]) 0))
-           (is (= (get-in r ["vote_counts" 1 "value"]) 0))
-           (is (= (get-in r ["vote_counts" 2 "value"]) 9)))
+           (is (= (get-in r ["vote_counts" 1 "value"]) 2))
+           (is (= (get-in r ["vote_counts" 2 "value"]) 5)))
          (<p! (eos/wait-block (js/Promise.resolve 42) 2))
+         
          (try
            (<p! (eos/transact dao-acc "newmemterms" {:hash  "ab58606332f813bcf6ea26f732014f49a2197d2d281cc2939e59813721ee5245"}))
            (<p-should-fail-with!

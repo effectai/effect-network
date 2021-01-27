@@ -123,60 +123,146 @@ void proposals::rejectprop(uint64_t id) {
   // only authorized accounts can finalize proposal
   require_auth(_self);
 
-  processprop(id, false);
+  // processprop(id, false);
 }
 
-bool proposals::checkprop(uint64_t id) {
-}
-
-void proposals::require_passed_vote(proposals::proposal prop) {
+void proposals::processcycle(eosio::name account, uint64_t id) {
+  // check that cycle is in the past and not yet processed
+  eosio::check(id <= _config.get().current_cycle, "cycle is not in the past");
   cycle_table cycle_tbl(_self, _self.value);
-  auto& prop_cycle = cycle_tbl.get(prop.cycle, "proposal cycle is not defined");
+  auto& cycle = cycle_tbl.get(id, "cycle is not defined");
+  eosio::check(cycle.state.value() == proposals::CyclePending,
+               "cycle already processed");
 
-  uint32_t yes_votes = prop.vote_counts.at(proposals::Yes);
-  uint32_t no_votes = prop.vote_counts.at(proposals::No);
-  uint32_t abstain_votes = prop.vote_counts.at(proposals::Abstain);
+  // we need to track the available and currently spent budget per asset
+  std::map<eosio::extended_symbol, eosio::extended_asset> budget_map;
+  for (auto b : cycle.budget) {
+    auto sym = b.get_extended_symbol();
+    auto res = budget_map.insert({sym, b});
+    if (!res.second) { res.first->second = budget_map[sym] + b; }
+  }
+  std::map<eosio::extended_symbol, eosio::extended_asset> spent;
+  uint64_t total_votes = 0;
 
-  eosio::check(yes_votes > no_votes, "proposal did not pass vote");
-  eosio::check(yes_votes + no_votes + abstain_votes > prop_cycle.quorum,
-               "proposal did not pass quorum");
-}
-
-void proposals::processprop(proposals::proposal p) {
+  // loop through all proposals in the cycle
   proposal_table prop_tbl(_self, _self.value);
-  auto& prop = prop_tbl.get(id, "proposal does not exist");
-  cycle_table cycle_tbl(_self, _self.value);
-  auto& prop_cycle = cycle_tbl.get(prop.cycle, "proposal cycle is not defined");
+  auto by_cycle_idx = prop_tbl.get_index<"cycle"_n>();
+  auto itr_start = by_cycle_idx.lower_bound(id);
+  auto itr_end = by_cycle_idx.upper_bound(id);
 
-  auto cur_time_sec = time_point_sec(now());
-  auto conf = _config.get();
-  eosio::check(prop.state == proposals::Pending, "proposal is already processed");
-  eosio::check(cur_time_sec >= prop_cycle.start_time + conf.cycle_voting_duration_sec,
-               "voting period hasn't ended");
+  for (; itr_start != itr_end; itr_start++) {
+    auto& prop = *itr_start;
 
-  if (approve == true) {
     uint32_t yes_votes = prop.vote_counts.at(proposals::Yes);
     uint32_t no_votes = prop.vote_counts.at(proposals::No);
     uint32_t abstain_votes = prop.vote_counts.at(proposals::Abstain);
 
-    eosio::check(yes_votes > no_votes, "proposal did not pass vote");
+    total_votes += yes_votes + no_votes + abstain_votes;
 
-    eosio::check(yes_votes + no_votes + abstain_votes > prop_cycle.quorum,
-                 "proposal did not pass quorum");
+    if (prop.state != proposals::Pending)
+      continue;
+
+    bool approved = yes_votes > no_votes &&
+      yes_votes + no_votes + abstain_votes > cycle.quorum;
+
+    // TODO: support multiple proposal pays
+    // std::map<eosio::extended_symbol, eosio::extended_asset> pay_map;
+    // for (auto p : prop.pay) {
+    //   auto asset = std::get<0>(p);
+    //   auto sym = asset.get_extended_symbol();
+    //   auto res = pay_map.insert({sym, asset});
+    //   if (!res.second) { res.first->second = pay_map[sym] + asset; }
+    // }
+
+    // for now we only support 1 asset to be paid out
+    auto prop_pay = std::get<0>(prop.pay[0]);
+    auto prop_sym = prop_pay.get_extended_symbol();
+    if (spent.count(prop_sym) > 0) {
+      if ((spent[prop_sym] + prop_pay).quantity > budget_map[prop_sym].quantity)
+        approved = false;
+      else
+        spent[prop_sym] += prop_pay;
+    } else {
+      if (prop_pay.quantity > budget_map[prop_sym].quantity)
+        approved = false;
+      else
+        spent[prop_sym] = prop_pay;
+    }
+
+    prop_tbl.modify(prop,
+                    eosio::same_payer,
+                    [&](auto& p)
+                    {
+                      if (approved == true) {
+                        p.state = proposals::Accepted;
+                      } else {
+                        p.state = proposals::Rejected;
+                      }
+                    });
   }
-
-  prop_tbl.modify(prop,
-                  eosio::same_payer,
-                  [&](auto& p)
-                  {
-                    if (approve == true) {
-                      p.state = proposals::Accepted;
-                    } else {
-                      p.state = proposals::Rejected;
-                    }
-                  });
-
+  eosio::print("finalize cycle");
+  cycle_tbl.modify(cycle,
+                   account,
+                   [&](auto& c)
+                   {
+                     std::vector<eosio::extended_asset> spent_vec;
+                     for (auto const& s : spent)
+                       spent_vec.push_back(s.second);
+                     c.spent.emplace(spent_vec);
+                     c.state.emplace(proposals::CycleFinalized);
+                     c.total_votes.emplace(total_votes);
+                   });
 }
+
+// void proposals::has_passed_vote(proposals::proposal prop) {
+//   cycle_table cycle_tbl(_self, _self.value);
+//   auto& prop_cycle = cycle_tbl.get(prop.cycle, "proposal cycle is not defined");
+
+//   uint32_t yes_votes = prop.vote_counts.at(proposals::Yes);
+//   uint32_t no_votes = prop.vote_counts.at(proposals::No);
+//   uint32_t abstain_votes = prop.vote_counts.at(proposals::Abstain);
+
+//   eosio::check(yes_votes > no_votes, "proposal did not pass vote");
+//   eosio::check(yes_votes + no_votes + abstain_votes > prop_cycle.quorum,
+//                "proposal did not pass quorum");
+// }
+
+
+// void proposals::processprop(proposals::proposal p) {
+//   proposal_table prop_tbl(_self, _self.value);
+//   auto& prop = prop_tbl.get(id, "proposal does not exist");
+//   cycle_table cycle_tbl(_self, _self.value);
+//   auto& prop_cycle = cycle_tbl.get(prop.cycle, "proposal cycle is not defined");
+
+//   auto cur_time_sec = time_point_sec(now());
+//   auto conf = _config.get();
+//   eosio::check(prop.state == proposals::Pending, "proposal is already processed");
+//   eosio::check(cur_time_sec >= prop_cycle.start_time + conf.cycle_voting_duration_sec,
+//                "voting period hasn't ended");
+
+//   if (approve == true) {
+//     uint32_t yes_votes = prop.vote_counts.at(proposals::Yes);
+//     uint32_t no_votes = prop.vote_counts.at(proposals::No);
+//     uint32_t abstain_votes = prop.vote_counts.at(proposals::Abstain);
+
+//     eosio::check(yes_votes > no_votes, "proposal did not pass vote");
+
+//     eosio::check(yes_votes + no_votes + abstain_votes > prop_cycle.quorum,
+//                  "proposal did not pass quorum");
+//   }
+
+//   prop_tbl.modify(prop,
+//                   eosio::same_payer,
+//                   [&](auto& p)
+//                   {
+//                     if (approve == true) {
+//                       p.state = proposals::Accepted;
+//                     } else {
+//                       p.state = proposals::Rejected;
+//                     }
+//                   });
+
+// }
 
 void proposals::updateprop(uint64_t id,
                            std::vector<pay_entry> pay,
@@ -359,7 +445,7 @@ extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
   } else if (code == receiver) {
     switch(action) {
       EOSIO_DISPATCH_HELPER(proposals, (init)(update)(addcycle)(createprop)(updateprop)(addvote)
-                            (cycleupdate)(rejectprop));
+                            (cycleupdate)(rejectprop)(processcycle));
     }
   }
 }

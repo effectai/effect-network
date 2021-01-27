@@ -6,6 +6,7 @@
 #include <eosio/crypto.hpp>
 #include <eosio/system.hpp>
 #include <eosio/singleton.hpp>
+#include <eosio/binary_extension.hpp>
 
 using namespace eosio;
 using namespace std;
@@ -32,6 +33,11 @@ public:
     Abstain = 0,
     Yes = 1,
     No = 2
+  };
+
+  enum CycleState {
+    CyclePending = 0,
+    CycleFinalized = 1
   };
 
   proposals(eosio::name receiver, eosio::name code, eosio::datastream<const char*> ds) :
@@ -94,9 +100,13 @@ public:
   [[eosio::action]]
   void cycleupdate();
 
+  [[eosio::action]]
+  void processcycle(eosio::name account,
+                    uint64_t id);
+
 private:
-  void processprop(uint64_t prop,
-                   bool approve);
+  // void processprop(uint64_t prop,
+                   // bool approve);
 
   struct [[eosio::table]] config {
     uint32_t cycle_duration_sec;
@@ -111,9 +121,10 @@ private:
     uint64_t id;
     eosio::time_point_sec start_time;
     std::vector<eosio::extended_asset> budget;
-    std::vector<eosio::extended_asset> spent;
-    uint8_t state;
     uint32_t quorum;
+    eosio::binary_extension<uint8_t> state;
+    eosio::binary_extension<std::vector<eosio::extended_asset>> spent;
+    eosio::binary_extension<uint64_t> total_votes;
     uint64_t primary_key() const { return id; }
   };
 
