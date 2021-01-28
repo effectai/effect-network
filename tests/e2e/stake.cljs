@@ -29,6 +29,7 @@
      (async
       done
       (go
+        (prn "Fixture Before stake")
         (<p! (p-all
               (eos/create-account owner-acc stake-acc)
               (eos/create-account owner-acc tkn-acc)
@@ -73,6 +74,39 @@
                   :scale_factor (*  1000000 1) :unstake_delay_sec 2
                   :stake_bonus_age 60
                   :stake_bonus_deadline "2022-05-18T14:37:30"})
+
+(defn deploy-stake
+  "Deploy a basic stake account and fill it with data for testing"
+  ([acc token-acc stake-sym claim-sym members]
+   (go (<p! (eos/create-account owner-acc acc))
+       (<p! (eos/deploy acc "contracts/stake/stake"))
+       (<p! (eos/transact acc "init" (assoc init-config :token_contract token-acc
+                                            :stake_symbol stake-sym
+                                            :claim_symbol claim-sym)))
+       (try
+         (<p! (eos/transact acc "create"
+                            {:stake_symbol claim-sym :claim_symbol claim-sym
+                             :token_contract token-acc :unstake_delay_sec 2}
+                            [{:actor acc :permission "owner"}]))
+         (<p! (eos/transact acc "create"
+                            {:stake_symbol stake-sym :claim_symbol stake-sym
+                             :token_contract token-acc :unstake_delay_sec 2}
+                            [{:actor acc :permission "owner"}]))
+         (catch js/Error e (prn e)))
+       (doseq [[m efx nfx] members]
+         (try
+           (<p! (eos/transact acc "open" {:owner m :ram_payer m :symbol stake-sym}
+                              [{:actor m :permission "active"}]))
+           (<p! (eos/transact acc "open" {:owner m :ram_payer m :symbol claim-sym}
+                              [{:actor m :permission "active"}]))           
+           (<p! (eos/transact token-acc "transfer"
+                              {:from m :to acc :quantity efx  :memo "stake"}
+                              [{:actor m :permission "active"}]))
+           (<p! (eos/transact token-acc "transfer"
+                              {:from m :to acc :quantity nfx :memo "stake"}
+                              [{:actor m :permission "active"}]))
+           (prn "ADDED STAKES FOR m " m)
+           (catch js/Error e (prn e)))))))
 
 (def update-config (select-keys init-config [:unstake_delay_sec :stake_bonus_age
                                              :stake_bonus_deadline]))
