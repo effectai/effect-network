@@ -31,9 +31,6 @@ void feepool::transfer_handler(name from, name to, asset quantity, std::string m
 
       // update asset balance in cycle
       bal.balance[ast][extended_symbol] += quantity.value
-      balance_tbl.emplace(_self, [&](auto& balance_tbl) {
-        balance_tbl.cycle = cycle;
-      });
     }
   }
 }
