@@ -15,11 +15,14 @@ public:
                         std::string memo);
 
   [[eosio::action]]
+  void init(eosio::name proposal_contract);
+
+  [[eosio::action]]
   void update(std::set<eosio::extended_symbol> allowed_symbols);
 
 private:
   struct [[eosio::table]] config {
-    eosio::name prop_contract;
+    eosio::name proposal_contract;
     std::set<eosio::extended_symbol> allowed_symbols;
   };
 

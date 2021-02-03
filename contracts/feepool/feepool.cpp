@@ -1,6 +1,15 @@
 #include "feepool.hpp"
 
+void feepool::init(eosio::name proposal_contract) {
+  require_auth(get_self());
+
+  config_table _config(_self, _self.value);
+  eosio::check(!_config.exists(), "already initialized");
+  _config.set(config{proposal_contract}, _self);
+}
+
 void feepool::update(std::set<eosio::extended_symbol> allowed_symbols) {
+
 }
 
 void feepool::transfer_handler(name from, name to, asset quantity, std::string memo) {
@@ -12,8 +21,8 @@ void feepool::transfer_handler(name from, name to, asset quantity, std::string m
     if (config.get().allowed_symbols.count(sym)) {
       balance_table balance_tbl(_self, _self.value);
       
-      proposal::config prop_config(config.get().proposal_contract, config.get().proposal_contract.value);
-      uint16_t cycle = prop_config.current_cycle;
+      proposal::config proposal_config(config.get().proposal_contract, config.get().proposal_contract.value);
+      uint16_t cycle = proposal_config.current_cycle;
 
       // create cycle if not exists
       bal = balance_tbl.find(cycle);
