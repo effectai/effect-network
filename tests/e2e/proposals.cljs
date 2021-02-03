@@ -21,6 +21,9 @@
 (def first-cycle-start-time  1608292800) ; 12/18/2020 @ 12:00pm (UTC)
 (def proposal-cost "1.0000 EFX")
 
+(defn eos-tx-owner [contr action args]
+  (eos/transact contr action args [{:actor owner-acc :permission "active"}]))
+
 (use-fixtures :once
   {:before
    (fn []
@@ -42,6 +45,17 @@
                   :proposal_cost {:quantity proposal-cost :contract token-acc}
                   :dao_contract dao-acc
                   :first_cycle_start_time "2020-11-18 12:00:00"})
+
+(defn deploy-proposals
+  "Deploy a basic proposal account and fill it with data for testing"
+  ([acc]
+   (go
+     (try
+       (<p! (eos/create-account owner-acc acc))
+       (<p! (eos/deploy acc "contracts/effect-proposals/effect-proposals"))
+       (<p! (eos/transact acc "init" prop-config))
+       (print "Deployed proposals")
+       (catch js/Error e "Error deploying props " e)))))
 
 (deftest init
   (async
@@ -168,8 +182,7 @@
        (is (= cycle 2)))
      (done))))
 
-(defn eos-tx-owner [contr action args]
-  (eos/transact contr action args [{:actor owner-acc :permission "active"}]))
+
 
 (deftest vote
   (async
@@ -230,8 +243,8 @@
        (<p! (eos/transact prop-acc "cycleupdate" {}))
        (<p-should-succeed! (eos-tx-owner prop-acc "processcycle" {:account owner-acc :id 2})
         "can finalize cycle")
-       (catch js/Error e (prn e)))
-     (done))))
+       (catch js/Error e (prn e))))
+     (done)))
 
 (defn -main [& args]
     (run-tests))
