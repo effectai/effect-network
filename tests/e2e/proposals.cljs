@@ -171,6 +171,32 @@
 (defn eos-tx-owner [contr action args]
   (eos/transact contr action args [{:actor owner-acc :permission "active"}]))
 
+(deftest cycle-update
+  (async
+   done
+   (go
+     (<p-should-fail-with! (eos/transact prop-acc "updatecycle"
+                                         {:id 2
+                                          :start_time "2021-01-01 12:00:00"
+                                          :budget [{:quantity (str "326000.0000 EFX")
+                                                    :contract token-acc}]})
+                           "cycle must be in the future"
+                           "cycle is not in the future")
+     (<p-should-succeed! (eos/transact prop-acc "updatecycle"
+                                         {:id 3
+                                          :start_time "2021-01-01 12:00:00"
+                                          :budget [{:quantity (str "326000.0000 EFX")
+                                                    :contract token-acc}]}))
+     (<p-should-fail-with! (eos-tx-owner prop-acc "updatecycle"
+                                         {:id 3
+                                          :start_time "2021-01-01 12:00:00"
+                                          :budget [{:quantity (str "326000.0000 EFX")
+                                                    :contract token-acc}]})
+                           "must be contract owner"
+                           (str "missing authority of " prop-acc))
+     (done))))
+
+
 (deftest vote
   (async
    done

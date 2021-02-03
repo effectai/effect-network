@@ -115,6 +115,21 @@ void proposals::addcycle(eosio::time_point_sec start_time,
                     });
 }
 
+void proposals::updatecycle(uint64_t id,
+                            eosio::time_point_sec start_time,
+                            std::vector<eosio::extended_asset> budget) {
+  require_auth(_self);
+
+  eosio::check(id > _config.get().current_cycle, "cycle is not in the future");
+  cycle_table cycle_tbl(_self, _self.value);
+  auto& cycle = cycle_tbl.get(id, "cycle is not defined");
+  eosio::check(!cycle.state.has_value() ||
+               cycle.state.value() == proposals::CyclePending,
+               "cycle already processed");
+
+  cycle_tbl.modify(cycle, _self, [&](auto& c) { c.start_time = start_time; c.budget = budget; });
+}
+
 void proposals::processcycle(eosio::name account, uint64_t id) {
   // check that cycle is in the past and not yet processed
   eosio::check(id < _config.get().current_cycle, "cycle is not in the past");
@@ -376,8 +391,8 @@ extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
                               &proposals::transfer_handler);
   } else if (code == receiver) {
     switch(action) {
-      EOSIO_DISPATCH_HELPER(proposals, (init)(update)(addcycle)(createprop)(updateprop)(addvote)
-                            (cycleupdate)(processcycle));
+      EOSIO_DISPATCH_HELPER(proposals, (init)(update)(addcycle)(updatecycle)(createprop)(updateprop)
+                            (addvote)(cycleupdate)(processcycle));
     }
   }
 }
