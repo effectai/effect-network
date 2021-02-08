@@ -1,7 +1,6 @@
 (ns e2e.feepool
   (:require [eos-cljs.core :as eos]
-            [e2e.util :as util
-             :refer       [should-fail should-fail-with]]
+            [e2e.util :as util :refer [wait]]
             [cljs.test :refer-macros [deftest is testing run-tests async use-fixtures]]
             [cljs.core.async :refer [go <!]]
             [cljs.core.async.interop :refer [<p!]]
@@ -22,7 +21,7 @@
 (def prop-acc e2e.proposals/prop-acc)
 (def fee-acc (eos/random-account "fee"))
 
-(prn fee-acc)
+(println (str "fee acc = " fee-acc))
 
 (defn eos-tx-owner [contr action args]
   (eos/transact contr action args [{:actor owner-acc :permission "active"}]))
@@ -83,7 +82,8 @@
                      {:from owner-acc :to fee-acc :memo "token allowed" :quantity "1000.0000 EFX"})
        "can transfer")
       (let [rows (<p! (eos/get-table-rows fee-acc fee-acc "balance"))]
-        (is (= (count rows) 1)))
+        (is (= (count rows) 1))
+        (is (= (get-in rows [0 "balance" "value"])) 10000000))
       (done)
       (catch js/Error e (prn "Error" e))))))
 
@@ -97,9 +97,8 @@
                      {:start_time "2021-01-01 12:00:00"
                       :budget     [{:quantity (str "326000.0000 EFX")
                                     :contract token-acc}]}))
-      (<p! (eos/wait-block (js/Promise.resolve 1) 2))
-      (<p!
-       (eos/transact prop-acc "cycleupdate" {}))
+      (<p! (wait 1000))
+      (<p! (eos/transact prop-acc "cycleupdate" {}))
       (<p-should-succeed!
        (eos-tx-owner token-acc "transfer"
                      {:from owner-acc :to fee-acc :memo "token allowed" :quantity "500.0000 EFX"})
@@ -108,7 +107,6 @@
         (is (= (count rows) 2)))
       (done)
       (catch js/Error e (prn "Error" e))))))
-
 
 (defn -main [& args]
   (try
