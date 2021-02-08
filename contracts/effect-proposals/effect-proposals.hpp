@@ -84,6 +84,11 @@ public:
   void addcycle(eosio::time_point_sec start_time,
                 std::vector<eosio::extended_asset> budget);
 
+  [[eosio::action]]
+  void updatecycle(uint64_t id,
+                   eosio::time_point_sec start_time,
+                   std::vector<eosio::extended_asset> budget);
+
   void transfer_handler(eosio::name from,
                         eosio::name to,
                         eosio::asset quantity,
