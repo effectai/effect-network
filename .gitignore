@@ -6,4 +6,4 @@ node_modules
 .vscode/
 .eosproj
 .DS_Store
-
+.lumo_cache/
