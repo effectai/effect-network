@@ -89,17 +89,21 @@ public:
                    eosio::time_point_sec start_time,
                    std::vector<eosio::extended_asset> budget);
 
-  void transfer_handler(eosio::name from,
-                        eosio::name to,
-                        eosio::asset quantity,
-                        std::string memo);
-
   [[eosio::action]]
   void cycleupdate();
 
   [[eosio::action]]
+  void executeprop(uint64_t id);
+
+  [[eosio::action]]
   void processcycle(eosio::name account,
                     uint64_t id);
+
+
+  void transfer_handler(eosio::name from,
+                        eosio::name to,
+                        eosio::asset quantity,
+                        std::string memo);
 
 private:
   struct [[eosio::table]] cycle {
@@ -138,12 +142,6 @@ private:
     eosio::name owner;
     uint64_t primary_key() const { return owner.value; }
   };
-
-  // struct [[eosio::table]] fee {
-  //   uint64_t cycle_id;
-  //   std::vector<eosio::extended_asset> amounts;
-  //   uint64_t primary_key() const { return cycle; }
-  // };
 
   typedef multi_index<
     "proposal"_n, proposal,
