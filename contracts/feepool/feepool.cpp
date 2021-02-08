@@ -16,12 +16,18 @@ void feepool::update(eosio::name proposal_contract, std::set<eosio::extended_sym
 }
 
 void feepool::transfer_handler(name from, name to, asset quantity, std::string memo) {
+  eosio::print("transfer handler");
+
   if (to == get_self()) {
     // validate the asset symbol
     config_table _config(_self, _self.value);
     eosio::extended_symbol sym(quantity.symbol, get_first_receiver());
+
+    eosio::print("get_self");
     
-    if (_config.get().allowed_symbols.count(sym) > 0) {
+    if (_config.get().allowed_symbols.count(sym)) {
+      eosio::print("allowed");
+
       balance_table balance_tbl(_self, _self.value);
       
       proposal::config_table proposal_config(_config.get().proposal_contract, _config.get().proposal_contract.value);
@@ -41,6 +47,17 @@ void feepool::transfer_handler(name from, name to, asset quantity, std::string m
       balance_tbl.modify(cycle_entry, _self, [&](auto& b) {
         b.balance[sym] += quantity.amount;
       });
+    }
+  }
+}
+
+extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
+  if (action == "transfer"_n.value) {
+    execute_action<feepool>(eosio::name(receiver), eosio::name(code),
+                          &feepool::transfer_handler);
+  } else if (code == receiver) {
+    switch(action) {
+      EOSIO_DISPATCH_HELPER(feepool, (init)(update));
     }
   }
 }
