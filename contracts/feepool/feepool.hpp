@@ -18,7 +18,11 @@ public:
   void init(eosio::name proposal_contract);
 
   [[eosio::action]]
-  void update(eosio::name proposal_contract, std::set<eosio::extended_symbol> allowed_symbols);
+  void update(eosio::name proposal_contract,
+              std::set<eosio::extended_symbol> allowed_symbols);
+
+  [[eosio::action]]
+  void claimreward(eosio::name account);
 
 private:
   struct [[eosio::table]] config {
