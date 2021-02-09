@@ -21,6 +21,9 @@
 (def first-cycle-start-time  1608292800) ; 12/18/2020 @ 12:00pm (UTC)
 (def proposal-cost "1.0000 EFX")
 
+(defn eos-tx-owner [contr action args]
+  (eos/transact contr action args [{:actor owner-acc :permission "active"}]))
+
 (use-fixtures :once
   {:before
    (fn []
@@ -42,6 +45,17 @@
                   :proposal_cost {:quantity proposal-cost :contract token-acc}
                   :dao_contract dao-acc
                   :first_cycle_start_time "2020-11-18 12:00:00"})
+
+(defn deploy-proposals
+  "Deploy a basic proposal account and fill it with data for testing"
+  ([acc]
+   (go
+     (try
+       (<p! (eos/create-account owner-acc acc))
+       (<p! (eos/deploy acc "contracts/effect-proposals/effect-proposals"))
+       (<p! (eos/transact acc "init" prop-config))
+       (print "Deployed proposals")
+       (catch js/Error e "Error deploying props " e)))))
 
 (deftest init
   (async
@@ -168,8 +182,33 @@
        (is (= cycle 2)))
      (done))))
 
-(defn eos-tx-owner [contr action args]
-  (eos/transact contr action args [{:actor owner-acc :permission "active"}]))
+
+
+(deftest cycle-update
+  (async
+   done
+   (go
+     (<p-should-fail-with! (eos/transact prop-acc "updatecycle"
+                                         {:id 2
+                                          :start_time "2021-01-01 12:00:00"
+                                          :budget [{:quantity (str "326000.0000 EFX")
+                                                    :contract token-acc}]})
+                           "cycle must be in the future"
+                           "cycle is not in the future")
+     (<p-should-succeed! (eos/transact prop-acc "updatecycle"
+                                         {:id 3
+                                          :start_time "2021-01-01 12:00:00"
+                                          :budget [{:quantity (str "326000.0000 EFX")
+                                                    :contract token-acc}]}))
+     (<p-should-fail-with! (eos-tx-owner prop-acc "updatecycle"
+                                         {:id 3
+                                          :start_time "2021-01-01 12:00:00"
+                                          :budget [{:quantity (str "326000.0000 EFX")
+                                                    :contract token-acc}]})
+                           "must be contract owner"
+                           (str "missing authority of " prop-acc))
+     (done))))
+
 
 (deftest vote
   (async
@@ -230,8 +269,8 @@
        (<p! (eos/transact prop-acc "cycleupdate" {}))
        (<p-should-succeed! (eos-tx-owner prop-acc "processcycle" {:account owner-acc :id 2})
         "can finalize cycle")
-       (catch js/Error e (prn e)))
-     (done))))
+       (catch js/Error e (prn e))))
+     (done)))
 
 (defn -main [& args]
     (run-tests))
