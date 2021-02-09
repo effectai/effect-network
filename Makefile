@@ -13,5 +13,10 @@ all: $(WASM) $(ABI)
 %.abi: %.cpp
 	$(ABI_CC) -contract=$(basename $(^F)) -output $@ $^
 
+.PHONY: serve-docs clean
+
 clean:
 	rm -f $(WASM) $(ABI)
+
+serve-docs:
+	jekyll s -s docs --livereload
