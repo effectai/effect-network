@@ -29,7 +29,6 @@
      (async
       done
       (go
-        (prn "Fixture Before stake")
         (<p! (p-all
               (eos/create-account owner-acc stake-acc)
               (eos/create-account owner-acc tkn-acc)
@@ -105,7 +104,6 @@
            (<p! (eos/transact token-acc "transfer"
                               {:from m :to acc :quantity nfx :memo "stake"}
                               [{:actor m :permission "active"}]))
-           (prn "ADDED STAKES FOR m " m)
            (catch js/Error e (prn e)))))))
 
 (def update-config (select-keys init-config [:unstake_delay_sec :stake_bonus_age

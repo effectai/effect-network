@@ -34,9 +34,7 @@
          (doseq [m members]
            (<p! (eos/transact acc "memberreg"
                               {:account m :agreedterms (:hash terms)}
-                              [{:actor m :permission "active"}]))
-
-           (prn "..added  " m " to the dao"))))))
+                              [{:actor m :permission "active"}])))))))
 
 (use-fixtures :once
   {:before

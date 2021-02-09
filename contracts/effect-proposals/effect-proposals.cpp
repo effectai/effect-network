@@ -262,6 +262,31 @@ void proposals::updateprop(uint64_t id,
                   });
 }
 
+void proposals::executeprop(uint64_t id) {
+  require_auth(_self);
+
+  proposal_table prop_tbl(_self, _self.value);
+  auto& prop = prop_tbl.get(id, "proposal does not exist");
+
+  eosio::check(prop.state == proposals::Accepted, "proposal is not accepted");
+
+  for (auto pay : prop.pay) {
+    eosio::extended_asset asset = std::get<0>(pay);
+    eosio::time_point_sec lock = std::get<1>(pay);
+
+    eosio::check(lock <= time_point_sec(now()), "payment is still locked");
+
+    action(permission_level{_self, "xfer"_n},
+           asset.contract,
+           "transfer"_n,
+           std::make_tuple(_self, prop.author, asset.quantity,
+                           "proposal " + std::to_string(prop.id)))
+      .send();
+  }
+
+  prop_tbl.modify(prop, eosio::same_payer, [&](auto& p) { p.state = proposals::Executed; });
+}
+
 void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type) {
   require_auth(voter);
   dao::require_member(_config.get().dao_contract, voter);
@@ -362,10 +387,10 @@ void proposals::transfer_handler(name from, name to, asset quantity, std::string
     auto raw_sym_code = sym.code().raw();
     eosio::check(sym.is_valid(), "invalid symbol name");
 
-    auto conf = _config.get();
-    eosio::extended_asset proposal_cost = conf.proposal_cost;
-
     if (memo == RESERVATION_MEMO) {
+      auto conf = _config.get();
+      eosio::extended_asset proposal_cost = conf.proposal_cost;
+
       // check if user already has a proposal reserved
       reservation_table reservation_tbl(_self, _self.value);
       auto existing = reservation_tbl.find(from.value);
@@ -392,7 +417,7 @@ extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
   } else if (code == receiver) {
     switch(action) {
       EOSIO_DISPATCH_HELPER(proposals, (init)(update)(addcycle)(updatecycle)(createprop)(updateprop)
-                            (addvote)(cycleupdate)(processcycle));
+                            (addvote)(cycleupdate)(processcycle)(executeprop));
     }
   }
 }

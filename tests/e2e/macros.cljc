@@ -1,7 +1,9 @@
 (ns e2e.macros
   (:require
    [cljs.test :refer-macros [is]]
-   [cljs.core.async.interop :refer [<p!]]))
+   [cljs.core.async.interop :refer [<p!]]
+   [cljs.core.async :refer [go <!] ]
+   [cljs.test :refer-macros [deftest is testing run-tests async use-fixtures]]   ))
 
 (defmacro <p-may-fail!
   [body msg]
@@ -35,3 +37,14 @@
      (catch js/Error e#
        (prn "test failed with " e#)
        (cljs.test/is nil ~msg))))
+
+
+(defmacro async-deftest [name & body]
+  `(~'deftest ~name
+    (~'async
+     done#
+     (~'go
+      (try
+        ~@body
+        (catch js/Error e# (prn "Error " e#) e#))
+      (done#)))))
