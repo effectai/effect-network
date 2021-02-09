@@ -23,6 +23,9 @@
 (def first-cycle-start-time  1608292800) ; 12/18/2020 @ 12:00pm (UTC)
 (def proposal-cost "1.0000 EFX")
 
+(defn eos-tx-owner [contr action args]
+  (eos/transact contr action args [{:actor owner-acc :permission "active"}]))
+
 (use-fixtures :once
   {:before
    (fn []
@@ -75,6 +78,17 @@
    "can update after init")
   (let [rows (<p! (eos/get-table-rows prop-acc prop-acc "config"))]
     (is (= (count rows) 1))))
+
+(defn deploy-proposals
+  "Deploy a basic proposal account and fill it with data for testing"
+  ([acc]
+   (go
+     (try
+       (<p! (eos/create-account owner-acc acc))
+       (<p! (eos/deploy acc "contracts/effect-proposals/effect-proposals"))
+       (<p! (eos/transact acc "init" prop-config))
+       (print "Deployed proposals")
+       (catch js/Error e "Error deploying props " e)))))
 
 (defn eos-tx-owner [contr action args]
   (eos/transact contr action args [{:actor owner-acc :permission "active"}]))

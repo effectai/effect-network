@@ -5,3 +5,5 @@ node_modules
 .idea/
 .vscode/
 .eosproj
+.DS_Store
+.lumo_cache/
