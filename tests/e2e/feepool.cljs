@@ -33,6 +33,9 @@
       (go
         (try
           (<p! (eos/create-account owner-acc fee-acc))
+          (<p! (eos/update-auth
+                fee-acc "xfer"
+                [{:permission {:actor fee-acc :permission "eosio.code"} :weight 1}]))
           (<! (e2e.proposals/deploy-proposals prop-acc))
           (<! (e2e.token/deploy-token token-acc [owner-acc prop-acc]))
           (<! (e2e.stake/deploy-stake stake-acc token-acc "4,EFX" "4,NFX"
@@ -41,6 +44,12 @@
           (<! (e2e.dao/deploy-dao dao-acc stake-acc prop-acc token-acc "4,EFX" "4,NFX"
                                   [owner-acc prop-acc]))          
           (<p! (eos/deploy fee-acc "contracts/feepool/feepool"))
+          (<p! (eos/transact "eosio" "linkauth"
+                             {:account fee-acc
+                              :requirement "xfer"
+                              :code token-acc
+                              :type "transfer"}
+                             [{:actor fee-acc :permission "active"}]))
           (done)
           (catch js/Error e (prn "Error " e))))))
    :after (fn [])})

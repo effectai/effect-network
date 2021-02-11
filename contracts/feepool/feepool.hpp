@@ -36,6 +36,19 @@ private:
     uint64_t primary_key() const { return cycle_id; }
   };
 
+  struct [[eosio::table]] claim {
+    uint64_t id;
+    uint64_t cycle_id;
+    eosio::name claimer;
+    std::vector<eosio::extended_asset> amounts;
+    uint64_t primary_key() const { return id; }
+    uint128_t composite_key() const { return (uint128_t{cycle_id} << 64) | claimer.value; }
+  };
+
   typedef singleton<"config"_n, config> config_table;
   typedef multi_index<"balance"_n, balance> balance_table;
+  typedef multi_index<
+    "claim"_n, claim,
+    indexed_by<"composite"_n, const_mem_fun<claim, uint128_t, &claim::composite_key>>>
+  claim_table;
 };
