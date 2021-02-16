@@ -94,9 +94,13 @@
         (eos-tx-owner token-acc "transfer"
                       {:from owner-acc :to fee-acc :memo "token allowed" :quantity "1000.0000 EFX"})
         "can transfer")
+       (<p-should-succeed!
+        (eos-tx-owner token-acc "transfer"
+                      {:from owner-acc :to fee-acc :memo "token allowed" :quantity "99.0001 EFX"})
+        "can transfer")       
        (let [rows (<p! (eos/get-table-rows fee-acc fee-acc "balance"))]
          (is (= (count rows) 1))
-         (is (= (get-in rows [0 "balance" "value"])) 10000000))
+         (is (= (get-in rows [0 "balance" 0 "value"]) 10990001)))
        (done)
        (catch js/Error e (prn "Error" e))))))
 
@@ -141,7 +145,13 @@
   (<p! (eos/transact prop-acc "cycleupdate" {}))
   (<p! (eos-tx-owner prop-acc "processcycle" {:account owner-acc :id 2}))
 
-  (<p-should-succeed! (eos-tx-owner fee-acc "claimreward" {:account owner-acc})))
+  (<p-should-succeed!
+   (eos-tx-owner fee-acc "claimreward" {:account owner-acc})
+   "can claim")
+
+  (<p-should-succeed!
+   (tx-as prop-acc fee-acc "claimreward" {:account prop-acc})
+   "can claim")  )
 
 (defn -main [& args]
   (run-tests))

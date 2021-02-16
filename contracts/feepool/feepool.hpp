@@ -40,7 +40,7 @@ private:
     uint64_t id;
     uint64_t cycle_id;
     eosio::name claimer;
-    std::vector<eosio::extended_asset> amounts;
+    std::set<eosio::extended_asset> amounts;
     uint64_t primary_key() const { return id; }
     uint128_t composite_key() const { return (uint128_t{cycle_id} << 64) | claimer.value; }
   };

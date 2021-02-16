@@ -90,10 +90,17 @@ void feepool::claimreward(eosio::name account) {
   eosio::check(vote_value > 0, "feepool balance is too small");
   uint64_t reward_value = vote_value * user_votes;
   eosio::asset reward_asset(reward_value, sym.get_symbol());
+  eosio::extended_asset reward_extended_asset(reward_value, sym);
 
   // insert claim
   claim_tbl.emplace(account,
-                    [&](auto& c) { c.cycle_id = cycle_id; c.claimer = account; });
+                    [&](auto& c)
+                    {
+                      c.id = claim_tbl.available_primary_key();
+                      c.cycle_id = cycle_id;
+                      c.claimer = account;
+                      c.amounts = {reward_extended_asset};
+                    });
 
   // transfer reward
   action(permission_level{_self, "xfer"_n},
