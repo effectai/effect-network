@@ -79,6 +79,8 @@ void feepool::claimreward(eosio::name account) {
     }
   }
 
+  eosio::check(user_votes > 0, "no votes by account");
+
   feepool::balance_table balance_tbl(_self, _self.value);
   auto balance = balance_tbl.get(cycle_id, "no feepool balance");
 
