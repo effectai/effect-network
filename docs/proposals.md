@@ -1,7 +1,7 @@
 ---
-# title: Proposals
-# parent: EffectDAO
-# nav_order: 3
+title: Proposals
+parent: EffectDAO
+nav_order: 3
 layout: default
 ---
 
@@ -39,7 +39,7 @@ When you first create a proposal it'll be a draft. This means it's visible on
 the dashboard for discussion by other members but it can't yet be voted on. You
 can collect feedback and make adjustments for as long as is necessary. As soon
 as you're happy with your proposal you can assign it to the next cycle and wait
-for that to start voting.
+for the voting to start.
 
 So what types of things can you propose? The most useful are requests for
 funding to get a task done. After such a funding proposal is approved the
@@ -66,9 +66,9 @@ fee distribution.
 ## Cycles
 
 Although EffectDAO feels like a futuristic machine of AI and automation, it
-really just is a very fine coordination of people of flesh and blood, that have
-jobs, lifes, loved ones, and time-zones to think about. To give all Guardians
-enough time to anticipate and consider proposals the DAO operates in cycles.
+really just is a very fine coordination of people like us, that have jobs,
+lifes, loved ones, and time-zones to think about. To give all Guardians enough
+time to anticipate and consider proposals the DAO operates in cycles.
 
 Cycles are fixed time units of 2 weeks in which proposals are reviewed, voted
 on, and executed. Besides controlling the speed at which proposals can be
@@ -81,10 +81,10 @@ A proposal goes through the following stages:
 
 1. **Draft** *The proposal is not assigned to a cycle*
 2. **Pending** *The proposal is assigned to a cycle in the future*
-3. **Active** *The proposal is assigned to the current cycle*
+3. **Active** *The proposal is assigned to the current cycle and can be voted*
 4. **Processing** *The proposal was assigned to a past cycle but not yet accepted or rejected*
 5. **Accepted / Rejected** *Votes have been tallied and the proposal is either accepted or rejected.*
-6. **Executed** *An accepted proposal that has been enacted.*
+6. **Executed** *The transaction of the porposal has been executed*
 
 ![Proposal lifecycle](/assets/images/proposal-lifecycle.png){: .d-block .mx-auto }
 
@@ -97,8 +97,8 @@ For a proposal to be approved it needs to:
 
 ## Recycling of funds
 
-Once a cycle is finished the required funds are allocated to accepted
-proposals. Often there is a significant amount of budget left. What happens with
+Once a cycle is finished an amount of funds is allocated to accepted
+proposals. Often there is a an amount of budget left. What happens with
 this budget is called the *recycle strategy*. This strategy can always be
 adjusted by new proposals and consists of 3 segments: funds that go back to the
 treasury, funds that go to the fee pool, and funds that get burned.
