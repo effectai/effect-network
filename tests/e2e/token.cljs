@@ -25,7 +25,7 @@
            (eos/transact acc "create" {:issuer acc :maximum_supply "120000000.0000 NFX"})))
      (<p! (apply p-all
                  (doseq [m issues]
-                   (eos/transact acc "issue" {:to m :quantity "10000000.0000 EFX" :memo ""})
+                   (eos/transact acc "issue" {:to m :quantity "100000000.0000 EFX" :memo ""})
                    (eos/transact acc "issue" {:to m :quantity "100000.0000 NFX" :memo ""})))))))
 
 (use-fixtures :once

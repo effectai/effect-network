@@ -4,10 +4,13 @@
 #include <eosio/symbol.hpp>
 #include <eosio/asset.hpp>
 #include <eosio/singleton.hpp>
+#include <eosio/binary_extension.hpp>
 
 using namespace eosio;
 
-namespace proposal {
+namespace proposalns {
+  typedef std::tuple<eosio::extended_asset, eosio::time_point_sec> pay_entry;
+  
   struct [[eosio::table("config"), eosio::contract("effect-proposals")]] config {
     uint32_t cycle_duration_sec;
     uint32_t cycle_voting_duration_sec;
@@ -15,6 +18,38 @@ namespace proposal {
     uint32_t quorum;
     uint16_t current_cycle;
     eosio::name dao_contract;
+  };
+
+  struct [[eosio::table("cycle"), eosio::contract("effect-proposals")]] cycle {
+    uint64_t id;
+    eosio::time_point_sec start_time;
+    std::vector<eosio::extended_asset> budget;
+    uint32_t quorum;
+    eosio::binary_extension<uint8_t> state;
+    eosio::binary_extension<std::vector<eosio::extended_asset>> spent;
+    eosio::binary_extension<uint64_t> total_vote_weight;
+    uint64_t primary_key() const { return id; }
+  };
+
+  struct [[eosio::table("proposal"), eosio::contract("effect-proposals")]] proposal {
+    uint64_t id;
+    eosio::name author;
+    std::string content_hash;
+    std::vector<pay_entry> pay;
+    std::map<uint8_t, uint32_t> vote_counts;
+    uint8_t state;
+    uint16_t cycle;
+    uint8_t category;
+
+    std::optional<std::string> proof_hash;
+    std::optional<eosio::checksum256> transaction_hash;
+
+    uint64_t primary_key() const { return id; }
+    uint64_t by_author() const { return author.value; }
+    uint64_t by_cycle() const { return cycle; }
+
+    EOSLIB_SERIALIZE(proposal, (id)(author)(content_hash)(pay)(vote_counts)
+                     (state)(cycle)(category)(proof_hash)(transaction_hash));
   };
 
   struct [[eosio::table("vote"), eosio::contract("effect-proposals")]] vote {
@@ -34,6 +69,14 @@ namespace proposal {
     EOSLIB_SERIALIZE(vote, (id)(voter)(proposal_id)(type)(weight)(delegatee)
                      (comment_hash));
   };
+
+  typedef multi_index<"cycle"_n, cycle> cycle_table;
+
+  typedef multi_index<
+    "proposal"_n, proposal,
+    indexed_by<"author"_n, const_mem_fun<proposal, uint64_t, &proposal::by_author>>,
+    indexed_by<"cycle"_n, const_mem_fun<proposal, uint64_t, &proposal::by_cycle>>>
+  proposal_table;
 
   typedef multi_index<
     "vote"_n, vote,

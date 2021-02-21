@@ -332,7 +332,7 @@ void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type) 
                      });
 
     prop_tbl.modify(prop,
-                    voter, //eosio::same_payer,
+                    eosio::same_payer,
                     [&](auto& p)
                     {
                       p.vote_counts[vote_type] += vote_weight;
@@ -344,7 +344,7 @@ void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type) 
     eosio::check(prop.vote_counts.at(existing->type) >= existing->weight,
                  "vote count underflow");
     prop_tbl.modify(prop,
-                    voter, //eosio::same_payer,
+                    eosio::same_payer,
                     [&](auto& p)
                     {
                       p.vote_counts[existing->type] -= existing->weight;

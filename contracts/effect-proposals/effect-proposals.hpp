@@ -11,15 +11,13 @@
 #include "effect-proposals-shared.hpp"
 
 using namespace eosio;
-using namespace proposal;
+using namespace proposalns;
 
 class [[eosio::contract("effect-proposals")]] proposals : public eosio::contract {
 public:
   using contract::contract;
 
   inline static const std::string RESERVATION_MEMO = "proposal";
-
-  typedef std::tuple<eosio::extended_asset, eosio::time_point_sec> pay_entry;
 
   enum ProposalState {
     Pending = 0,
@@ -105,49 +103,12 @@ public:
                         std::string memo);
 
 private:
-  struct [[eosio::table]] cycle {
-    uint64_t id;
-    eosio::time_point_sec start_time;
-    std::vector<eosio::extended_asset> budget;
-    uint32_t quorum;
-    eosio::binary_extension<uint8_t> state;
-    eosio::binary_extension<std::vector<eosio::extended_asset>> spent;
-    eosio::binary_extension<uint64_t> total_vote_weight;
-    uint64_t primary_key() const { return id; }
-  };
-
-  struct [[eosio::table]] proposal {
-    uint64_t id;
-    eosio::name author;
-    std::string content_hash;
-    std::vector<pay_entry> pay;
-    std::map<uint8_t, uint32_t> vote_counts;
-    uint8_t state;
-    uint16_t cycle;
-    uint8_t category;
-
-    std::optional<std::string> proof_hash;
-    std::optional<eosio::checksum256> transaction_hash;
-
-    uint64_t primary_key() const { return id; }
-    uint64_t by_author() const { return author.value; }
-    uint64_t by_cycle() const { return cycle; }
-
-    EOSLIB_SERIALIZE(proposal, (id)(author)(content_hash)(pay)(vote_counts)
-                     (state)(cycle)(category)(proof_hash)(transaction_hash));
-  };
 
   struct [[eosio::table]] reservation {
     eosio::name owner;
     uint64_t primary_key() const { return owner.value; }
   };
 
-  typedef multi_index<
-    "proposal"_n, proposal,
-    indexed_by<"author"_n, const_mem_fun<proposal, uint64_t, &proposal::by_author>>,
-    indexed_by<"cycle"_n, const_mem_fun<proposal, uint64_t, &proposal::by_cycle>>>
-  proposal_table;
-  typedef multi_index<"cycle"_n, cycle> cycle_table;
   typedef multi_index<"reservation"_n, reservation> reservation_table;
 
   config_table _config;
