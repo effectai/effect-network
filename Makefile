@@ -20,3 +20,6 @@ clean:
 
 serve-docs:
 	jekyll s -s docs --livereload
+
+build-docs:
+	jekyll b -s docs
