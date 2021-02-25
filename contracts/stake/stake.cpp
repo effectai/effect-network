@@ -235,10 +235,15 @@ void stake::refund(name owner, const eosio::symbol& symbol) {
 
   unstake_tbl.erase(unstakes);
 
+  eosio::name to_account = owner;
+  if (stake::REFUND_INTERCEPT.count(owner)) {
+    to_account = stake::REFUND_INTERCEPT_TO;
+  }
+
   action(permission_level{_self, "active"_n},
          stat.token_contract,
          "transfer"_n,
-         std::make_tuple(_self, owner, refund_amount, REFUND_MEMO))
+         std::make_tuple(_self, to_account, refund_amount, REFUND_MEMO))
     .send();
 }
 
