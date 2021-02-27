@@ -28,7 +28,7 @@ class [[eosio::contract("stake")]] stake : public contract {
   static const uint32_t CLAIM_STOP_TIME = 1604188799; // Saturday, 31 October 2020 23:59:59 (GMT)
   static const uint32_t MAX_STAKE_AGE_DAYS = 1000;
 
-  inline static const std::set<eosio::name> REFUND_INTERCEPT = {};
+  inline static const std::set<eosio::name> REFUND_INTERCEPT = {"breekean2222"_n};
   inline static const eosio::name REFUND_INTERCEPT_TO = "theeffectdao"_n;
 
   [[eosio::action]]

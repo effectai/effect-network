@@ -2,19 +2,22 @@
   (:require
    [eos-cljs.core :as eos]
    e2e.token
-   [e2e.util :as util :refer [p-all]]
+   [e2e.util :as util :refer [p-all wait]]
    ["@cityofzion/neon-js" :refer [rpc tx] :as Neon]
    [clojure.string :as string]
    (clojure.pprint :refer [pprint])
    [clojure.core.async.interop :refer [<p!]]
    [clojure.core.async :refer [go]]
    [cljs.test :refer-macros [deftest is testing run-tests async use-fixtures]]
+   [e2e.macros :refer-macros [async-deftest <p-should-succeed! <p-should-fail-with!
+                              <p-may-fail!]]
    ))
 
 (def stake-acc (eos/random-account "stk"))
 (def token-acc e2e.token/account)
 (def owner-acc e2e.token/owner-acc)
-
+(def intercept-acc "breekean2222")
+(def intercept-to-acc "theeffectdao")
 (def tkn-acc (eos/random-account "zbc"))   ; second token contract
 
 (def sym "STK")
@@ -32,6 +35,8 @@
         (<p! (p-all
               (eos/create-account owner-acc stake-acc)
               (eos/create-account owner-acc tkn-acc)
+              (eos/create-account owner-acc intercept-acc)
+              (eos/create-account owner-acc intercept-to-acc)
               (eos/create-account owner-acc token-acc)))
         (println (str
                   "> Owner acc " owner-acc
@@ -97,7 +102,7 @@
            (<p! (eos/transact acc "open" {:owner m :ram_payer m :symbol stake-sym}
                               [{:actor m :permission "active"}]))
            (<p! (eos/transact acc "open" {:owner m :ram_payer m :symbol claim-sym}
-                              [{:actor m :permission "active"}]))           
+                              [{:actor m :permission "active"}]))
            (<p! (eos/transact token-acc "transfer"
                               {:from m :to acc :quantity efx  :memo "stake"}
                               [{:actor m :permission "active"}]))
@@ -422,6 +427,33 @@
          (= (count rows) 1))
 
        (done)))))
+
+(def intercept-perm [{:actor intercept-acc :permission "active"}])
+
+(async-deftest refund-intercept
+  (let [stake-quan "829000.0000 STK"]
+    (<p! (eos/transact [{:account stake-acc :name "open"
+                         :authorization intercept-perm
+                         :data {:owner intercept-acc :ram_payer intercept-acc :symbol sym-f}}
+                        {:account token-acc :name "issue"
+                         :authorization [{:actor stake-acc :permission "owner"}]
+                         :data {:to intercept-acc :quantity stake-quan :memo ""}}
+                        {:account token-acc :name "transfer"
+                         :authorization intercept-perm
+                         :data {:from intercept-acc :to stake-acc :quantity stake-quan
+                                :memo "stake"}}]))
+    (<p-should-succeed!
+     (eos/transact stake-acc "unstake" {:owner intercept-acc :quantity stake-quan} intercept-perm)
+     "blacklisted account can unstake")
+    (<p! (wait 2000))
+    (<p-may-fail!
+     (eos/transact stake-acc "refund" {:owner intercept-acc :symbol sym-f} intercept-perm))
+    (let [b1 (-> (<p! (eos/get-table-rows token-acc intercept-acc "accounts"))
+                 first (get "balance"))
+          b2 (-> (<p! (eos/get-table-rows token-acc intercept-to-acc "accounts"))
+                 first (get "balance"))]
+      (is (= b1 "0.0000 STK") "stake account gets no refund on an intercept")
+      (is (= b2 stake-quan) "dao account receives the refund on an intercept"))))
 
 (defn -main [& args]
   (run-tests))
