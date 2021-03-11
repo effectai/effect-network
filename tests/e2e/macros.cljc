@@ -9,7 +9,7 @@
   [body msg]
   `(try
      (cljs.core.async.interop/<p! ~body)
-     (catch js/Error e# (prn e#))))
+     (catch js/Error e# nil)))
 
 (defmacro <p-should-fail!
   [body msg]
