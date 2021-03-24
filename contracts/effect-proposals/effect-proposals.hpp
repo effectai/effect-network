@@ -74,6 +74,9 @@ public:
                   std::optional<eosio::checksum256> transaction_hash);
 
   [[eosio::action]]
+  void hgrejectprop(uint64_t id);
+
+  [[eosio::action]]
   void addvote(eosio::name voter,
                uint64_t prop_id,
                uint8_t vote_type);

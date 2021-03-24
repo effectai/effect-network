@@ -42,10 +42,11 @@
   (get-table-rows "proposal" prop-contract prop-contract))
 
 (defn pinata-pin-by-hash! [hash]
-  (curl/post (str pinata-url "/pinning/pinByHash")
+  (println "Pinning " hash)
+  (print (curl/post (str pinata-url "/pinning/pinByHash")
              {:body (json/generate-string {"hashToPin" hash})
               :headers {"Authorization" (str "Bearer " pinata-jwt)
-                        "Content-Type" "application/json"}}))
+                        "Content-Type" "application/json"}})))
 
 
 (println "Collecting hashes...")
@@ -53,7 +54,7 @@
 (def hashes (->> (get-proposals)
                  (map :content_hash)))
 
-(println (str "Pinning " (count hashes) " files..."))
+(doseq [h hashes] (println h))
 
 (doall (map pinata-pin-by-hash! hashes))
 

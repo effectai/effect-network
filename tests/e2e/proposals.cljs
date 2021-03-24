@@ -90,9 +90,6 @@
   (let [rows (<p! (eos/get-table-rows prop-acc prop-acc "config"))]
     (is (= (count rows) 1))))
 
-(defn eos-tx-owner [contr action args]
-  (eos/transact contr action args [{:actor owner-acc :permission "active"}]))
-
 (def base-prop
   {:author owner-acc
    :pay [{:field_0 {:quantity "400.0000 EFX" :contract token-acc}
@@ -138,7 +135,6 @@
    (eos/transact prop-acc "createprop" (assoc base-prop :content_hash "bb" :author acc-2)
                  [{:actor acc-2 :permission "active"}])
    "can make a second proposal")
-
   (let [rows (<p! (eos/get-table-rows prop-acc prop-acc "proposal"))]
     (is (= (count rows) 2))))
 
@@ -156,6 +152,15 @@
                          "can update proposal")
      (done))))
 
+(defn- change-voting-duration
+  "Helper function to change the cycle and voting duration config.
+
+  This config is convenient to change during testing."
+  [cd vd]
+  (eos/transact prop-acc "update"
+                (assoc prop-config :cycle_duration_sec cd
+                       :cycle_voting_duration_sec vd)))
+
 (deftest cycle-add
   (async
    done
@@ -171,6 +176,10 @@
      (<p-should-succeed! (eos/transact prop-acc "addcycle"
                                        {:start_time "2021-01-01 12:00:00"
                                         :budget [{:quantity (str "326000.2000 EFX")
+                                                  :contract token-acc}]}))
+     (<p-should-succeed! (eos/transact prop-acc "addcycle"
+                                       {:start_time "2021-01-01 12:00:00"
+                                        :budget [{:quantity (str "326000.3000 EFX")
                                                   :contract token-acc}]}))
      (let [[{cycle "current_cycle"} ] (<p! (eos/get-table-rows prop-acc prop-acc "config"))]
        (is (= cycle 0)))
@@ -244,7 +253,10 @@
   (<p-should-fail-with!
    (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 1 :vote_type 3})
    "needs latest terms accepted"
-   "agreed terms are not the latest"))
+   "agreed terms are not the latest")
+  (<p! (eos/transact dao-acc "memberreg"
+                     {:account acc-2 :agreedterms "ab58606332f813bcf6ea26f732014f49a2197d2d281cc2939e59813721ee5246"}
+                     [{:actor acc-2 :permission "active"}])))
 
 (async-deftest process-cycle
   (<p-should-fail-with!
@@ -269,6 +281,25 @@
   (<p-should-fail-with! (eos/transact prop-acc "executeprop" {:id 0})
                         "can't execute rejected proposal"
                         "proposal is not accepted"))
+
+(async-deftest reject-proposal
+  (<p! (eos/transact token-acc "issue" {:to acc-2 :quantity proposal-cost :memo ""}))
+  (<p! (eos/transact token-acc "transfer"
+                     {:from acc-2 :to prop-acc
+                      :quantity proposal-cost :memo "proposal"}
+                     [{:actor acc-2 :permission "active"}]))
+  (<p! (eos/transact prop-acc "createprop" (assoc base-prop :content_hash "cc" :author acc-2 :cycle 4)
+                     [{:actor acc-2 :permission "active"}]))
+  (<p-should-fail-with! (eos-tx-owner prop-acc "hgrejectprop" {:id 2})
+                        "needs self signature"
+                        (str "missing authority of " prop-acc))
+  (<p! (eos/transact prop-acc "cycleupdate" {}))
+  (<p! (change-voting-duration (inc 9e6) 9e6))
+  (<p-should-fail-with! (eos/transact prop-acc "hgrejectprop" {:id 2})
+                        "voting period must have passed"
+                        "voting period not ended")
+  (<p! (change-voting-duration 1 0))
+  (<p-should-succeed! (eos/transact prop-acc "hgrejectprop" {:id 2})))
 
 (defn -main [& args]
   (run-tests))

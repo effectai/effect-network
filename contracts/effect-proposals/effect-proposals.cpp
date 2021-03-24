@@ -262,6 +262,36 @@ void proposals::updateprop(uint64_t id,
                   });
 }
 
+void proposals::hgrejectprop(uint64_t id) {
+  eosio::require_auth(_self);
+
+  proposal_table prop_tbl(_self, _self.value);
+  auto& prop = prop_tbl.get(id, "proposal does not exist");
+
+  // the proposal has to be accepted or pending
+  eosio::check(prop.state == proposals::Pending || prop.state == proposals::Accepted,
+               "proposal is already executed");
+
+  auto conf = _config.get();
+
+  cycle_table cycle_tbl(_self, _self.value);
+  auto& cur_cycle = cycle_tbl.get(conf.current_cycle, "this cycle is not defined");
+  auto cur_time_sec = time_point_sec(now());
+
+  // only proposals that already passed the voting period can be rejected
+  eosio::check((prop.cycle > 0 && conf.current_cycle > prop.cycle) ||
+               (conf.current_cycle == prop.cycle &&
+                cur_time_sec >= cur_cycle.start_time + conf.cycle_voting_duration_sec),
+               "voting period not ended");
+
+  prop_tbl.modify(prop,
+                  eosio::same_payer,
+                  [&](auto& p)
+                  {
+                    p.state = proposals::Rejected;
+                  });
+}
+
 void proposals::executeprop(uint64_t id) {
   require_auth(_self);
 
@@ -417,8 +447,7 @@ extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
   } else if (code == receiver) {
     switch(action) {
       EOSIO_DISPATCH_HELPER(proposals, (init)(update)(addcycle)(updatecycle)(createprop)(updateprop)
-                            (addvote)(cycleupdate)(processcycle)(executeprop));
+                            (addvote)(cycleupdate)(processcycle)(executeprop)(hgrejectprop));
     }
   }
 }
-
