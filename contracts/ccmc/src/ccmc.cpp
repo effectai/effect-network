@@ -13,13 +13,11 @@ ACTION ccmc::initgenblock(std::vector<char> raw_header, std::vector<char> pubkey
   eosio::print("height: ", header.height, "\n");
   eosio::print("timestamp: ", header.timestamp, "\n");
   eosio::print("consensusData: ", header.consensusData, "\n");
-  eosio::print("header.transactionsRoot: ", header.transactionsRoot, "\n");
-  eosio::print("header.crossStatesRoot: ", header.crossStatesRoot, "\n");
-  eosio::print("header.blockRoot: ", header.blockRoot, "\n");
   eosio::print("header.nextBookkeeper: ", header.nextBookkeeper, "\n");
+  eosio::print("bookkeeper.nextBookkeeper: ", bookkeeper.nextBookkeeper, "\n");
   
-  //eosio::check(header.nextBookkeeper == bookkeeper.nextBookkeeper, "nextBookkeeper illegal");
-  //poly_tbl.set(poly{header.height, serializeKeepers(bookkeeper.keepers)}, get_self());
+  eosio::check(header.nextBookkeeper == bookkeeper.nextBookkeeper, "nextBookkeeper illegal");
+  poly_tbl.set(poly{header.height, bookkeeper.keepers}, get_self());
 }
 
 EOSIO_DISPATCH(ccmc, (initgenblock))
