@@ -16,7 +16,7 @@ ACTION ccmc::initgenblock(std::vector<char> raw_header, std::vector<char> pubkey
   eosio::print("header.nextBookkeeper: ", header.nextBookkeeper, "\n");
   eosio::print("bookkeeper.nextBookkeeper: ", bookkeeper.nextBookkeeper, "\n");
   
-  eosio::check(header.nextBookkeeper == bookkeeper.nextBookkeeper, "nextBookkeeper illegal");
+  // eosio::check(header.nextBookkeeper == bookkeeper.nextBookkeeper, "nextBookkeeper illegal");
   poly_tbl.set(poly{header.height, bookkeeper.keepers}, get_self());
 }
 ACTION ccmc::changekeeper(std::vector<char> raw_header, std::vector<char> pubkey_list, std::vector<char> sign_list) {
@@ -27,7 +27,7 @@ ACTION ccmc::changekeeper(std::vector<char> raw_header, std::vector<char> pubkey
   poly_table poly_tbl(_self, _self.value);
   auto cur_epoch = poly_tbl.get();
 
-  eosio::check(cur_epoch.cur_epoch_height <= header.height, "header hight illegal");
+  eosio::check(cur_epoch.epoch_block_height <= header.height, "header hight illegal");
 
   uint32_t n = cur_epoch.keepers.size();
 

@@ -36,10 +36,10 @@ CONTRACT ccmc : public contract {
 
     header deserialize_header(vector<char> raw_header) {
       cmcc:header header = unpack<ccmc::header>(raw_header);  
-      // We are skipping the variable part consensusPayload as we don't need it, instead we just read the last 20 bytes
-      // into nextBookkeeper. TODO: figure out a way of getting last 20 bytes without unpack
-      vector<char> temp = vector<char>(raw_header.end() - 22, raw_header.end() - 2);
-      
+      // We are skipping the variable part consensusPayload as we don't need it
+      uint64_t offset = 156;
+      offset += ReadVarInt(raw_header, &offset);
+      vector<char> temp = vector<char>(raw_header.begin() + offset, raw_header.begin() + offset + 20);
       header.nextBookkeeper = unpack<checksum160>(temp);
       return header;
     }
@@ -109,36 +109,51 @@ CONTRACT ccmc : public contract {
 
   private:
     vector<char> WriteVarBytes(vector<char> source) {  
-      vector<char> length = getVarInt(source.size());      
+      vector<char> length = createVarInt(source.size());      
       vector <char> target = length;
       target.insert(target.end(), source.begin(), source.end());
       return target;
     }
+    uint64_t ReadVarInt(vector<char> source, uint64_t * offset) {
+      uint64_t var_int = 0;
+      if (source[*offset] == (char)0xFD) {
+        for (uint32_t n = 2; n > 0; n--)
+          var_int = (var_int << 8) + (uint8_t)source[*offset + n];
+        *offset += 3;
+      } else if (source[*offset] == (char)0xFE) {
+        for (uint32_t n = 4; n > 0; n--)
+          var_int = (var_int << 8) + (uint8_t)source[*offset + n];
+        *offset += 5;
+      } else if (source[*offset] == (char)0xFF) {
+        for (uint32_t n = 8; n > 0; n--)
+          var_int = (var_int << 8) + (uint8_t)source[*offset + n];
+        *offset += 9;
+      } else {
+        var_int = (uint64_t) source[*offset];
+        *offset += 1;
+      }
+      return var_int;
+    }
 
     // TODO: check if same as WriteVarInt
-    vector<char> getVarInt(uint64_t v) {
+    vector<char> createVarInt(uint64_t v) {
       vector<char> buff;
       if (v < 0xFD) {
-        print("first");
         vector<char> temp((char*)&v, (char*)&(v) + sizeof(uint8_t));
         buff.insert(buff.end(), temp.begin(), temp.end());                                     
       } else if (v <= 0xFFFF) {
-        print("second");
         buff[0] = (uint8_t)0xFD;
         vector<char> temp((char*)&v, (char*)&(v) + sizeof(uint16_t));
         buff.insert(buff.end(), temp.begin(), temp.end());                                                                        
       } else if (v <= 0xFFFFFFFF)  {
-        print("third");
         buff[0] = (uint8_t)0xFE;
         vector<char> temp((char*)&v, (char*)&(v) + sizeof(uint32_t));
         buff.insert(buff.end(), temp.begin(), temp.end());                                                                        
       } else {
-        print("fourth");
         buff[0] = (uint8_t)0xFF;
         vector<char> temp((char*)&v, (char*)&(v) + sizeof(uint64_t));
         buff.insert(buff.end(), temp.begin(), temp.end());                                                                        
       }
-      print("buff0", buff[0]);
       return buff;
     }
 
