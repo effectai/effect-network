@@ -19,5 +19,23 @@ ACTION ccmc::initgenblock(std::vector<char> raw_header, std::vector<char> pubkey
   eosio::check(header.nextBookkeeper == bookkeeper.nextBookkeeper, "nextBookkeeper illegal");
   poly_tbl.set(poly{header.height, bookkeeper.keepers}, get_self());
 }
+ACTION ccmc::changekeeper(std::vector<char> raw_header, std::vector<char> pubkey_list, std::vector<char> sign_list) {
+  cmcc:header header = deserialize_header(raw_header);
+  if (header.height == 0) {
+    return initgenblock(raw_header, pubkey_list);
+  }
+  poly_table poly_tbl(_self, _self.value);
+  auto cur_epoch = poly_tbl.get();
 
-EOSIO_DISPATCH(ccmc, (initgenblock))
+  eosio::check(cur_epoch.cur_epoch_height <= header.height, "header hight illegal");
+
+  uint32_t n = cur_epoch.keepers.size();
+
+  eosio::check(verifySig(raw_header, sign_list, cur_epoch.keepers, n - (n - 1) / 3), "verify signature failed");
+
+  ccmc:bookkeeper bookkeeper = verify_pubkey(pubkey_list);
+  eosio::check(header.nextBookkeeper == bookkeeper.nextBookkeeper, "nextBookkeeper illegal");
+  poly_tbl.set(poly{header.height, bookkeeper.keepers}, get_self());
+}
+
+EOSIO_DISPATCH(ccmc, (initgenblock)(changekeeper))

@@ -10,6 +10,7 @@ CONTRACT ccmc : public contract {
     using contract::contract;
 
     ACTION initgenblock(vector<char> raw_header, vector<char> pubkey_list);
+    ACTION changekeeper(std::vector<char> raw_header, std::vector<char> pubkey_list, std::vector<char> sign_list);
 
     static const uint32_t PUBKEY_LEN = 67;
     static const uint32_t SIG_LEN = 65;
@@ -80,6 +81,29 @@ CONTRACT ccmc : public contract {
       bookkeeper.keepers = keepers;
       bookkeeper.nextBookkeeper = ripemd160((const char *)((sha256(buff.data(), buff.size()).extract_as_byte_array()).data()), 32);
       return bookkeeper;
+    }
+
+    bool verifySig(vector<char> raw_header, vector<char> sign_list, vector<checksum256> keepers, uint16_t m) {
+      checksum256 hash = sha256(raw_header.data(), raw_header.size());
+      uint32_t count_signed = 0;
+      for (uint32_t i = 0; i < sign_list.size() / SIG_LEN; i++) {
+        // vector<char> r = vector<char>(sign_list.begin() + (i * SIG_LEN), sign_list.begin() + (i * SIG_LEN + 32));
+        // vector<char> s = vector<char>(sign_list.begin() + (i * SIG_LEN + 32), sign_list.begin() + (i * SIG_LEN + 64));
+        // uint32_t v = (uint32_t)vector<char>(sign_list.begin() + (i * SIG_LEN + 64), sign_list.begin() + (i * SIG_LEN + 65));
+        vector<char> signer;
+        // signer = recover_key(hash, vector<char>(sign_list.begin() + (i * SIG_LEN), sign_list.begin() + (i * SIG_LEN + 65)));
+
+        //if (v == 1) {
+        //  signer = SmartContract.Sha256(Secp256k1Recover(r, s, false, SmartContract.Sha256(hash)));
+        //} else {
+        //  signer = SmartContract.Sha256(Secp256k1Recover(r, s, true, SmartContract.Sha256(hash)));
+        //}
+        if (count(keepers.begin(), keepers.end(), sha256(signer.data(), signer.size()))) {
+          count_signed += 1;
+        }
+      }
+      print("SIGNED", count_signed);
+      return count_signed >= m;
     }
 
 
