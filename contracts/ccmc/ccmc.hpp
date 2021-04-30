@@ -35,7 +35,7 @@ CONTRACT ccmc : public contract {
 
 
     header deserialize_header(vector<char> raw_header) {
-      cmcc:header header = unpack<ccmc::header>(raw_header);  
+      cmcc:header header = unpack<ccmc::header>(raw_header);
       // We are skipping the variable part consensusPayload as we don't need it
       uint64_t offset = 156;
       offset += ReadVarInt(raw_header, &offset);
@@ -43,6 +43,7 @@ CONTRACT ccmc : public contract {
       header.nextBookkeeper = unpack<checksum160>(temp);
       return header;
     }
+
     bookkeeper verify_pubkey(vector<char> pubkey_list) {
       eosio::check(pubkey_list.size() % PUBKEY_LEN == 0, "length of pubkey_list is invalid");
       uint32_t n = pubkey_list.size() / PUBKEY_LEN;
@@ -76,29 +77,38 @@ CONTRACT ccmc : public contract {
       }
       vector<char> temp2((char*)&m, (char*)&(m) + sizeof(uint16_t));
       buff.insert(buff.end(), temp2.begin(), temp2.end());
-      
+
       cmcc:bookkeeper bookkeeper = ccmc::bookkeeper();
       bookkeeper.keepers = keepers;
       bookkeeper.nextBookkeeper = ripemd160((const char *)((sha256(buff.data(), buff.size()).extract_as_byte_array()).data()), 32);
       return bookkeeper;
     }
 
-    bool verifySig(vector<char> raw_header, vector<char> sign_list, vector<checksum256> keepers, uint16_t m) {
-      checksum256 hash = sha256(raw_header.data(), raw_header.size());
+    inline checksum256 sha256ofhash(checksum256 h) {
+      return sha256((const char *)h.extract_as_byte_array().data(), 32);
+    }
+
+    bool verify_sig(vector<char> raw_header, vector<char> sign_list, vector<checksum256> keepers, uint16_t m) {
+      checksum256 hash = sha256ofhash(sha256ofhash(sha256(raw_header.data(), raw_header.size())));
+
       uint32_t count_signed = 0;
       for (uint32_t i = 0; i < sign_list.size() / SIG_LEN; i++) {
-        // vector<char> r = vector<char>(sign_list.begin() + (i * SIG_LEN), sign_list.begin() + (i * SIG_LEN + 32));
-        // vector<char> s = vector<char>(sign_list.begin() + (i * SIG_LEN + 32), sign_list.begin() + (i * SIG_LEN + 64));
-        // uint32_t v = (uint32_t)vector<char>(sign_list.begin() + (i * SIG_LEN + 64), sign_list.begin() + (i * SIG_LEN + 65));
-        vector<char> signer;
-        // signer = recover_key(hash, vector<char>(sign_list.begin() + (i * SIG_LEN), sign_list.begin() + (i * SIG_LEN + 65)));
+        vector<char> sig = vector<char>(sign_list.begin() + (i * SIG_LEN), sign_list.begin() + (i * SIG_LEN + 65));
+        // printhex(&sig[0], 65);
+
+        std::array<char, 65> sigarr;
+        std::copy_n(sig.begin(), 65, sigarr.begin());
+        auto k1_sig = signature(std::in_place_index<0>, sigarr); // K1 is variant at <0>
+        array<char, 33> signer = std::get<0>(recover_key(hash, k1_sig));
+        printhex(&signer[0],33);
+        checksum256 signer_hash = sha256(&signer[0], signer.size());
 
         //if (v == 1) {
         //  signer = SmartContract.Sha256(Secp256k1Recover(r, s, false, SmartContract.Sha256(hash)));
         //} else {
         //  signer = SmartContract.Sha256(Secp256k1Recover(r, s, true, SmartContract.Sha256(hash)));
         //}
-        if (count(keepers.begin(), keepers.end(), sha256(signer.data(), signer.size()))) {
+        if (std::find(keepers.begin(), keepers.end(), signer_hash) != keepers.end()) {
           count_signed += 1;
         }
       }
@@ -108,8 +118,8 @@ CONTRACT ccmc : public contract {
 
 
   private:
-    vector<char> WriteVarBytes(vector<char> source) {  
-      vector<char> length = createVarInt(source.size());      
+    vector<char> WriteVarBytes(vector<char> source) {
+      vector<char> length = createVarInt(source.size());
       vector <char> target = length;
       target.insert(target.end(), source.begin(), source.end());
       return target;
@@ -140,19 +150,19 @@ CONTRACT ccmc : public contract {
       vector<char> buff;
       if (v < 0xFD) {
         vector<char> temp((char*)&v, (char*)&(v) + sizeof(uint8_t));
-        buff.insert(buff.end(), temp.begin(), temp.end());                                     
+        buff.insert(buff.end(), temp.begin(), temp.end());
       } else if (v <= 0xFFFF) {
         buff[0] = (uint8_t)0xFD;
         vector<char> temp((char*)&v, (char*)&(v) + sizeof(uint16_t));
-        buff.insert(buff.end(), temp.begin(), temp.end());                                                                        
+        buff.insert(buff.end(), temp.begin(), temp.end());
       } else if (v <= 0xFFFFFFFF)  {
         buff[0] = (uint8_t)0xFE;
         vector<char> temp((char*)&v, (char*)&(v) + sizeof(uint32_t));
-        buff.insert(buff.end(), temp.begin(), temp.end());                                                                        
+        buff.insert(buff.end(), temp.begin(), temp.end());
       } else {
         buff[0] = (uint8_t)0xFF;
         vector<char> temp((char*)&v, (char*)&(v) + sizeof(uint64_t));
-        buff.insert(buff.end(), temp.begin(), temp.end());                                                                        
+        buff.insert(buff.end(), temp.begin(), temp.end());
       }
       return buff;
     }
