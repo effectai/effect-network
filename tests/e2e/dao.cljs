@@ -92,7 +92,6 @@
      (<p! (eos/transact dao-acc "newmemterms" (first terms)))
      (<p! (util/wait 500))
      (let [rows (<p! (eos/get-table-rows dao-acc dao-acc "memberterms"))]
-       (prn rows)
        (is (= (count rows) 3) "there should be 3 terms")
        (is (= (get-in rows [0 "hash"]) (-> terms first :hash)) "wrong term hash"))
      (done))))
