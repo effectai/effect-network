@@ -346,8 +346,7 @@ void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type) 
                "proposal is not active");
 
   // calculate vote weight
-  auto rank = dao::get_rank(_config.get().dao_contract, voter);
-  uint32_t vote_weight = dao::get_vote_power(rank);
+  uint32_t vote_weight = dao::get_vote_power(_config.get().dao_contract, voter);
 
   if (existing == vote_tbl_idx.end()) {
     // insert a new vote

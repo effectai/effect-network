@@ -234,37 +234,47 @@
    (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 0})
    "can vote on own proposal"
    "not in voting period")
+
   (<p! (eos/transact prop-acc "update"
                      (assoc prop-config
                             :cycle_duration_sec (inc 9e6)
                             :cycle_voting_duration_sec 9e6)))
+
   (<p-should-succeed!
    (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 0})
    "can vote on own proposal")
+
   (<p-should-succeed!
    (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 1})
    "can update vote")
+
   (<p-should-succeed!
    (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 2})
    "can update vote twice")
+
   (<p! (eos/wait-block (js/Promise.resolve 42) 2))
   (<p! (eos/transact prop-acc "addvote"
                      {:voter token-acc :prop_id 0 :vote_type 1}
                      [{:actor token-acc :permission "active"}])
        "multiple accounts can vote")
+
   (let [rows (<p! (eos/get-table-rows prop-acc prop-acc "proposal"))
         r (->> rows (filter #(= (% "id") 0)) first)]
     (is (= (get-in r ["vote_counts" 0 "value"]) 0))
-    (is (= (get-in r ["vote_counts" 1 "value"]) 2))
-    (is (= (get-in r ["vote_counts" 2 "value"]) 5)))
+    (is (= (get-in r ["vote_counts" 1 "value"]) 24042))
+    (is (= (get-in r ["vote_counts" 2 "value"]) 37276)))
+
   (<p! (eos/wait-block (js/Promise.resolve 42) 2))
+
   (<p! (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 1 :vote_type 1})
        "multiple accounts can vote")
+
   (<p! (eos/transact dao-acc "newmemterms" {:hash hash1}))
   (<p-should-fail-with!
    (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 1 :vote_type 3})
    "needs latest terms accepted"
    "agreed terms are not the latest")
+
   (<p! (eos/transact dao-acc "memberreg"
                      {:account acc-2 :agreedterms hash1}
                      [{:actor acc-2 :permission "active"}])))
