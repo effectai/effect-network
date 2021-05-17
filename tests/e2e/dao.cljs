@@ -26,7 +26,7 @@
   ([acc stake-acc prop-acc token-acc utl-sym gov-sym members]
    (let [terms (first terms)]
      (go (<p! (eos/create-account owner-acc acc))
-         (<p! (deploy-file acc "contracts/effect-dao/effect-dao"))
+         (<p! (deploy-file acc "contracts/dao/dao"))
          (<p! (eos/transact acc "newmemterms" terms))
          (<p! (eos/transact acc "init" {:stake_contract stake-acc
                                         :proposal_contract prop-acc
@@ -43,7 +43,7 @@
      (async
       done
       (go (<p! (eos/create-account owner-acc dao-acc))
-          (<p! (deploy-file dao-acc "contracts/effect-dao/effect-dao"))
+          (<p! (deploy-file dao-acc "contracts/dao/dao"))
           (done))))
    :after (fn [])})
 

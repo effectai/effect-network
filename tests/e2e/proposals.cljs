@@ -40,7 +40,7 @@
               prop-acc "xfer"
               [{:permission {:actor prop-acc :permission "eosio.code"} :weight 1}]))
 
-        (<p! (deploy-file prop-acc "contracts/effect-proposals/effect-proposals"))
+        (<p! (deploy-file prop-acc "contracts/proposals/proposals"))
         (<! (e2e.token/deploy-token token-acc [owner-acc token-acc prop-acc]))
         (<! (e2e.stake/deploy-stake stake-acc token-acc "4,EFX" "4,NFX"
                                     [[owner-acc "1056569.0000 EFX" "37276.0000 NFX"]
@@ -71,7 +71,7 @@
    (go
      (try
        (<p! (eos/create-account owner-acc acc))
-       (<p! (deploy-file acc "contracts/effect-proposals/effect-proposals"))
+       (<p! (deploy-file acc "contracts/proposals/proposals"))
        (<p! (eos/transact acc "init" prop-config))
        (print "Deployed proposals")
        (catch js/Error e "Error deploying props " e)))))

@@ -45,8 +45,8 @@
                   "\n> Created TOKEN account " token-acc))
         (<p! (p-all
               (deploy-file stake-acc "contracts/stake/stake")
-              (deploy-file tkn-acc "contracts/effect-token/effect-token")
-              (deploy-file token-acc "contracts/effect-token/effect-token")))
+              (deploy-file tkn-acc "contracts/token/token")
+              (deploy-file token-acc "contracts/token/token")))
         (<p! (p-all
               (eos/update-auth stake-acc "active"
                                [{:permission {:actor token-acc :permission "eosio.code"}

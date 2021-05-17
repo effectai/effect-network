@@ -1,5 +1,5 @@
-#include "effect-proposals.hpp";
-#include "../effect-dao/effect-dao-shared.hpp";
+#include "proposals.hpp";
+#include "../dao/dao-shared.hpp";
 
 void proposals::init(uint32_t cycle_duration_sec,
                      uint32_t cycle_voting_duration_sec,

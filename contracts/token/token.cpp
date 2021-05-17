@@ -3,7 +3,7 @@
  *  @copyright defined in eos/LICENSE.txt
  */
 
-#include "effect-token.hpp"
+#include "token.hpp"
 
 namespace eosio {
 

@@ -16,7 +16,7 @@ namespace dao {
   static const uint32_t CLAIM_STOP_TIME = 1604188799; // Saturday, 31 October 2020 23:59:59 (GMT)
   static const uint32_t MAX_STAKE_AGE_DAYS = 1000;
 
-  struct [[eosio::table("member"), eosio::contract("effect-dao")]] member {
+  struct [[eosio::table("member"), eosio::contract("dao")]] member {
     eosio::name account;
     uint64_t agreedtermsversion;
     eosio::time_point_sec registration_time;
@@ -24,21 +24,21 @@ namespace dao {
     uint64_t primary_key() const { return account.value; }
   };
 
-  struct [[eosio::table("memberterms"), eosio::contract("effect-dao")]] memberterms {
+  struct [[eosio::table("memberterms"), eosio::contract("dao")]] memberterms {
     uint64_t version;
     eosio::checksum256 hash;
 
     uint64_t primary_key() const { return version; }
   };
 
-  struct [[eosio::table("config"), eosio::contract("effect-dao")]] config {
+  struct [[eosio::table("config"), eosio::contract("dao")]] config {
     eosio::name stake_contract;
     eosio::name proposal_contract;
     eosio::extended_symbol utl_token_sym;
     eosio::extended_symbol gov_token_sym;
   };
 
-  struct [[eosio::table("stake"), eosio::contract("effect-dao")]] stakeentry {
+  struct [[eosio::table("stake"), eosio::contract("dao")]] stakeentry {
     eosio::asset amount;
     eosio::time_point_sec last_claim_time;
     uint32_t last_claim_age;

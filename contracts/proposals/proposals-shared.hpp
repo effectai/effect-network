@@ -10,8 +10,8 @@ using namespace eosio;
 
 namespace proposalns {
   typedef std::tuple<eosio::extended_asset, eosio::time_point_sec> pay_entry;
-  
-  struct [[eosio::table("config"), eosio::contract("effect-proposals")]] config {
+
+  struct [[eosio::table("config"), eosio::contract("proposals")]] config {
     uint32_t cycle_duration_sec;
     uint32_t cycle_voting_duration_sec;
     eosio::extended_asset proposal_cost;
@@ -20,7 +20,7 @@ namespace proposalns {
     eosio::name dao_contract;
   };
 
-  struct [[eosio::table("cycle"), eosio::contract("effect-proposals")]] cycle {
+  struct [[eosio::table("cycle"), eosio::contract("proposals")]] cycle {
     uint64_t id;
     eosio::time_point_sec start_time;
     std::vector<eosio::extended_asset> budget;
@@ -31,7 +31,7 @@ namespace proposalns {
     uint64_t primary_key() const { return id; }
   };
 
-  struct [[eosio::table("proposal"), eosio::contract("effect-proposals")]] proposal {
+  struct [[eosio::table("proposal"), eosio::contract("proposals")]] proposal {
     uint64_t id;
     eosio::name author;
     std::string content_hash;
@@ -52,7 +52,7 @@ namespace proposalns {
                      (state)(cycle)(category)(proof_hash)(transaction_hash));
   };
 
-  struct [[eosio::table("vote"), eosio::contract("effect-proposals")]] vote {
+  struct [[eosio::table("vote"), eosio::contract("proposals")]] vote {
     uint64_t id;
     eosio::name voter;
     uint64_t proposal_id;

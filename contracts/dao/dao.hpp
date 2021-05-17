@@ -5,9 +5,9 @@
 #include <eosio/crypto.hpp>
 #include <eosio/system.hpp>
 
-#include "effect-dao-shared.hpp"
+#include "dao-shared.hpp"
 
-class [[eosio::contract("effect-dao")]] effectdao : public eosio::contract {
+class [[eosio::contract("dao")]] effectdao : public eosio::contract {
  public:
   using contract::contract;
 

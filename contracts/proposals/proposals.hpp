@@ -8,12 +8,12 @@
 #include <eosio/singleton.hpp>
 #include <eosio/binary_extension.hpp>
 
-#include "effect-proposals-shared.hpp"
+#include "proposals-shared.hpp"
 
 using namespace eosio;
 using namespace proposalns;
 
-class [[eosio::contract("effect-proposals")]] proposals : public eosio::contract {
+class [[eosio::contract("proposals")]] proposals : public eosio::contract {
 public:
   using contract::contract;
 
