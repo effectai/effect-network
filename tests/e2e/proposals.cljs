@@ -1,5 +1,6 @@
 (ns e2e.proposals
   (:require [eos-cljs.core :as eos]
+            [eos-cljs.node-api :refer [deploy-file]]
             [e2e.util :as util :refer [p-all wait]]
             [cljs.test :refer-macros [deftest is testing run-tests async use-fixtures]]
             [cljs.core.async :refer [go <!] ]
@@ -26,7 +27,7 @@
 (defn eos-tx-owner [contr action args]
   (eos/transact contr action args [{:actor owner-acc :permission "active"}]))
 
-(use-fixtures :once
+(use-fixtures :once                     ;
   {:before
    (fn []
      (async
@@ -39,7 +40,7 @@
               prop-acc "xfer"
               [{:permission {:actor prop-acc :permission "eosio.code"} :weight 1}]))
 
-        (<p! (eos/deploy prop-acc "contracts/effect-proposals/effect-proposals"))
+        (<p! (deploy-file prop-acc "contracts/effect-proposals/effect-proposals"))
         (<! (e2e.token/deploy-token token-acc [owner-acc token-acc prop-acc]))
         (<! (e2e.stake/deploy-stake stake-acc token-acc "4,EFX" "4,NFX"
                                     [[owner-acc "1056569.0000 EFX" "37276.0000 NFX"]
@@ -70,7 +71,7 @@
    (go
      (try
        (<p! (eos/create-account owner-acc acc))
-       (<p! (eos/deploy acc "contracts/effect-proposals/effect-proposals"))
+       (<p! (deploy-file acc "contracts/effect-proposals/effect-proposals"))
        (<p! (eos/transact acc "init" prop-config))
        (print "Deployed proposals")
        (catch js/Error e "Error deploying props " e)))))
