@@ -71,7 +71,7 @@
      (.catch prn)
      (.then #(eos/create-account owner-acc stake-acc))
      (.catch prn)
-     (.then #(eos/deploy token-acc "contracts/effect-token/effect-token"))
+     (.then #(eos/deploy token-acc "contracts/token/token"))
      (.catch prn)
      (.then #(eos/deploy swap-acc "contracts/swap/swap"))
      (.catch prn)

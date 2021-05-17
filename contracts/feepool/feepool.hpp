@@ -3,7 +3,7 @@
 #include <eosio/eosio.hpp>
 #include <eosio/system.hpp>
 
-#include "../effect-proposals/effect-proposals-shared.hpp"
+#include "../proposals/proposals-shared.hpp"
 
 class [[eosio::contract("feepool")]] feepool : public eosio::contract {
 public:

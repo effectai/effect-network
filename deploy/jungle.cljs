@@ -50,7 +50,7 @@
       (eos/set-api! (assoc (:jungle eos/apis) :priv-keys [privatekey]))
       (->
        ;; deploy fresh code
-       (eos/deploy token-acc "contracts/effect-token/effect-token")
+       (eos/deploy token-acc "contracts/token/token")
        (.catch prn)
        (.then #(eos/deploy swap-acc "contracts/swap/swap"))
        (.catch prn)

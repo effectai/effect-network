@@ -1,4 +1,4 @@
-#include "effect-dao.hpp"
+#include "dao.hpp"
 
 void effectdao::init(eosio::name stake_contract, eosio::name proposal_contract,
                  eosio::extended_symbol utl_token_sym,

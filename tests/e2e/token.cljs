@@ -1,6 +1,7 @@
 (ns e2e.token
   (:require
    [eos-cljs.core :as eos]
+   [eos-cljs.node-api :refer [deploy-file]]
    [clojure.string :as string]
    [cljs.test :refer [do-report report] :refer-macros [deftest is testing run-tests async use-fixtures]]
    [cljs.core.async :refer [go] ]
@@ -19,7 +20,7 @@
   ([acc issues]
    (go
      (<p! (eos/create-account owner-acc acc))
-     (<p! (eos/deploy acc "contracts/effect-token/effect-token"))
+     (<p! (deploy-file acc "contracts/token/token"))
      (<p! (p-all
            (eos/transact acc "create" {:issuer acc :maximum_supply total-supply})
            (eos/transact acc "create" {:issuer acc :maximum_supply "120000000.0000 NFX"})))
@@ -36,7 +37,7 @@
                   (.then #(println (str "> Created TOKEN account " account)))
                   ;; (.catch #(is (string/ends-with? (.-message %) "name is already taken")))
                   eos/wait-block
-                  (.then #(eos/deploy account "contracts/effect-token/effect-token"))
+                  (.then #(deploy-file account "contracts/token/token"))
                   ;; (.catch #(is (= (.-message %) eos/msg-contract-exist)))
                   (.then done))))
    :after (fn [])})

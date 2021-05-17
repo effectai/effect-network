@@ -1,6 +1,7 @@
 (ns e2e.feepool
   (:require [eos-cljs.core :as eos]
             [e2e.util :as util :refer [wait p-all]]
+            [eos-cljs.node-api :refer [deploy-file]]
             [cljs.test :refer-macros [deftest is testing run-tests async use-fixtures]]
             [cljs.core.async :refer [go <!]]
             [cljs.core.async.interop :refer [<p!]]
@@ -42,8 +43,8 @@
                                       [[owner-acc "1056569.0000 EFX" "37276.0000 NFX"]
                                        [prop-acc "309999.0000 EFX" "10002.0000 NFX"]]))
           (<! (e2e.dao/deploy-dao dao-acc stake-acc prop-acc token-acc "4,EFX" "4,NFX"
-                                  [owner-acc prop-acc]))          
-          (<p! (eos/deploy fee-acc "contracts/feepool/feepool"))
+                                  [owner-acc prop-acc]))
+          (<p! (deploy-file fee-acc "contracts/feepool/feepool"))
           (<p! (eos/transact "eosio" "linkauth"
                              {:account fee-acc
                               :requirement "xfer"
@@ -97,7 +98,7 @@
        (<p-should-succeed!
         (eos-tx-owner token-acc "transfer"
                       {:from owner-acc :to fee-acc :memo "token allowed" :quantity "99.0001 EFX"})
-        "can transfer")       
+        "can transfer")
        (let [rows (<p! (eos/get-table-rows fee-acc fee-acc "balance"))]
          (is (= (count rows) 1))
          (is (= (get-in rows [0 "balance" 0 "value"]) 10990001)))
