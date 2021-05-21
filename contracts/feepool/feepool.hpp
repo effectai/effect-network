@@ -24,6 +24,9 @@ public:
   [[eosio::action]]
   void claimreward(eosio::name account);
 
+  [[eosio::action]]
+  void setbalance(extended_asset quantity);
+
 private:
   struct [[eosio::table]] config {
     eosio::name proposal_contract;

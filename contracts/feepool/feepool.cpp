@@ -40,6 +40,25 @@ void feepool::transfer_handler(name from, name to, asset quantity, std::string m
   }
 }
 
+void feepool::setbalance(extended_asset quantity) {
+  require_auth(_self);
+
+  config_table _config(_self, _self.value);
+  proposalns::config_table proposal_config(_config.get().proposal_contract,
+                                           _config.get().proposal_contract.value);
+  uint16_t cycle_id = proposal_config.get().current_cycle;
+
+  eosio::extended_symbol sym = quantity.get_extended_symbol();
+
+  // get or create cycle balance entry
+  balance_table balance_tbl(_self, _self.value);
+  auto cycle_entry = balance_tbl.find(cycle_id);
+  eosio::check(cycle_entry != balance_tbl.end(), "no balance yet");
+
+  // update asset in cycle
+  balance_tbl.modify(cycle_entry, _self, [&](auto& b) { b.balance[sym] = quantity.quantity.amount; });
+}
+
 void feepool::claimreward(eosio::name account) {
   require_auth(account);
   auto conf = config_table(_self, _self.value).get();
@@ -119,7 +138,7 @@ extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
                             &feepool::transfer_handler);
   } else if (code == receiver) {
     switch(action) {
-      EOSIO_DISPATCH_HELPER(feepool, (init)(update)(claimreward));
+      EOSIO_DISPATCH_HELPER(feepool, (init)(update)(claimreward)(setbalance));
     }
   }
 }

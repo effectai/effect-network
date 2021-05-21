@@ -77,6 +77,7 @@
    done
    (go
      (try
+
        (<p-should-succeed!
         (eos-tx-owner token-acc "transfer"
                       {:from     owner-acc
@@ -102,6 +103,16 @@
        (let [rows (<p! (eos/get-table-rows fee-acc fee-acc "balance"))]
          (is (= (count rows) 1))
          (is (= (get-in rows [0 "balance" 0 "value"]) 10990001)))
+       (<p-should-fail!
+        (eos-tx-owner fee-acc "setbalance" {:quantity {:quantity "400.0000 EFX" :contract token-acc}})
+        "can transfer")
+       (<p-should-succeed!
+        (eos/transact fee-acc "setbalance" {:quantity {:quantity "400.0000 EFX" :contract token-acc}})
+        "can transfer")
+
+       (let [rows (<p! (eos/get-table-rows fee-acc fee-acc "balance"))]
+         (is (= (count rows) 1))
+         (is (= (get-in rows [0 "balance" 0 "value"]) 4000000)))
        (done)
        (catch js/Error e (prn "Error" e))))))
 
@@ -130,19 +141,25 @@
                      {:from owner-acc :to prop-acc :quantity proposal-cost :memo "proposal"}))
   (<p! (p-all (eos-tx-owner prop-acc "createprop" (assoc base-prop :cycle 2))
               (eos/transact prop-acc "addcycle" base-cycle)
-              (eos/transact prop-acc "addcycle" base-cycle)))
+              ;; (eos/transact prop-acc "addcycle" base-cycle)
+              ))
+
+  (<p! (eos/wait-block (js/Promise.resolve 42) 2))
   (<p! (eos/transact prop-acc "cycleupdate" {}))
   (<p! (eos/transact prop-acc "update" prop-config))
   (<p! (p-all (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 0})
               (eos/transact prop-acc "addvote" {:voter prop-acc :prop_id 0 :vote_type 1})))
-
   ;; add fees and finalize cycle
+
   (<p-should-succeed!
    (eos-tx-owner token-acc "transfer"
                  {:from owner-acc :to fee-acc :memo "" :quantity "92000000.0000 EFX"})
    "can add more feees")
+
   (<p! (eos/transact prop-acc "update" (assoc prop-config :cycle_duration_sec 2
                                               :cycle_voting_duration_sec 1)))
+
+  (<p! (eos/wait-block (js/Promise.resolve 42) 2))
   (<p! (eos/transact prop-acc "cycleupdate" {}))
   (<p! (eos-tx-owner prop-acc "processcycle" {:account owner-acc :id 2}))
 
