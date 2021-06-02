@@ -75,8 +75,8 @@ namespace dao {
     double age_new = std::min(age_last + aged, (double) age_limit);
 
     // calculate power
-    double stake_float = (stake_amount / 10000.0);
-    double power = stake_float + float(age_new / (200 * dao::SECONDS_PER_DAY)) * stake_float;
+    uint32_t stake_float = (stake_amount / 10000.0);
+    uint32_t power = stake_float + (uint32_t) (age_new / (200 * dao::SECONDS_PER_DAY)) * stake_float;
 
     return (uint32_t) power;
   }
