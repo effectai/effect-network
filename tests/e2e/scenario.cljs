@@ -15,6 +15,8 @@
             [cljs.core.async.interop :refer [<p!]]
             [e2e.macros :refer-macros [<p-should-fail! <p-should-succeed!
                                        <p-should-fail-with! <p-may-fail! async-deftest]]
+            [goog.string :as gstring]
+            [goog.string.format]
             [clojure.string :as string]
             fs
             e2e.proposals
@@ -100,6 +102,18 @@
 
         (<p! (eos/transact (first props) "init" props-config))
 
+        (<p! (eos/transact (first fee) "init" {:proposal_contract (first props)}))
+        (<p! (eos/transact (first fee) "update"
+                           {:proposal_contract (first props)
+                            :allowed_symbols   [{:contract (first token) :sym "4,EFX"}]}))
+        (<p! (eos/update-auth (first fee) "xfer"
+                              [{:permission {:actor (first fee) :permission "eosio.code"} :weight 1}]))
+        (<p! (tx-as (first fee) "eosio" "linkauth"
+                    {:account (first fee)
+                     :requirement "xfer"
+                     :code (first token)
+                     :type "transfer"}))
+
         (<p! (add-cycle-fn (- cycle-date (* day-sec 1e3))))
 
         (<p! (eos/transact (first stake) "create"
@@ -123,7 +137,7 @@
                         (string/split "\n") rest)
 
         stakes (->> stake-lines
-                    (take 50) ; (un)comment to test smaller set of users
+                    ;; (take 10) ; (un)comment to test smaller set of users
                     (map #(string/split % ","))
                     (map (fn [[efx nfx]] [(.toFixed (js/parseFloat efx) 4)
                                          (.toFixed  (js/parseFloat nfx) 4)]))
@@ -189,27 +203,65 @@
         power-factor (quot efx-power 20)]
     (js/Math.min power-factor nfx-int)))
 
+(defn- change-voting-duration
+  "Helper function to change the cycle and voting duration config.
+
+  This config is convenient to change during testing."
+  [prop-acc dao-acc token-acc cd vd]
+  (let [prop-config {:cycle_duration_sec cycle-duration-sec
+                     :quorum 4
+                     :cycle_voting_duration_sec (dec cycle-duration-sec)
+                     :proposal_cost {:quantity "0.0000 EFX" :contract token-acc}
+                     :dao_contract dao-acc
+                     :first_cycle_start_time
+                     (.toLocaleDateString (js/Date. (- cycle-date (* cycle-duration-sec 1e3)
+                                                       (* day-sec 1e3) )) "en-US")}]
+    (eos/transact prop-acc "update"
+                  (assoc prop-config :cycle_duration_sec cd
+                         :cycle_voting_duration_sec vd))))
+
+(defn format-quantity
+  "Format 10 to \"0.0010 EFX\""
+  [amount-int sym]
+  (str (->> (/ amount-int 10000) float (gstring/format "%.4f")) " " sym))
+
 (async-deftest scenario-full
   (let [[token stake dao props fee] (<! (deploy-contracts))
         user-stake-vote (<! (create-snapshot-accounts token stake dao))
-        n-props 5]
+        n-props 5
+        vote-weight (for [[user [efx nfx] _] user-stake-vote]
+                      [user (calc-vote-weight efx nfx default-stake-age)])
+        user-vote-weight (into {} vote-weight)
+        fee-pool-amount 1890001200]
     (<! (create-proposals token props n-props))
     (<p! (eos/transact props "cycleupdate" {}))
 
-    (let [prop-rows (<p! (eos/get-table-rows props props "proposal"))]
+    (let [prop-rows (<p! (eos/get-table-rows props props "proposal"))
+          change-vote-fn #(max (dec %) (- (dec %)))]
       ;; first round of voting: every user votes 0
-      ;; (doseq [{:strs [id]} prop-rows]
-        ;; (<! (apply-user-votes (map #(update % 2 (constantly 0)) user-stake-vote) props id)))
+      (doseq [{:strs [id]} prop-rows]
+        (<! (apply-user-votes (map #(update % 2 change-vote-fn) user-stake-vote) props id)))
 
       ;; every user updates to their final vote
       (doseq [{:strs [id]} prop-rows]
         (<! (apply-user-votes user-stake-vote props id))))
 
-    ;; run checks
-    (let [vote-weight (for [[user [efx nfx] _] user-stake-vote]
-                        [user (calc-vote-weight efx nfx default-stake-age)])
-          user-vote-weight (into {} vote-weight)
-          total-user-vote-weight (reduce + (vals user-vote-weight))
+    ;; put fees in the feepool
+    (let [amount-str (format-quantity fee-pool-amount "EFX")]
+      (<p! (tx-as owner token "issue" {:to fee :quantity amount-str :memo ""})))
+
+    ;; update and process the cycle
+    (<p! (change-voting-duration props dao token 2 1))
+    (<p! (eos/transact props "cycleupdate" {}))
+    (<p! (eos/transact props "processcycle" {:account props :id 1}))
+
+    ;; every user claims their fees
+    (doseq [[user & _] user-stake-vote]
+      (when (pos? (get user-vote-weight user))
+        (<p! (tx-as user fee "claimreward" {:account user}))))
+
+    ;; run checks on vote counts
+    (let [total-user-vote-weight (reduce + (vals user-vote-weight))
           prop-rows (<p! (eos/get-table-rows props props "proposal"))
           vote-rows (<p! (eos/get-table-rows props props "vote" {:limit 10000}))
           total-cycle-vote-weight (* total-user-vote-weight n-props)]
@@ -217,19 +269,29 @@
       (println "\n\nINFO: total user vote weight = " total-user-vote-weight)
       (println "INFO: total cycle vote weight = " total-cycle-vote-weight)
 
-      ;; check total registered votes
-      (let [vote-weight-sum (->> vote-rows (map #(get % "weight")) (reduce +))]
-        (is (= vote-weight-sum total-cycle-vote-weight)))
+      (testing "check total registered votes"
+        (let [vote-weight-sum (->> vote-rows (map #(get % "weight")) (reduce +))
+              cycle  (second (<p! (eos/get-table-rows props props "cycle")))]
+          (is (= vote-weight-sum total-cycle-vote-weight))
+          (is (= (get cycle "total_vote_weight") total-cycle-vote-weight))))
 
-      ;; check each users vote weight
-      (doseq [{:strs [voter weight id]} vote-rows]
-        (is (= (get user-vote-weight voter) weight) (str "fail for " voter weight id)))
+      (testing "check each users vote weight"
+        (doseq [{:strs [voter weight id]} vote-rows]
+          (is (= (get user-vote-weight voter) weight) (str "fail for " voter weight id))))
 
-      ;; check the score of each proposal
-      (doseq [{:strs [vote_counts] :as g} prop-rows
-              votes-0 (->> user-stake-vote (filter #(= (nth % 2) 0)) (reduce #(+ %)))]
-        (let [prop-vote-count (->> vote_counts (map #(get % "value")) (reduce +))]
-          (is (= prop-vote-count total-user-vote-weight)))))))
+      (testing "proposals have a correct vote count"
+        (doseq [{:strs [vote_counts] :as g} prop-rows
+                votes-0 (->> user-stake-vote (filter #(= (nth % 2) 0)) (reduce #(+ %)))]
+          (let [prop-vote-count (->> vote_counts (map #(get % "value")) (reduce +))]
+            (is (= prop-vote-count total-user-vote-weight)))))
+
+      (testing "users claimed correct amount"
+        (let [reward-per-vote (quot fee-pool-amount total-cycle-vote-weight)]
+          (doseq [[user weight] user-vote-weight]
+            (let [rows (<p! (eos/get-table-rows token user "accounts"))
+                  balance (-> rows first (get "balance"))
+                  user-reward (-> weight (* n-props reward-per-vote) (format-quantity "EFX"))]
+              (is (= balance user-reward)))))))))
 
 (defn -main [& args]
   (try
