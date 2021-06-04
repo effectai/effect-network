@@ -46,5 +46,5 @@
      (~'go
       (try
         ~@body
-        (catch js/Error e# (prn "Error " e#) e#))
+        (catch js/Error e# (prn "Error " e#) (throw e#)))
       (done#)))))

@@ -7,7 +7,7 @@ ABI  = $(WASM:.wasm=.abi)
 
 all: $(WASM) $(ABI)
 
-%.wasm: %.cpp %.hpp
+%.wasm: %.cpp %.hpp $(%-shared.hpp)
 	$(EOS_CC) -o $@ $<
 
 %.abi: %.cpp

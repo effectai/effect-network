@@ -300,6 +300,8 @@ void proposals::executeprop(uint64_t id) {
 
   eosio::check(prop.state == proposals::Accepted, "proposal is not accepted");
 
+  prop_tbl.modify(prop, eosio::same_payer, [&](auto& p) { p.state = proposals::Executed; });
+
   for (auto pay : prop.pay) {
     eosio::extended_asset asset = std::get<0>(pay);
     eosio::time_point_sec lock = std::get<1>(pay);
@@ -313,8 +315,6 @@ void proposals::executeprop(uint64_t id) {
                            "proposal " + std::to_string(prop.id)))
       .send();
   }
-
-  prop_tbl.modify(prop, eosio::same_payer, [&](auto& p) { p.state = proposals::Executed; });
 }
 
 void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type) {
@@ -346,8 +346,7 @@ void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type) 
                "proposal is not active");
 
   // calculate vote weight
-  auto rank = dao::get_rank(_config.get().dao_contract, voter);
-  uint32_t vote_weight = dao::get_vote_power(rank);
+  uint32_t vote_weight = dao::get_vote_power(_config.get().dao_contract, voter);
 
   if (existing == vote_tbl_idx.end()) {
     // insert a new vote
