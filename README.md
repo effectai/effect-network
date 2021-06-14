@@ -12,8 +12,8 @@ How can you help us build?
 Depending on you skill set there are different things that you can do to help out. But do first reach out and get in touch with our community on our Discord server: https://discord.gg/7JJrUE8b.
 Or if you prefer getting straight into it, you can find the docs here: https://docs.effect.network 
 
-- 👩🏻‍💻 **Developer** If you are a developer and see a project that you want to contribute to, please find our style guides and contribution guides at the following link. You can also start by building you own dApp on the Effect Network platform. You can find an example application at the following link:  [Legendary-Parakeet](https://github.com/effectai) You can also find developer documentation at the following link: [docs](https://developer.effect.network)
-- 👨🏻‍🚒 **Community Management** With a growing community we need more people to help guide the newer members of our community. You can do this by helping out on the discord server, pariticipating in the DAO and governance of the platform at [dao.effect.network](https://dao.effect.network)
+- 👩🏻‍💻 **Developer** If you are a developer and see a project that you want to contribute to, please find our style guides and [contribution guides](https://github.com/effectai/effect-network/blob/new-readme/.github/CONTRIBUTING.md) at the following link. You can also start by building you own dApp on the Effect Network platform. You can find an example application at the following link:  [Legendary-Parakeet](https://github.com/effectai) You can also find developer documentation at the following link: [docs](https://developer.effect.network)
+- 👨🏻‍🚒 **Community Management** With a growing community we need more people to help guide the newer members of our community. You can do this by helping out on the discord server, pariticipating in the DAO and governance of the platform at [https://dao.effect.network](https://dao.effect.network)
 - 👩🏻‍🍳 **Specification / Documentation** Next to our official documentation for developers we also have a documentation that is maintained for and by the community. You can find them here: [docs](https://effect-dao-docs.gitbook.io/dao-guides/)
 - 👩🏿‍🏭 **Testers** Here be dragons, and we need to make sure that they can't harm us, help us find bugs and report them when you find them!  
 - 👩🏾‍🚀 **Evangalism**  Go tell it on the mountain, over the hill, everywhere! Spread the word and help us grow. 
@@ -74,3 +74,7 @@ cleos push action efx transfer '["eosio","stake","350000.0000 EFX","stake"]' -p 
 cleos push action stake claim '["eosio","EFX"]' -p eosio@active
 cleos get table efx eosio accounts
 ```
+
+# Code of Conduct
+You can take a look at our code of conduct here: [CODE OF CONDUCT](https://github.com/effectai/effect-network/blob/new-readme/.github/CODE_OF_CONDUCT.md)
+
