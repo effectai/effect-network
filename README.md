@@ -26,11 +26,10 @@ Be crazy, be wild with your ideas. Anything goes
 
 # 🏗️ Build all the contracts
 Below you will find the contracts that are deployed for the Effect Network. The requirements are:
-- cleos
-- nodeos
-- make
-- node
-- npm 
+- [cleos](https://developers.eos.io/manuals/eos/v2.1/cleos/index)
+- [nodeos](https://developers.eos.io/manuals/eos/latest/nodeos/index)
+- [make](https://www.gnu.org/software/make/)
+- [node](https://nodejs.org/en/download/)
 
 ## 🥧 Compiling
 
