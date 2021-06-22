@@ -1,80 +1,71 @@
-<p align="center"><img src="logo.svg" width="192px"></p>
+<p align="center"><img src="logo.png" width="112px"></p>
 
-# The Future-of-Work
-Join us in creating the decentralized network for human intelligence! Effect is focused on creating a distributed workforce that will where workers and requesters can easily connect with each other. Where the interactions are managed by smart contracts and policies are instituted by the community. 
-Be part of building the Future-of-Work.
+<h1 align="center">Effect Network</h1>
 
-# 🤷🏽‍♀️ Why? 
-We believe in the power of the community's self-determination and to govern themselves. Where the community can determine for themselves fair and just policies that will help the community grow, using blockchain, it is now possible to create a just such a community. Where people can join and work for a living wage, where people can work from anywhere at any time without fear of being exploited. There is still a lot that needs to be done. So please help us build the future of work, the tools, and infrastructure that will further carry the digital working class into the future.
+<p align="center">The Future-of-Work</p>
 
-# 🕵 How?
-How can you help us build? 
-Depending on you skill set there are different things that you can do to help out. But do first reach out and get in touch with our community on our Discord server: https://discord.gg/7JJrUE8b.
-Or if you prefer getting straight into it, you can find the docs here: https://docs.effect.network 
+Join us in creating the decentralized network for human intelligence! Effect is
+focused on creating a distributed workforce where workers and requesters can
+easily connect with each other. Where the interactions are managed by smart
+contracts and policies are instituted by the community. Be part of building the
+Future-of-Work.
 
-- 👩🏻‍💻 **Developer** If you are a developer and see a project that you want to contribute to, please find our style guides and [contribution guides](https://github.com/effectai/effect-network/blob/new-readme/.github/CONTRIBUTING.md) at the following link. You can also start by building you own dApp on the Effect Network platform. You can find an example application at the following link:  [Legendary-Parakeet](https://github.com/effectai) You can also find developer documentation at the following link: [docs](https://developer.effect.network)
-- 👨🏻‍🚒 **Community Management** With a growing community we need more people to help guide the newer members of our community. You can do this by helping out on the discord server, pariticipating in the DAO and governance of the platform at [https://dao.effect.network](https://dao.effect.network)
-- 👩🏻‍🍳 **Specification / Documentation** Next to our official documentation for developers we also have a documentation that is maintained for and by the community. You can find them here: [docs](https://effect-dao-docs.gitbook.io/dao-guides/)
-- 👩🏿‍🏭 **Testers** Here be dragons, and we need to make sure that they can't harm us, help us find bugs and report them when you find them!  
-- 👩🏾‍🚀 **Evangalism**  Go tell it on the mountain, over the hill, everywhere! Spread the word and help us grow. 
+## 🤷🏽‍♀️ Why?
+
+We believe in the ability of communities to self-govern. At Effect, the
+community decides on fair and just policies that are implemented on the
+blockchain and define the relationship between workers and requesters. Effect
+Network is a place where people can work from anywhere at any time without fear
+of being exploited. There is still much work to be done. Help us build the tools
+and infrastructure that will propel the digital working class forward.
+
+## 🕵 How?
+
+How can you help us build? There are various things you can do to help,
+depending on your skill set. The best way to get started is to reach out and
+join our [Discord community](https://discord.gg/7JJrUE8b). You can also join
+[our DAO](https://dao.effect.network) and be rewarded for your
+contributions. Examine the [DAO Proposal
+Tracker](https://effect-dao-docs.gitbook.io/proposal-tracker/) to see if you can
+contribute to any existing proposals or start a new one.
 
 
-# 🖍️ Use our APIs
-If you find yourself needing some work done by our community, go ahead and use our API to tap in to our network. You can find all of the documentation at the following link: [docs](https://)
-We have prepped a template/example application for you here: [docs](https). Built with Ionic, it can be used as a frame to build out a web application that can be deployed as an IOS or Android app, or served via the web.
-Be crazy, be wild with your ideas. Anything goes
+- 👩🏻‍💻 **Developer**- If you are a developer and want to contribute to a
+  project, please read our style and [contribution
+  guides](.github/CONTRIBUTING.md). Look
+  through the Github issue boards and feel free to start a Pull Request.
 
-# 🏗️ Build all the contracts
-Below you will find the contracts that are deployed for the Effect Network. The requirements are:
-- [cleos](https://developers.eos.io/manuals/eos/v2.1/cleos/index)
-- [nodeos](https://developers.eos.io/manuals/eos/latest/nodeos/index)
-- [make](https://www.gnu.org/software/make/)
-- [node](https://nodejs.org/en/download/)
+- 👨🏻‍🚒 **Community Management**- We need more people to help guide newer
+  members as the community grows. You can help by assisting on the Discord
+  server or by participating in the DAO and platform governance at
+  [https://dao.effect.network](https://dao.effect.network).
 
-## 🥧 Compiling
+- 👩🏻‍🍳 **Documentation / Guides**- In addition to our official documentation
+  for developers, we have community-maintained documentation. They can be found
+  here: [docs](https://effect-dao-docs.gitbook.io/dao-guides/)
 
-The contracts are implemented in C++ and require **eosio.cdt 1.5.0**
- to compile.
+- 👩🏿‍🏭 **Testers**- Here be dragons, and we need to make sure that they can't
+  harm us. Help us find bugs and report them when you find them! The workforce
+  platform is under active development and can be found at
+  [worker.effect.ai](https://worker.effect.ai).
 
-The supplied Makefile can compile all contracts:
+- 👩🏾‍🚀 **Marketing**- Tell it on the mountain, over the hills, and everywhere!
+  We are always looking for content writers and marketers to help us spread the
+  word and grow.
 
-```bash
-make all
-```
+## Join the Force
 
-It's possible to use a docker container instead of installing
-**eosio.cdt** locally:
+By joining Effect Force, you will be able to begin earning tokens by performing
+quick digital tasks. Get started at
+[worker.effect.ai](https://worker.effect.ai).
 
-```bash
-EOS_CC="docker run --rm -it -v $(pwd):/app -w /app effectai/eosio-cdt:v1.5.0 eosio-cpp" ABI_CC="docker run --rm -it -v $(pwd):/app -w /app effectai/eosio-cdt:v1.5.0 eosio-abigen" make all
-```
+## Become a Requester
 
-## 🚚 Deploying
+The Effect Force SDK and Builder interface are still in development. If you are
+already looking for data annotations by our talented workforce, please [reach
+out to us here](https://form.typeform.com/to/XpQoFq).
 
-To deploy the contracts to a [local EOSIO
-net](https://github.com/EOSIO/eos/tree/master/Docker) you can use
-the provided setup script. The arguments are the 3 accounts that will
-be created to function as smart contracts:
+## Code of Conduct
 
-```bash
-npm install
-npm run deploy local efx swap stake
-```
-
-This script uses the default `eosio` account to deploy, initialize and
-authorize the accounts.
-
-Some actions that can be used to issue and stake tokens:
-
-```bash
-cleos push action swap posttx '["eosio","d10153081027000000000000141b00234a5dcafb17ae645c203617f709450e8c5b149c49f34d4ef20298122900697b68c7526f7bf91e53c1087472616e7366657267f9e6e770af783d809bd1a65e1bb5b6042953bcac000000000000000003209c49f34d4ef20298122900697b68c7526f7bf91ef0056a65737365f00d313535343330353937393937390000","eosio","acbc532904b6b51b5ea6d19b803d78af70e7e6f9","10000000000"]' -p eosio@active
-cleos push action swap issue '["6a8f4f8c5bc3f44deff460ef53b787335096e7df67d3d229fb41779cf2b919bf"]' -p eosio@active
-cleos push action stake open '["eosio","eosio"]' -p eosio@active
-cleos push action efx transfer '["eosio","stake","350000.0000 EFX","stake"]' -p eosio@active
-cleos push action stake claim '["eosio","EFX"]' -p eosio@active
-cleos get table efx eosio accounts
-```
-
-# Code of Conduct
-You can take a look at our code of conduct here: [CODE OF CONDUCT](https://github.com/effectai/effect-network/blob/new-readme/.github/CODE_OF_CONDUCT.md)
-
+You can take a look at our code of conduct here: [CODE OF
+CONDUCT](.github/CODE_OF_CONDUCT.md)

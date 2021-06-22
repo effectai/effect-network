@@ -32,7 +32,7 @@ Before submitting an issue, please go through [the list below](#before-submittin
 
 There are several repositories being used for Effect Network, which makes it difficult to determine which one to report an issue to. Don't worry if you aren't sure, we can always move it!
 
-* The [Effect Network repository](https://github.com/effectai/effect-network) is a repository for all things related to the Effect Network smart contracts. 
+* The [Effect Network repository](https://github.com/effectai/effect-network) is a repository for all things related to the Effect Network smart contracts.
 * The [Force Frontend](https://github.com/effectai/force-frontend) contains all of the code that is related to the what workers interact with.
 * [Effect DAO](https://github.com/effectai/effect-dashboard) is the frontend for the DAO of Effect Network. If you find an issue with this app, please submit the issue [here](https://github.com/effectai/effect-dashboard/issues).
 
@@ -56,8 +56,3 @@ Talk to us before creating a PR that refactors the code or directory structure o
 #### Code Style
 
 Make sure to follow the existing code style as much as possible.
-
-* No underscores prefixing JS functions.
-* Use flat Sass.
- * **Don't** use [BEM conventions](https://css-tricks.com/bem-101/).
- * Avoid nesting selectors. This is done to make it easier for users without Sass experience to understand and read.
