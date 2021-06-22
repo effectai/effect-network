@@ -1,4 +1,4 @@
-<p align="center"><img src="logo.png" width="132px"></p>
+<p align="center"><img src="logo.png" width="112px"></p>
 
 <h1 align="center">Effect Network</h1>
 
@@ -55,8 +55,9 @@ contribute to any past proposals or start a new one.
 
 ## Join the Force
 
-By joining Effect Force you will start earning by doing quick digital tasks. Get
-started at [worker.effect.ai](https://worker.effect.ai).
+When you join Effect Force as a worker you can start earning tokens by doing
+quick digital tasks. Get started at
+[worker.effect.ai](https://worker.effect.ai).
 
 ## Become a Requester
 
@@ -65,4 +66,6 @@ already looking for data annotations by our talented workforce, please [reach
 out to us here](https://form.typeform.com/to/XpQoFq).
 
 ## Code of Conduct
-You can take a look at our code of conduct here: [CODE OF CONDUCT](https://github.com/effectai/effect-network/blob/new-readme/.github/CODE_OF_CONDUCT.md)
+
+You can take a look at our code of conduct here: [CODE OF
+CONDUCT](https://github.com/effectai/effect-network/blob/new-readme/.github/CODE_OF_CONDUCT.md)
