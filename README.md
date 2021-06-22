@@ -1,4 +1,4 @@
-<p align="center"><img src="logo.png" width="192px"></p>
+<p align="center"><img src="logo.png" width="132px"></p>
 
 <h1 align="center">Effect Network</h1>
 
@@ -53,7 +53,7 @@ contribute to any past proposals or start a new one.
   We're always looking for content writers and marketeers to spread the word and
   help us grow.
 
-## 🖍️ Join the Force
+## Join the Force
 
 By joining Effect Force you will start earning by doing quick digital tasks. Get
 started at [worker.effect.ai](https://worker.effect.ai).
