@@ -12,50 +12,50 @@ Future-of-Work.
 
 ## 🤷🏽‍♀️ Why?
 
-We believe in the power of communities to govern themselves. At Effect the
-community determines fair and just policies, set on the blockchain, that define
-the relationship between workers and requesters. Effect Network is a place where
-people can work from anywhere at any time without fear of being exploited. There
-is still a lot that needs to be done. Help us build the tools and infrastructure
-that will further carry the digital working class into the future.
+We believe in the ability of communities to self-govern. At Effect, the
+community decides on fair and just policies that are implemented on the
+blockchain and define the relationship between workers and requesters. Effect
+Network is a place where people can work from anywhere at any time without fear
+of being exploited. There is still much work to be done. Help us build the tools
+and infrastructure that will propel the digital working class forward.
 
 ## 🕵 How?
 
-How can you help us build? Depending on you skill set there are different things
-that you can do to help out. The best way to start is to reach out and join our
-community [on Discord](https://discord.gg/7JJrUE8b). It's also possible to join
-[our DAO](https://dao.effect.network) and get rewarded for your
-contributions. Take a look at the [DAO Proposal
+How can you help us build? There are various things you can do to help,
+depending on your skill set. The best way to get started is to reach out and
+join our [Discord community](https://discord.gg/7JJrUE8b). You can also join
+[our DAO](https://dao.effect.network) and be rewarded for your
+contributions. Examine the [DAO Proposal
 Tracker](https://effect-dao-docs.gitbook.io/proposal-tracker/) to see if you can
-contribute to any past proposals or start a new one.
+contribute to any existing proposals or start a new one.
 
-- 👩🏻‍💻 **Developer** If you are a developer and see a project that you want to
-  contribute to, please read our style and [contribution
-  guides](https://github.com/effectai/effect-network/blob/new-readme/.github/CONTRIBUTING.md). Take
-  a look at the Github issue boards and feel free to start a Pull Request. It
-  will soon be possible to develop your own dApp on Effect Network.
 
-- 👨🏻‍🚒 **Community Management** With a growing community we need more people
-  to help guide newer members. You can do this by helping out on the Discord
-  server, or by joining in the DAO and governance of the platform at
-  [https://dao.effect.network](https://dao.effect.network)
+- 👩🏻‍💻 **Developer**- If you are a developer and want to contribute to a
+  project, please read our style and [contribution
+  guides](.github/CONTRIBUTING.md). Look
+  through the Github issue boards and feel free to start a Pull Request.
 
-- 👩🏻‍🍳 **Documentation / Guides** Next to our official documentation for developers we
-  also have a documentation that is maintained for and by the community. You can
-  find them here: [docs](https://effect-dao-docs.gitbook.io/dao-guides/)
+- 👨🏻‍🚒 **Community Management**- We need more people to help guide newer
+  members as the community grows. You can help by assisting on the Discord
+  server or by participating in the DAO and platform governance at
+  [https://dao.effect.network](https://dao.effect.network).
 
-- 👩🏿‍🏭 **Testers** Here be dragons, and we need to make sure that they can't
-  harm us Help us find bugs and report them when you find them! The workforce
+- 👩🏻‍🍳 **Documentation / Guides**- In addition to our official documentation
+  for developers, we have community-maintained documentation. They can be found
+  here: [docs](https://effect-dao-docs.gitbook.io/dao-guides/)
+
+- 👩🏿‍🏭 **Testers**- Here be dragons, and we need to make sure that they can't
+  harm us. Help us find bugs and report them when you find them! The workforce
   platform is under active development and can be found at
   [worker.effect.ai](https://worker.effect.ai).
 
-- 👩🏾‍🚀 **Marketing** Go tell it on the mountain, over the hill, everywhere!
-  We're always looking for content writers and marketeers to spread the word and
-  help us grow.
+- 👩🏾‍🚀 **Marketing**- Tell it on the mountain, over the hills, and everywhere!
+  We are always looking for content writers and marketers to help us spread the
+  word and grow.
 
 ## Join the Force
 
-When you join Effect Force as a worker you can start earning tokens by doing
+By joining Effect Force, you will be able to begin earning tokens by performing
 quick digital tasks. Get started at
 [worker.effect.ai](https://worker.effect.ai).
 
@@ -68,4 +68,4 @@ out to us here](https://form.typeform.com/to/XpQoFq).
 ## Code of Conduct
 
 You can take a look at our code of conduct here: [CODE OF
-CONDUCT](https://github.com/effectai/effect-network/blob/new-readme/.github/CODE_OF_CONDUCT.md)
+CONDUCT](.github/CODE_OF_CONDUCT.md)
