@@ -1,49 +1,71 @@
-<p align="center"><img src="logo.png" width="192px"></p>
+<p align="center"><img src="logo.png" width="112px"></p>
 
-<h1 align="center">Effect Network EOSIO</h1>
+<h1 align="center">Effect Network</h1>
 
-<p align="center">Smart contracts for the Effect Network</p>
+<p align="center">The Future-of-Work</p>
 
-## Compiling
+Join us in creating the decentralized network for human intelligence! Effect is
+focused on creating a distributed workforce where workers and requesters can
+easily connect with each other. Where the interactions are managed by smart
+contracts and policies are instituted by the community. Be part of building the
+Future-of-Work.
 
-The contracts are implemented in C++ and require **eosio.cdt 1.5.0**
- to compile.
+## 🤷🏽‍♀️ Why?
 
-The supplied Makefile can compile all contracts:
+We believe in the ability of communities to self-govern. At Effect, the
+community decides on fair and just policies that are implemented on the
+blockchain and define the relationship between workers and requesters. Effect
+Network is a place where people can work from anywhere at any time without fear
+of being exploited. There is still much work to be done. Help us build the tools
+and infrastructure that will propel the digital working class forward.
 
-```bash
-make all
-```
+## 🕵 How?
 
-It's possible to use a docker container instead of installing
-**eosio.cdt** locally:
+How can you help us build? There are various things you can do to help,
+depending on your skill set. The best way to get started is to reach out and
+join our [Discord community](https://discord.gg/7JJrUE8b). You can also join
+[our DAO](https://dao.effect.network) and be rewarded for your
+contributions. Examine the [DAO Proposal
+Tracker](https://effect-dao-docs.gitbook.io/proposal-tracker/) to see if you can
+contribute to any existing proposals or start a new one.
 
-```bash
-EOS_CC="docker run --rm -it -v $(pwd):/app -w /app effectai/eosio-cdt:v1.5.0 eosio-cpp" ABI_CC="docker run --rm -it -v $(pwd):/app -w /app effectai/eosio-cdt:v1.5.0 eosio-abigen" make all
-```
 
-## Deploying
+- 👩🏻‍💻 **Developer**- If you are a developer and want to contribute to a
+  project, please read our style and [contribution
+  guides](.github/CONTRIBUTING.md). Look
+  through the Github issue boards and feel free to start a Pull Request.
 
-To deploy the contracts to a [local EOSIO
-net](https://github.com/EOSIO/eos/tree/master/Docker) you can use
-the provided setup script. The arguments are the 3 accounts that will
-be created to function as smart contracts:
+- 👨🏻‍🚒 **Community Management**- We need more people to help guide newer
+  members as the community grows. You can help by assisting on the Discord
+  server or by participating in the DAO and platform governance at
+  [https://dao.effect.network](https://dao.effect.network).
 
-```bash
-npm install
-npm run deploy local efx swap stake
-```
+- 👩🏻‍🍳 **Documentation / Guides**- In addition to our official documentation
+  for developers, we have community-maintained documentation. They can be found
+  here: [docs](https://effect-dao-docs.gitbook.io/dao-guides/)
 
-This script uses the default `eosio` account to deploy, initialize and
-authorize the accounts.
+- 👩🏿‍🏭 **Testers**- Here be dragons, and we need to make sure that they can't
+  harm us. Help us find bugs and report them when you find them! The workforce
+  platform is under active development and can be found at
+  [worker.effect.ai](https://worker.effect.ai).
 
-Some actions that can be used to issue and stake tokens:
+- 👩🏾‍🚀 **Marketing**- Tell it on the mountain, over the hills, and everywhere!
+  We are always looking for content writers and marketers to help us spread the
+  word and grow.
 
-```bash
-cleos push action swap posttx '["eosio","d10153081027000000000000141b00234a5dcafb17ae645c203617f709450e8c5b149c49f34d4ef20298122900697b68c7526f7bf91e53c1087472616e7366657267f9e6e770af783d809bd1a65e1bb5b6042953bcac000000000000000003209c49f34d4ef20298122900697b68c7526f7bf91ef0056a65737365f00d313535343330353937393937390000","eosio","acbc532904b6b51b5ea6d19b803d78af70e7e6f9","10000000000"]' -p eosio@active
-cleos push action swap issue '["6a8f4f8c5bc3f44deff460ef53b787335096e7df67d3d229fb41779cf2b919bf"]' -p eosio@active
-cleos push action stake open '["eosio","eosio"]' -p eosio@active
-cleos push action efx transfer '["eosio","stake","350000.0000 EFX","stake"]' -p eosio@active
-cleos push action stake claim '["eosio","EFX"]' -p eosio@active
-cleos get table efx eosio accounts
-```
+## Join the Force
+
+By joining Effect Force, you will be able to begin earning tokens by performing
+quick digital tasks. Get started at
+[worker.effect.ai](https://worker.effect.ai).
+
+## Become a Requester
+
+The Effect Force SDK and Builder interface are still in development. If you are
+already looking for data annotations by our talented workforce, please [reach
+out to us here](https://form.typeform.com/to/XpQoFq).
+
+## Code of Conduct
+
+You can take a look at our code of conduct here: [CODE OF
+CONDUCT](.github/CODE_OF_CONDUCT.md)
