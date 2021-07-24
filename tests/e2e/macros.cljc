@@ -32,12 +32,12 @@
 (defmacro <p-should-succeed!
   [body msg]
   `(try
-     (cljs.core.async.interop/<p! ~body)
-     (cljs.test/is true ~msg)
+     (let [res# (cljs.core.async.interop/<p! ~body)]
+       (cljs.test/is true ~msg)
+       res#)
      (catch js/Error e#
        (prn "test failed with " e#)
        (cljs.test/is nil ~msg))))
-
 
 (defmacro async-deftest [name & body]
   `(~'deftest ~name
