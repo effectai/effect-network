@@ -92,16 +92,25 @@
            ["name" (eos/random-account "acc")]])
 
 (async-deftest open
-  ;; open a couple of accounts
-  (doseq [acc accs]
-    (prn "~ Opened account " acc)
-    (<p-should-succeed!
-     (tx-as owner-acc net-acc "open" {:acc acc
-                                      :payer owner-acc
-                                      :symbol {:contract token-acc :sym "4,EFX"}})))
-  ;; check they exist
-  (doseq [[type acc] accs]
-    (prn (balance-index token-acc type acc) )))
+  (testing "can open account"
+    (doseq [acc accs]
+      (prn "~ Opened account " acc)
+      (<p-should-succeed!
+       (tx-as owner-acc net-acc "open" {:acc acc
+                                        :payer owner-acc
+                                        :symbol {:contract token-acc :sym "4,EFX"}}))))
+
+  (testing "opened balances are empty"
+    (doseq [[type acc] accs]
+      (let [bound (balance-index token-acc type acc)
+            [res & rst] (<p! (eos/get-table-rows net-acc net-acc "account" {:index_position 2
+                                                                            :key_type "sha256"
+                                                                            :lower_bound bound
+                                                                            :upper_bound bound}))]
+        (is (empty? rst) "too many balances returned")
+        (is (= (get-in res ["address" 0]) type) "balance has correct type")
+        (is (= (get-in res ["address" 1]) acc) "balance has correct account value")
+        (is (= (get-in res ["balance" "quantity"]) "0.0000 EFX") "balance is empty")))))
 
 (defn -main [& args]
   (run-tests))
