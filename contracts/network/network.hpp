@@ -16,9 +16,6 @@ public:
   typedef eosio::checksum160 address;
   using account_address = std::variant<address, eosio::name>;
 
-  void require_sig(account_address acc,
-                   eosio::signature sig);
-
   /**
    * Open an account entry
    *
@@ -31,7 +28,29 @@ public:
             eosio::extended_symbol symbol,
             eosio::name payer);
 
+  [[eosio::action]]
+  void transfer(uint64_t from_id,
+                uint64_t to_id,
+                eosio::extended_asset quantity,
+                std::optional<eosio::signature> sig,
+                std::optional<eosio::extended_asset> fee);
+
+  [[eosio::on_notify("*::transfer")]]
+  void transfer_handler(eosio::name from,
+                        eosio::name to,
+                        eosio::asset quantity,
+                        std::string memo);
+
 private:
+  struct transfer_params {
+    uint32_t nonce;
+    uint64_t from;
+    uint64_t to;
+    eosio::extended_asset quantity;
+    // eosio::extended_asset fee;
+    EOSLIB_SERIALIZE(transfer_params, (nonce)(from)(to)(quantity));
+  };
+
   struct [[eosio::table]] account {
     uint64_t id;
     account_address address;

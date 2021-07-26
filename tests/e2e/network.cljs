@@ -11,8 +11,12 @@
                               async-deftest]]
    [eosjs :refer [Serialize Numeric KeyType]]
    e2e.token
+   ["eosjs/dist/eosjs-key-conversions" :refer [PrivateKey Signature PublicKey]]
+   ripemd160
    [clojure.string :as string]
    [elliptic :refer [ec]]))
+
+(def ec (new ec "secp256k1"))
 
 (def owner-acc "eosio")
 (def net-acc (eos/random-account "netw"))
@@ -58,6 +62,27 @@
         (if (= type "name") (bytes->hex (name->bytes acc)) acc))
    64 "0"))
 
+(defn pack-transfer-params
+  [from to {:keys [quantity contract]}]
+  (let [buff (doto (new (.-SerialBuffer Serialize ))
+               (.pushNumberAsUint64 from)
+               (.pushNumberAsUint64 to)
+               (.pushAsset quantity)
+               (.pushName contract))]
+    (.asUint8Array buff)))
+
+;;================
+;; CRYPTO
+;;================
+(defn hash160 [content]
+  (.digest (.update (new ripemd160) "42") "hex"))
+
+(def pub "PUB_K1_7tgwU6E7pAUQJgqEJt66Yi8cWvanTUW8ZfBjeXeJBQvhYTBFvY")
+
+(def keypair (.genKeyPair ec))
+(def keypair-pub (.fromElliptic PublicKey keypair 0))
+(prn "KeyPair 1 = " (.getPublic keypair "hex"))
+(prn "Address 1 = " (hash160 (hex->bytes (.getPublic keypair "hex"))))
 
 ;; To check the Hex value of account names
 (prn "DEBUG hex: " (bytes->hex (name->bytes owner-acc)))
@@ -72,6 +97,11 @@
 (defn tx-as [acc contr action args]
   (eos/transact contr action args [{:actor acc :permission "active"}]))
 
+(def accs [["address" (hash160 keypair-pub)]
+           ["address" hash160-2]
+           ["name" (eos/random-account "acc")]
+           ["name" (eos/random-account "acc")]])
+
 (use-fixtures :once
   {:before
    (fn []
@@ -82,14 +112,12 @@
           (<p-may-fail! (eos/create-account owner-acc net-acc))
           (<p! (deploy-file net-acc "contracts/network/network"))
           (<! (e2e.token/deploy-token token-acc [owner-acc token-acc]))
+          (doseq [[type acc] accs]
+            (when (= "name" type)
+              (<p! (eos/create-account owner-acc acc))))
           (done)
           (catch js/Error e (prn "Error " e))))))
    :after (fn [])})
-
-(def accs [["address" hash160-1]
-           ["address" hash160-2]
-           ["name" (eos/random-account "acc")]
-           ["name" (eos/random-account "acc")]])
 
 (async-deftest open
   (testing "can open account"
@@ -111,6 +139,36 @@
         (is (= (get-in res ["address" 0]) type) "balance has correct type")
         (is (= (get-in res ["address" 1]) acc) "balance has correct account value")
         (is (= (get-in res ["balance" "quantity"]) "0.0000 EFX") "balance is empty")))))
+
+(async-deftest deposit
+  (testing "can deposit"
+    (let [row 2 quant "500.0000 EFX"]
+      (<p-should-succeed!
+       (tx-as owner-acc token-acc "transfer" {:from owner-acc :to net-acc :memo (str row) :quantity quant}))
+      (<p-should-succeed!
+       (tx-as owner-acc token-acc "transfer" {:from owner-acc :to net-acc :memo "0" :quantity quant}))
+
+      (let [row (<p! (eos/get-table-row net-acc net-acc "account" row))]
+        (is (= (get row "balance") {"quantity" quant "contract" token-acc}) "balance should be correct")))))
+
+(async-deftest transfer
+  (testing "can tranfer from eos account"
+    (let [from 0
+          to 2
+          asset {:quantity "50.0000 EFX" :contract token-acc}
+          transfer-params (pack-transfer-params from to asset)
+          params-hash (.digest (.update (.hash ec) transfer-params))
+          sig (.sign keypair params-hash)
+          eos-sig (.fromElliptic Signature sig 0)]
+      (prn (.toString eos-sig))
+      (prn
+       (<p!
+        (tx-as (get-in accs [2 1]) net-acc
+               "transfer" {:from_id 0
+                           :to_id 2
+                           :quantity asset
+                           :sig (.toString eos-sig)
+                           :fee nil}))))))
 
 (defn -main [& args]
   (run-tests))
