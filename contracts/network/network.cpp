@@ -5,10 +5,13 @@ void network::open(account_address addr, eosio::extended_symbol symbol, eosio::n
   uint64_t id = acc_tbl.available_primary_key();
   eosio::extended_asset asset(0, symbol);
 
+  // TODO: check that addr does not have an entry for symbol
+
   acc_tbl.emplace(payer,
                   [&](auto& a)
                   {
                     a.id = id;
+                    a.nonce = 0;
                     a.address = addr;
                     a.balance = asset;
                    });
@@ -28,7 +31,7 @@ void network::transfer_handler(name from, name to, asset quantity, std::string m
 }
 
 checksum160 pub2addr(public_key pub) {
-  return ripemd160(&std::get<0>(pub)[0], 32);
+  return ripemd160(&std::get<0>(pub)[0], std::get<0>(pub).size());
 }
 
 void network::transfer(uint64_t from_id, uint64_t to_id, extended_asset quantity,
@@ -36,9 +39,9 @@ void network::transfer(uint64_t from_id, uint64_t to_id, extended_asset quantity
                        std::optional<extended_asset> fee) {
   account_table acc_tbl(_self, _self.value);
 
-  auto from = acc_tbl.get(from_id, "from account does not exist");
+  auto from = acc_tbl.get(from_id, "from address does not exist");
   auto to = acc_tbl.find(to_id);
-  check(to != acc_tbl.end(), "to account does not exist");
+  check(to != acc_tbl.end(), "to address does not exist");
 
   check(from.id != to->id, "cannot transfer to self");
   check(from.balance >= quantity, "not enough balance");
@@ -50,16 +53,18 @@ void network::transfer(uint64_t from_id, uint64_t to_id, extended_asset quantity
     require_auth(from_name);
   } else {
     // 0 = hash address
-    // TODO: WIP: this verification doesn't work properly yet
-    transfer_params params = {1, from_id, to_id, quantity};
+    transfer_params params = {from.nonce, from_id, to_id, quantity};
     std::vector<char> msg_bytes = pack(params);
+    // printhex(&msg_bytes[0], msg_bytes.size());
     checksum256 msg = sha256(&msg_bytes[0], msg_bytes.size());
     public_key pub = recover_key(msg, sig.value());
-    printhex(&std::get<0>(pub)[0], 20);
+    // printhex(&std::get<0>(pub)[0], std::get<0>(pub).size());
+    auto pub_addr = pub2addr(pub);
+    // pub_addr.print();
     auto addr = std::get<checksum160>(from.address);
-    // check(addr == pub2addr(pub), "invalid signature");
+    check(addr == pub2addr(pub), "invalid signature");
   }
 
-  acc_tbl.modify(from, same_payer, [&](auto &f) { f.balance -= quantity; });
+  acc_tbl.modify(from, same_payer, [&](auto &f) { f.balance -= quantity; f.nonce++; });
   acc_tbl.modify(to, same_payer, [&](auto &t) { t.balance += quantity; });
 }

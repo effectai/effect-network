@@ -53,6 +53,7 @@ private:
 
   struct [[eosio::table]] account {
     uint64_t id;
+    uint32_t nonce;
     account_address address;
     extended_asset balance;
 
@@ -71,7 +72,7 @@ private:
       return key;
     }
 
-    EOSLIB_SERIALIZE(account, (id)(address)(balance))
+    EOSLIB_SERIALIZE(account, (id)(nonce)(address)(balance))
   };
 
   typedef multi_index<

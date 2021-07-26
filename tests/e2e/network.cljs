@@ -12,9 +12,11 @@
    [eosjs :refer [Serialize Numeric KeyType]]
    e2e.token
    ["eosjs/dist/eosjs-key-conversions" :refer [PrivateKey Signature PublicKey]]
-   ripemd160
+   ["eosjs/dist/ripemd" :refer [RIPEMD160]]
    [clojure.string :as string]
    [elliptic :refer [ec]]))
+
+
 
 (def ec (new ec "secp256k1"))
 
@@ -42,6 +44,9 @@
   (let [buff (doto (new (.-SerialBuffer Serialize)) (.pushName name))]
     (.asUint8Array buff)))
 
+(defn uint64->bytes [i]
+  (.decimalToBinary Numeric 8 (str i)))
+
 (defn prn-logs
   "Prints the console logs of all actions in tx receipt"
   [tx-res]
@@ -63,10 +68,11 @@
    64 "0"))
 
 (defn pack-transfer-params
-  [from to {:keys [quantity contract]}]
-  (let [buff (doto (new (.-SerialBuffer Serialize ))
-               (.pushNumberAsUint64 from)
-               (.pushNumberAsUint64 to)
+  [nonce from to {:keys [quantity contract]}]
+  (let [buff (doto (new (.-SerialBuffer Serialize))
+               (.pushUint32 nonce)
+               (.pushArray (uint64->bytes from))
+               (.pushArray (uint64->bytes to))
                (.pushAsset quantity)
                (.pushName contract))]
     (.asUint8Array buff)))
@@ -74,19 +80,22 @@
 ;;================
 ;; CRYPTO
 ;;================
-(defn hash160 [content]
-  (.digest (.update (new ripemd160) "42") "hex"))
+(defn hash160 [bytes]
+  (new js/Uint8Array (.hash RIPEMD160 bytes)))
+
+(defn pub->addr [pub]
+  (-> pub hash160 bytes->hex string/lower-case))
 
 (def pub "PUB_K1_7tgwU6E7pAUQJgqEJt66Yi8cWvanTUW8ZfBjeXeJBQvhYTBFvY")
 
 (def keypair (.genKeyPair ec))
-(def keypair-pub (.fromElliptic PublicKey keypair 0))
+(def keypair-pub (hex->bytes (.encodeCompressed (.getPublic keypair) "hex")))
 (prn "KeyPair 1 = " (.getPublic keypair "hex"))
-(prn "Address 1 = " (hash160 (hex->bytes (.getPublic keypair "hex"))))
+(prn "KeyPair Compressed 1 = " (.encodeCompressed (.getPublic keypair) "hex"))
 
 ;; To check the Hex value of account names
-(prn "DEBUG hex: " (bytes->hex (name->bytes owner-acc)))
-(prn "DEBUG hex: " (bytes->hex (name->bytes token-acc)))
+;; (prn "DEBUG hex: " (bytes->hex (name->bytes owner-acc)))
+;; (prn "DEBUG hex: " (bytes->hex (name->bytes token-acc)))
 
 (println (str "network acc = " net-acc))
 (println (str "token acc = " token-acc))
@@ -97,7 +106,7 @@
 (defn tx-as [acc contr action args]
   (eos/transact contr action args [{:actor acc :permission "active"}]))
 
-(def accs [["address" (hash160 keypair-pub)]
+(def accs [["address" (pub->addr keypair-pub)]
            ["address" hash160-2]
            ["name" (eos/random-account "acc")]
            ["name" (eos/random-account "acc")]])
@@ -156,19 +165,17 @@
     (let [from 0
           to 2
           asset {:quantity "50.0000 EFX" :contract token-acc}
-          transfer-params (pack-transfer-params from to asset)
+          transfer-params (pack-transfer-params 0 from to asset)
           params-hash (.digest (.update (.hash ec) transfer-params))
           sig (.sign keypair params-hash)
           eos-sig (.fromElliptic Signature sig 0)]
-      (prn (.toString eos-sig))
-      (prn
-       (<p!
-        (tx-as (get-in accs [2 1]) net-acc
-               "transfer" {:from_id 0
-                           :to_id 2
-                           :quantity asset
-                           :sig (.toString eos-sig)
-                           :fee nil}))))))
+      (<p!
+       (tx-as (get-in accs [2 1]) net-acc
+              "transfer" {:from_id 0
+                          :to_id 2
+                          :quantity asset
+                          :sig (.toString eos-sig)
+                          :fee nil})))))
 
 (defn -main [& args]
   (run-tests))
