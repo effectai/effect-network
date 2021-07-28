@@ -47,9 +47,22 @@ private:
     uint64_t from;
     uint64_t to;
     eosio::extended_asset quantity;
-    // eosio::extended_asset fee;
+    // std::optional<eosio::extended_asset> fee;
     EOSLIB_SERIALIZE(transfer_params, (nonce)(from)(to)(quantity));
   };
+
+  static eosio::checksum256 make_token_index(eosio::name contract, account_address address) {
+    fixed_bytes<32> key;
+    static constexpr uint16_t buffer_size{256};
+    char datastream_buffer[buffer_size];
+    datastream<const char*> ds{datastream_buffer, buffer_size};
+    ds << contract;
+    ds << address;
+    ds.seekp(0);
+    ds >> key;
+    // key.print();
+    return key;
+  }
 
   struct [[eosio::table]] account {
     uint64_t id;
@@ -60,16 +73,7 @@ private:
     uint64_t primary_key() const { return id; }
 
     eosio::checksum256 by_token() const {
-      fixed_bytes<32> key;
-      static constexpr uint16_t buffer_size{256};
-      char datastream_buffer[buffer_size];
-      datastream<const char*> ds{datastream_buffer, buffer_size};
-      ds << balance.contract;
-      ds << address;
-      ds.seekp(0);
-      ds >> key;
-      // key.print();
-      return key;
+      return make_token_index(balance.contract, address);
     }
 
     EOSLIB_SERIALIZE(account, (id)(nonce)(address)(balance))

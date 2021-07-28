@@ -5,7 +5,15 @@ void network::open(account_address addr, eosio::extended_symbol symbol, eosio::n
   uint64_t id = acc_tbl.available_primary_key();
   eosio::extended_asset asset(0, symbol);
 
-  // TODO: check that addr does not have an entry for symbol
+  // check user does not already have a balance for this symbol
+  auto acc_tbl_idx = acc_tbl.get_index<"token"_n>();
+  auto idx_key = make_token_index(symbol.get_contract(), addr);
+  auto itr_start = acc_tbl_idx.lower_bound(idx_key);
+  auto itr_end = acc_tbl_idx.upper_bound(idx_key);
+
+  for (; itr_start != itr_end; ++itr_start) {
+    eosio::check(itr_start->balance.get_extended_symbol() != symbol, "already has balance");
+  }
 
   acc_tbl.emplace(payer,
                   [&](auto& a)
@@ -37,6 +45,7 @@ checksum160 pub2addr(public_key pub) {
 void network::transfer(uint64_t from_id, uint64_t to_id, extended_asset quantity,
                        std::optional<signature> sig,
                        std::optional<extended_asset> fee) {
+  // TODO: add fee to account
   account_table acc_tbl(_self, _self.value);
 
   auto from = acc_tbl.get(from_id, "from address does not exist");
@@ -67,4 +76,5 @@ void network::transfer(uint64_t from_id, uint64_t to_id, extended_asset quantity
 
   acc_tbl.modify(from, same_payer, [&](auto &f) { f.balance -= quantity; f.nonce++; });
   acc_tbl.modify(to, same_payer, [&](auto &t) { t.balance += quantity; });
+  // acc_tbl.modify(fee_acc, same_payer, [&](auto &f) { f.balance += fee; });
 }

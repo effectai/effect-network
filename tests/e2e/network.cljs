@@ -136,6 +136,13 @@
        (tx-as owner-acc net-acc "open" {:acc acc
                                         :payer owner-acc
                                         :symbol {:contract token-acc :sym "4,EFX"}}))))
+  (testing "can't open same symbol twice"
+    (<p-should-fail-with!
+     (tx-as net-acc net-acc "open" {:acc (first accs)
+                                    :payer net-acc
+                                    :symbol {:contract token-acc :sym "4,EFX"}})
+     ""
+     "already has balance"))
 
   (testing "opened balances are empty"
     (doseq [[type acc] accs]
