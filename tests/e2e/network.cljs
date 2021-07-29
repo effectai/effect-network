@@ -21,6 +21,7 @@
 (def ec (new ec "secp256k1"))
 
 (def owner-acc "eosio")
+(def acc-2 "acc")
 (def net-acc (eos/random-account "netw"))
 (def token-acc (eos/random-account "tkn"))
 
@@ -119,6 +120,7 @@
       (go
         (try
           (<p-may-fail! (eos/create-account owner-acc net-acc))
+          (<p-may-fail! (eos/create-account owner-acc acc-2))
           (<p! (deploy-file net-acc "contracts/network/network"))
           (<! (e2e.token/deploy-token token-acc [owner-acc token-acc]))
           (doseq [[type acc] accs]
@@ -136,6 +138,7 @@
        (tx-as owner-acc net-acc "open" {:acc acc
                                         :payer owner-acc
                                         :symbol {:contract token-acc :sym "4,EFX"}}))))
+
   (testing "can't open same symbol twice"
     (<p-should-succeed!
      (tx-as net-acc net-acc "open" {:acc (first accs)
@@ -166,7 +169,7 @@
         (is (= (get row "balance") {"quantity" quant "contract" token-acc}) "balance should be correct")))))
 
 (async-deftest transfer
-  (testing "can tranfer from eos account"
+  (testing "can tranfer from pub key hash"
     (let [from 0
           to 2
           asset {:quantity "50.0000 EFX" :contract token-acc}
@@ -179,6 +182,24 @@
               "transfer" {:from_id 0
                           :to_id 2
                           :quantity asset
+                          :sig (.toString eos-sig)
+                          :fee nil})))))
+
+(async-deftest withdraw
+  (testing "can withdraw from pub key hash"
+    (let [from 0
+          to 2
+          asset {:quantity "50.0000 EFX" :contract token-acc}
+          transfer-params (pack-transfer-params 0 to j0 asset)
+          params-hash (.digest (.update (.hash ec) transfer-params))
+          sig (.sign keypair params-hash)
+          eos-sig (.fromElliptic Signature sig 0)]
+      (<p-should-succeed!
+       (tx-as (get-in accs [2 1]) net-acc
+              "withdraw" {:from_id 0
+                          :to_account acc-2
+                          :quantity asset
+                          :memo "test withdraw;"
                           :sig (.toString eos-sig)
                           :fee nil})))))
 

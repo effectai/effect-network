@@ -9,6 +9,9 @@
 #include "../proposals/proposals-shared.hpp"
 
 class [[eosio::contract("network")]] network : public eosio::contract {
+private:
+  struct account;
+
 public:
   using contract::contract;
 
@@ -35,11 +38,24 @@ public:
                 std::optional<eosio::signature> sig,
                 std::optional<eosio::extended_asset> fee);
 
+  [[eosio::action]]
+  void withdraw(uint64_t from_id,
+                eosio::name to_account,
+                eosio::extended_asset quantity,
+                std::string memo,
+                std::optional<eosio::signature> sig,
+                std::optional<eosio::extended_asset> fee);
+
   [[eosio::on_notify("*::transfer")]]
   void transfer_handler(eosio::name from,
                         eosio::name to,
                         eosio::asset quantity,
                         std::string memo);
+
+  void require_sig(account from,
+                   uint64_t to_id,
+                   eosio::extended_asset quantity,
+                   eosio::signature sig);
 
 private:
   struct transfer_params {
@@ -83,4 +99,5 @@ private:
     "account"_n, account,
     indexed_by<"token"_n, const_mem_fun<account, eosio::checksum256, &account::by_token>>>
   account_table;
+
 };
