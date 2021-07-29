@@ -11,18 +11,22 @@ void network::open(account_address addr, eosio::extended_symbol symbol, eosio::n
   auto itr_start = acc_tbl_idx.lower_bound(idx_key);
   auto itr_end = acc_tbl_idx.upper_bound(idx_key);
 
+  bool found = false;
   for (; itr_start != itr_end; ++itr_start) {
-    eosio::check(itr_start->balance.get_extended_symbol() != symbol, "already has balance");
+    found = true;
+    break;
   }
 
-  acc_tbl.emplace(payer,
-                  [&](auto& a)
-                  {
-                    a.id = id;
-                    a.nonce = 0;
-                    a.address = addr;
-                    a.balance = asset;
-                   });
+  if (found == false) {
+    acc_tbl.emplace(payer,
+                    [&](auto& a)
+                    {
+                      a.id = id;
+                      a.nonce = 0;
+                      a.address = addr;
+                      a.balance = asset;
+                    });
+  }
 }
 
 void network::transfer_handler(name from, name to, asset quantity, std::string memo) {
