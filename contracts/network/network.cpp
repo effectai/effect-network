@@ -1,6 +1,6 @@
 #include "network.hpp"
 
-void network::open(account_address addr, eosio::extended_symbol symbol, eosio::name payer) {
+void network::open(vaccount addr, eosio::extended_symbol symbol, eosio::name payer) {
   account_table acc_tbl(_self, _self.value);
   uint64_t id = acc_tbl.available_primary_key();
   eosio::extended_asset asset(0, symbol);
@@ -57,9 +57,9 @@ void network::require_sig(std::vector<char> msg, account from, signature sig) {
   check(addr == pub2addr(pub), "invalid signature");
 }
 
-void network::transfer(uint64_t from_id, uint64_t to_id, extended_asset quantity,
-                       std::optional<signature> sig,
-                       std::optional<extended_asset> fee) {
+void network::vtransfer(uint64_t from_id, uint64_t to_id, extended_asset quantity,
+                        std::optional<signature> sig,
+                        std::optional<extended_asset> fee) {
   // TODO: add fee to account
   account_table acc_tbl(_self, _self.value);
 
@@ -72,15 +72,20 @@ void network::transfer(uint64_t from_id, uint64_t to_id, extended_asset quantity
   check(from.balance >= quantity, "not enough balance");
 
   auto from_type = from.address.index();
-  if (from_type == 1) {
-    // 1 = eosio name
+  if (from_type == (int) VaccountType::EosAccount) {
     name from_name = std::get<name>(from.address);
     require_auth(from_name);
-  } else {
-    // 0 = hash address
+  } else if (from_type == (int) VaccountType::Address) {
     transfer_params params = {1, from.nonce, from.id, to_id, quantity};
     std::vector<char> msg_bytes = pack(params);
     require_sig(msg_bytes, from, sig.value());
+  } else {
+    check(false, "unkown account type");
+  }
+
+  // if the destination is an EOS account we'll send an action notification
+  if (to->address.index() == (int) VaccountType::EosAccount) {
+    require_recipient(std::get<name>(to->address));
   }
 
   acc_tbl.modify(from, same_payer, [&](auto &f) { f.balance -= quantity; f.nonce++; });

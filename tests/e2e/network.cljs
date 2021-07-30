@@ -184,14 +184,17 @@
   (testing "can deposit"
     (let [row 2 quant "500.0000 EFX"]
       (<p-should-succeed!
-       (tx-as owner-acc token-acc "transfer" {:from owner-acc :to net-acc :memo (str row) :quantity quant}))
+       (tx-as owner-acc token-acc "transfer"
+              {:from owner-acc :to net-acc :memo (str row) :quantity quant}))
       (<p-should-succeed!
-       (tx-as owner-acc token-acc "transfer" {:from owner-acc :to net-acc :memo "0" :quantity quant}))
+       (tx-as owner-acc token-acc "transfer"
+              {:from owner-acc :to net-acc :memo "0" :quantity quant}))
 
       (let [row (<p! (eos/get-table-row net-acc net-acc "account" row))]
-        (is (= (get row "balance") {"quantity" quant "contract" token-acc}) "balance should be correct")))))
+        (is (= (get row "balance") {"quantity" quant "contract" token-acc})
+            "balance should be correct")))))
 
-(async-deftest transfer
+(async-deftest vtransfer
   (testing "can tranfer from pub key hash"
     (let [from 0
           to 2
@@ -202,7 +205,7 @@
           eos-sig (.fromElliptic Signature sig 0)]
       (<p!
        (tx-as (get-in accs [2 1]) net-acc
-              "transfer" {:from_id 0
+              "vtransfer" {:from_id 0
                           :to_id 2
                           :quantity asset
                           :sig (.toString eos-sig)

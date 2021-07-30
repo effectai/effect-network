@@ -8,6 +8,12 @@
 
 #include "../proposals/proposals-shared.hpp"
 
+enum class VaccountType {
+  Address = 0,
+  EosAccount = 1
+};
+
+
 class [[eosio::contract("network")]] network : public eosio::contract {
 private:
   struct account;
@@ -17,7 +23,7 @@ public:
 
   // We use typedef to generate a sensible name in the ABI
   typedef eosio::checksum160 address;
-  using account_address = std::variant<address, eosio::name>;
+  using vaccount = std::variant<address, eosio::name>;
 
   /**
    * Open an account entry
@@ -27,17 +33,36 @@ public:
    * @param payer - the EOS account that pays for the action
    */
   [[eosio::action]]
-  void open(account_address acc,
+  void open(vaccount acc,
             eosio::extended_symbol symbol,
             eosio::name payer);
 
+  /**
+   * Transfer tokens between virtual accounts
+   *
+   * @param from_id - source balance row id
+   * @param to_id - destination balance row id
+   * @param quantity - type and amount to be transferred
+   * @param sig - secp256k1 signature of the tranfer message
+   * @param fee - fee that can be credited to a relayer account
+   */
   [[eosio::action]]
-  void transfer(uint64_t from_id,
-                uint64_t to_id,
-                eosio::extended_asset quantity,
-                std::optional<eosio::signature> sig,
-                std::optional<eosio::extended_asset> fee);
+  void vtransfer(uint64_t from_id,
+                 uint64_t to_id,
+                 eosio::extended_asset quantity,
+                 std::optional<eosio::signature> sig,
+                 std::optional<eosio::extended_asset> fee);
 
+  /**
+   * Transfer virtual tokens to a real EOS account
+   *
+   * @param from_id - source balance row id
+   * @param to_account - destination EOS account
+   * @param quantity - type and amount to be transferred
+   * @param memo - memo to be added to the token transaction
+   * @param sig - secp256k1 signature of the tranfer message
+   * @param fee - fee that can be credited to a relayer account
+   */
   [[eosio::action]]
   void withdraw(uint64_t from_id,
                 eosio::name to_account,
@@ -77,7 +102,7 @@ private:
     EOSLIB_SERIALIZE(withdraw_params, (mark)(nonce)(from)(to)(quantity));
   };
 
-  static eosio::checksum256 make_token_index(eosio::name contract, account_address address) {
+  static eosio::checksum256 make_token_index(eosio::name contract, vaccount address) {
     fixed_bytes<32> key;
     static constexpr uint16_t buffer_size{256};
     char datastream_buffer[buffer_size];
@@ -93,7 +118,7 @@ private:
   struct [[eosio::table]] account {
     uint64_t id;
     uint32_t nonce;
-    account_address address;
+    vaccount address;
     extended_asset balance;
 
     uint64_t primary_key() const { return id; }
