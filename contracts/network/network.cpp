@@ -46,12 +46,10 @@ checksum160 pub2addr(public_key pub) {
   return ripemd160(&std::get<0>(pub)[0], std::get<0>(pub).size());
 }
 
-void network::require_sig(account from, uint64_t to_id, extended_asset quantity, signature sig) {
-  transfer_params params = {from.nonce, from.id, to_id, quantity};
-  std::vector<char> msg_bytes = pack(params);
-  // printhex(&msg_bytes[0], msg_bytes.size());
-  checksum256 msg = sha256(&msg_bytes[0], msg_bytes.size());
-  public_key pub = recover_key(msg, sig);
+void network::require_sig(std::vector<char> msg, account from, signature sig) {
+  // printhex(&msg[0], msg.size());
+  checksum256 digest = sha256(&msg[0], msg.size());
+  public_key pub = recover_key(digest, sig);
   // printhex(&std::get<0>(pub)[0], std::get<0>(pub).size());
   auto pub_addr = pub2addr(pub);
   // pub_addr.print();
@@ -80,7 +78,9 @@ void network::transfer(uint64_t from_id, uint64_t to_id, extended_asset quantity
     require_auth(from_name);
   } else {
     // 0 = hash address
-    require_sig(from, to_id, quantity, sig.value());
+    transfer_params params = {1, from.nonce, from.id, to_id, quantity};
+    std::vector<char> msg_bytes = pack(params);
+    require_sig(msg_bytes, from, sig.value());
   }
 
   acc_tbl.modify(from, same_payer, [&](auto &f) { f.balance -= quantity; f.nonce++; });
@@ -104,8 +104,9 @@ void network::withdraw(uint64_t from_id, name to_account, extended_asset quantit
     require_auth(from_name);
   } else {
     // 0 = hash address
-    // TODO: distinction between withdraw and transfer signatures
-    require_sig(from, 0, quantity, sig.value());
+    withdraw_params params = {2, from.nonce, from.id, to_account, quantity};
+    std::vector<char> msg_bytes = pack(params);
+    require_sig(msg_bytes, from, sig.value());
   }
 
   acc_tbl.modify(from, same_payer, [&](auto &f) { f.balance -= quantity; f.nonce++; });

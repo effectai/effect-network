@@ -71,9 +71,21 @@
 (defn pack-transfer-params
   [nonce from to {:keys [quantity contract]}]
   (let [buff (doto (new (.-SerialBuffer Serialize))
+               (.push 1)
                (.pushUint32 nonce)
                (.pushArray (uint64->bytes from))
                (.pushArray (uint64->bytes to))
+               (.pushAsset quantity)
+               (.pushName contract))]
+    (.asUint8Array buff)))
+
+(defn pack-withdraw-params
+  [nonce from to {:keys [quantity contract]}]
+  (let [buff (doto (new (.-SerialBuffer Serialize))
+               (.push 2)
+               (.pushUint32 nonce)
+               (.pushArray (uint64->bytes from))
+               (.pushName to)
                (.pushAsset quantity)
                (.pushName contract))]
     (.asUint8Array buff)))
@@ -126,6 +138,17 @@
           (doseq [[type acc] accs]
             (when (= "name" type)
               (<p! (eos/create-account owner-acc acc))))
+
+          ;; setup xfer permission for net account
+          (<p! (eos/update-auth
+                net-acc "xfer"
+                [{:permission {:actor net-acc :permission "eosio.code"} :weight 1}]))
+          (<p! (eos/transact "eosio" "linkauth"
+                             {:account net-acc
+                              :requirement "xfer"
+                              :code token-acc
+                              :type "transfer"}
+                             [{:actor net-acc :permission "active"}]))
           (done)
           (catch js/Error e (prn "Error " e))))))
    :after (fn [])})
@@ -187,10 +210,8 @@
 
 (async-deftest withdraw
   (testing "can withdraw from pub key hash"
-    (let [from 0
-          to 2
-          asset {:quantity "50.0000 EFX" :contract token-acc}
-          transfer-params (pack-transfer-params 0 to j0 asset)
+    (let [asset {:quantity "50.0000 EFX" :contract token-acc}
+          transfer-params (pack-withdraw-params 1 0 acc-2 asset)
           params-hash (.digest (.update (.hash ec) transfer-params))
           sig (.sign keypair params-hash)
           eos-sig (.fromElliptic Signature sig 0)]

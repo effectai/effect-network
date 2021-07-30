@@ -52,19 +52,29 @@ public:
                         eosio::asset quantity,
                         std::string memo);
 
-  void require_sig(account from,
-                   uint64_t to_id,
-                   eosio::extended_asset quantity,
+  void require_sig(std::vector<char> msg,
+                   account from,
                    eosio::signature sig);
 
 private:
   struct transfer_params {
+    uint8_t mark;
     uint32_t nonce;
     uint64_t from;
     uint64_t to;
     eosio::extended_asset quantity;
     // std::optional<eosio::extended_asset> fee;
-    EOSLIB_SERIALIZE(transfer_params, (nonce)(from)(to)(quantity));
+    EOSLIB_SERIALIZE(transfer_params, (mark)(nonce)(from)(to)(quantity));
+  };
+
+  struct withdraw_params {
+    uint8_t mark;
+    uint32_t nonce;
+    uint64_t from;
+    eosio::name to;
+    eosio::extended_asset quantity;
+    // std::optional<eosio::extended_asset> fee;
+    EOSLIB_SERIALIZE(withdraw_params, (mark)(nonce)(from)(to)(quantity));
   };
 
   static eosio::checksum256 make_token_index(eosio::name contract, account_address address) {
