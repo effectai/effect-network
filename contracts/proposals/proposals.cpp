@@ -357,7 +357,7 @@ void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type, 
                        v.voter = voter;
                        v.proposal_id = prop_id;
                        v.type = vote_type;
-                       v.weight = vote_weight
+                       v.weight = vote_weight;
                        v.comment_hash = comment_hash;
                      });
 
@@ -386,7 +386,7 @@ void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type, 
                         [&](auto& v)
                         {
                           v.type = vote_type;
-                          v.weight = vote_weight
+                          v.weight = vote_weight;
                           v.comment_hash = comment_hash;
                         });
   }
