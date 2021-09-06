@@ -79,7 +79,8 @@ public:
   [[eosio::action]]
   void addvote(eosio::name voter,
                uint64_t prop_id,
-               uint8_t vote_type);
+               uint8_t vote_type,
+               std::optional<std::string> comment_hash);
 
   [[eosio::action]]
   void addcycle(eosio::time_point_sec start_time,
