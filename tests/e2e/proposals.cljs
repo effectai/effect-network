@@ -232,7 +232,7 @@
 (async-deftest vote
   ;; needs to be in voting period
   (<p-should-fail-with!
-   (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 0})
+   (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 0 :comment_hash nil})
    "can vote on own proposal"
    "not in voting period")
 
@@ -242,20 +242,25 @@
                             :cycle_voting_duration_sec 9e6)))
 
   (<p-should-succeed!
-   (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 0})
+   (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 0 :comment_hash nil})
    "can vote on own proposal")
 
   (<p-should-succeed!
-   (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 1})
+   (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 1 :comment_hash nil})
    "can update vote")
 
   (<p-should-succeed!
-   (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 2})
+   (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 1 :comment_hash "QmfPZCHrBqQzYYQX9Xd22J8ris1d4ktJWhRfLEso7e9z9s"})
+   "can update vote comment")
+ 
+
+  (<p-should-succeed!
+   (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 2 :comment_hash nil})
    "can update vote twice")
 
   (<p! (eos/wait-block (js/Promise.resolve 42) 2))
   (<p! (eos/transact prop-acc "addvote"
-                     {:voter token-acc :prop_id 0 :vote_type 1}
+                     {:voter token-acc :prop_id 0 :vote_type 1 :comment_hash nil}
                      [{:actor token-acc :permission "active"}])
        "multiple accounts can vote")
 
@@ -267,12 +272,12 @@
 
   (<p! (eos/wait-block (js/Promise.resolve 42) 2))
 
-  (<p! (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 1 :vote_type 1})
+  (<p! (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 1 :vote_type 1 :comment_hash nil})
        "multiple accounts can vote")
 
   (<p! (eos/transact dao-acc "newmemterms" {:hash hash1}))
   (<p-should-fail-with!
-   (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 1 :vote_type 3})
+   (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 1 :vote_type 3 :comment_hash nil})
    "needs latest terms accepted"
    "agreed terms are not the latest")
 
