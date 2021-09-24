@@ -250,12 +250,12 @@
    "can update vote")
 
   (<p-should-succeed!
-   (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 1 :comment_hash "QmfPZCHrBqQzYYQX9Xd22J8ris1d4ktJWhRfLEso7e9z9s"})
+   (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 1 :comment_hash "h1"})
    "can update vote comment")
- 
+
 
   (<p-should-succeed!
-   (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 2 :comment_hash nil})
+   (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 2 :comment_hash "h2"})
    "can update vote twice")
 
   (<p! (eos/wait-block (js/Promise.resolve 42) 2))
@@ -263,6 +263,9 @@
                      {:voter token-acc :prop_id 0 :vote_type 1 :comment_hash nil}
                      [{:actor token-acc :permission "active"}])
        "multiple accounts can vote")
+
+  (let [rows (<p! (eos/get-table-rows prop-acc prop-acc "vote"))]
+    (is (= (get-in rows [0 "comment_hash"]) "h2")))
 
   (let [rows (<p! (eos/get-table-rows prop-acc prop-acc "proposal"))
         r (->> rows (filter #(= (% "id") 0)) first)]

@@ -317,7 +317,8 @@ void proposals::executeprop(uint64_t id) {
   }
 }
 
-void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type, std::optional<std::string> comment_hash) {
+void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type,
+                        std::optional<std::string> comment_hash) {
   require_auth(voter);
   dao::require_member(_config.get().dao_contract, voter);
 
