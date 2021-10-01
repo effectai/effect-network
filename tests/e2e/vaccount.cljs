@@ -1,4 +1,4 @@
-(ns e2e.network
+(ns e2e.vaccount
   (:require
    [eos-cljs.core :as eos]
    [e2e.util :as util :refer [wait p-all]]
@@ -103,14 +103,16 @@
 
 (def keypair (.genKeyPair ec))
 (def keypair-pub (hex->bytes (.encodeCompressed (.getPublic keypair) "hex")))
-(prn "KeyPair 1 = " (.getPublic keypair "hex"))
+(prn "KeyPair Public 1 = " (.getPublic keypair "hex"))
+(prn "KeyPair Private 1 = " (.getPrivate keypair "hex"))
+
 (prn "KeyPair Compressed 1 = " (.encodeCompressed (.getPublic keypair) "hex"))
 
 ;; To check the Hex value of account names
 ;; (prn "DEBUG hex: " (bytes->hex (name->bytes owner-acc)))
 ;; (prn "DEBUG hex: " (bytes->hex (name->bytes token-acc)))
 
-(println (str "network acc = " net-acc))
+(println (str "vaccount acc = " net-acc))
 (println (str "token acc = " token-acc))
 
 (defn eos-tx-owner [contr action args]
@@ -133,7 +135,7 @@
         (try
           (<p-may-fail! (eos/create-account owner-acc net-acc))
           (<p-may-fail! (eos/create-account owner-acc acc-2))
-          (<p! (deploy-file net-acc "contracts/network/network"))
+          (<p! (deploy-file net-acc "contracts/vaccount/vaccount"))
           (<! (e2e.token/deploy-token token-acc [owner-acc token-acc]))
           (doseq [[type acc] accs]
             (when (= "name" type)
