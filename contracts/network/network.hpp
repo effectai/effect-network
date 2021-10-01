@@ -13,7 +13,6 @@ enum class VaccountType {
   EosAccount = 1
 };
 
-
 class [[eosio::contract("network")]] network : public eosio::contract {
 private:
   struct account;

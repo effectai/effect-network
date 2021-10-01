@@ -26,14 +26,14 @@ open(account_address acc,
      eosio::name payer)
 ```
 
-#### transfer
+#### vtransfer
 Transfer tokens between virtual accounts
 ```
-transfer(uint64_t from_id,
-         uint64_t to_id,
-         eosio::extended_asset quantity,
-         std::optional<eosio::signature> sig,
-         std::optional<eosio::extended_asset> fee)
+vtransfer(uint64_t from_id,
+          uint64_t to_id,
+          eosio::extended_asset quantity,
+          std::optional<eosio::signature> sig,
+          std::optional<eosio::extended_asset> fee)
 ```
 
 #### withdraw
@@ -46,3 +46,8 @@ void withdraw(uint64_t from_id,
               std::optional<eosio::signature> sig,
               std::optional<eosio::extended_asset> fee);
 ```
+
+#### token transfers
+A token transfer to the contract with the right memo will credit them to a
+virtual account. The memo must be the integer of the primary key of a balance
+row. It's required to open the corresponding token balance before depositing.
