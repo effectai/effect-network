@@ -1,6 +1,6 @@
-#include "network.hpp"
+#include "vaccount.hpp"
 
-void network::open(vaccount addr, eosio::extended_symbol symbol, eosio::name payer) {
+void vaccount::open(vaddress addr, eosio::extended_symbol symbol, eosio::name payer) {
   account_table acc_tbl(_self, _self.value);
   uint64_t id = acc_tbl.available_primary_key();
   eosio::extended_asset asset(0, symbol);
@@ -29,7 +29,7 @@ void network::open(vaccount addr, eosio::extended_symbol symbol, eosio::name pay
   }
 }
 
-void network::transfer_handler(name from, name to, asset quantity, std::string memo) {
+void vaccount::transfer_handler(name from, name to, asset quantity, std::string memo) {
   if (to == get_self()) {
     extended_symbol sym(quantity.symbol, get_first_receiver());
 
@@ -46,7 +46,7 @@ checksum160 pub2addr(public_key pub) {
   return ripemd160(&std::get<0>(pub)[0], std::get<0>(pub).size());
 }
 
-void network::require_sig(std::vector<char> msg, account from, signature sig) {
+void vaccount::require_sig(std::vector<char> msg, account from, signature sig) {
   // printhex(&msg[0], msg.size());
   checksum256 digest = sha256(&msg[0], msg.size());
   public_key pub = recover_key(digest, sig);
@@ -57,7 +57,7 @@ void network::require_sig(std::vector<char> msg, account from, signature sig) {
   check(addr == pub2addr(pub), "invalid signature");
 }
 
-void network::vtransfer(uint64_t from_id, uint64_t to_id, extended_asset quantity,
+void vaccount::vtransfer(uint64_t from_id, uint64_t to_id, extended_asset quantity,
                         std::optional<signature> sig,
                         std::optional<extended_asset> fee) {
   // TODO: add fee to account
@@ -93,7 +93,7 @@ void network::vtransfer(uint64_t from_id, uint64_t to_id, extended_asset quantit
   // acc_tbl.modify(fee_acc, same_payer, [&](auto &f) { f.balance += fee; });
 }
 
-void network::withdraw(uint64_t from_id, name to_account, extended_asset quantity, std::string memo,
+void vaccount::withdraw(uint64_t from_id, name to_account, extended_asset quantity, std::string memo,
                        std::optional<signature> sig, std::optional<extended_asset> fee) {
   account_table acc_tbl(_self, _self.value);
 

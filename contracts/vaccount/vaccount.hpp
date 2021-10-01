@@ -13,7 +13,7 @@ enum class VaccountType {
   EosAccount = 1
 };
 
-class [[eosio::contract("network")]] network : public eosio::contract {
+class [[eosio::contract("vaccount")]] vaccount : public eosio::contract {
 private:
   struct account;
 
@@ -22,7 +22,7 @@ public:
 
   // We use typedef to generate a sensible name in the ABI
   typedef eosio::checksum160 address;
-  using vaccount = std::variant<address, eosio::name>;
+  using vaddress = std::variant<address, eosio::name>;
 
   /**
    * Open an account entry
@@ -32,7 +32,7 @@ public:
    * @param payer - the EOS account that pays for the action
    */
   [[eosio::action]]
-  void open(vaccount acc,
+  void open(vaddress acc,
             eosio::extended_symbol symbol,
             eosio::name payer);
 
@@ -101,7 +101,7 @@ private:
     EOSLIB_SERIALIZE(withdraw_params, (mark)(nonce)(from)(to)(quantity));
   };
 
-  static eosio::checksum256 make_token_index(eosio::name contract, vaccount address) {
+  static eosio::checksum256 make_token_index(eosio::name contract, vaddress address) {
     fixed_bytes<32> key;
     static constexpr uint16_t buffer_size{256};
     char datastream_buffer[buffer_size];
@@ -117,7 +117,7 @@ private:
   struct [[eosio::table]] account {
     uint64_t id;
     uint32_t nonce;
-    vaccount address;
+    vaddress address;
     extended_asset balance;
 
     uint64_t primary_key() const { return id; }
