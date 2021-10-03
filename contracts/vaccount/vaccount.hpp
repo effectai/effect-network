@@ -76,9 +76,13 @@ public:
                         eosio::asset quantity,
                         std::string memo);
 
-  void require_sig(std::vector<char> msg,
-                   account from,
-                   eosio::signature sig);
+  inline void require_sig(std::vector<char> msg,
+                          account from,
+                          eosio::signature sig);
+
+  void require_auth(std::vector<char> msg,
+                    account from,
+                    std::optional<eosio::signature> sig);
 
 private:
   struct transfer_params {
