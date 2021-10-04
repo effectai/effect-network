@@ -16,8 +16,6 @@
    [clojure.string :as string]
    [elliptic :refer [ec]]))
 
-
-
 (def ec (new ec "secp256k1"))
 
 (def owner-acc "eosio")

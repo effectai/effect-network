@@ -119,12 +119,12 @@ private:
   }
 
   struct [[eosio::table]] account {
-    uint64_t id;
+    uint32_t id;
     uint32_t nonce;
     vaddress address;
     extended_asset balance;
 
-    uint64_t primary_key() const { return id; }
+    uint64_t primary_key() const { return (uint64_t) id; }
 
     eosio::checksum256 by_token() const {
       return make_token_index(balance.contract, address);
@@ -137,5 +137,4 @@ private:
     "account"_n, account,
     indexed_by<"token"_n, const_mem_fun<account, eosio::checksum256, &account::by_token>>>
   account_table;
-
 };

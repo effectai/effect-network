@@ -2,6 +2,8 @@
 
 #include <eosio/eosio.hpp>
 
+using namespace eosio;
+
 namespace vaccount {
   typedef eosio::checksum160 address;
   using vaddress = std::variant<address, eosio::name>;
@@ -20,12 +22,12 @@ namespace vaccount {
   };
 
   struct [[eosio::table("account"), eosio::contract("vaccount")]] account {
-    uint64_t id;
+    uint32_t id;
     uint32_t nonce;
     vaddress address;
     eosio::extended_asset balance;
 
-    uint64_t primary_key() const { return id; }
+    uint64_t primary_key() const { return (uint64_t) id; }
 
     eosio::checksum256 by_token() const {
       return make_token_index(balance.contract, address);
@@ -58,4 +60,9 @@ namespace vaccount {
       eosio::check(false, "unkown account type");
     }
   }
+
+  typedef multi_index<
+    "account"_n, account,
+    indexed_by<"token"_n, const_mem_fun<account, eosio::checksum256, &account::by_token>>>
+  account_table;
 }
