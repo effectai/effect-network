@@ -30,13 +30,15 @@ public:
   [[eosio::action]]
   void mkcampaign(vaccount::vaddress owner,
                   content content,
+                  eosio::extended_asset reward,
                   vaccount::sig sig);
 
   [[eosio::action]]
   void mkbatch(uint32_t id,
                uint32_t campaign_id,
                content content,
-               checksum256 merkle_root,
+               checksum256 task_merkle_root,
+               uint32_t num_tasks,
                vaccount::sig sig);
 
 private:
@@ -52,27 +54,29 @@ private:
     uint32_t id;
     uint32_t campaign_id;
     content content;
-    checksum256 merkle_root;
-    EOSLIB_SERIALIZE(mkbatch_params, (mark)(id)(campaign_id)(content)(merkle_root));
+    checksum256 task_merkle_root;
+    EOSLIB_SERIALIZE(mkbatch_params, (mark)(id)(campaign_id)(content)(task_merkle_root));
   };
 
   struct [[eosio::table]] campaign {
     uint32_t id;
     vaccount::vaddress owner;
     content content;
+    eosio::extended_asset reward;
 
     uint64_t primary_key() const { return (uint64_t) id; }
 
-    EOSLIB_SERIALIZE(campaign, (id)(owner)(content))
+    EOSLIB_SERIALIZE(campaign, (id)(owner)(content)(reward))
   };
 
   struct [[eosio::table]] batch {
     uint32_t id;
     uint32_t campaign_id;
     content content;
-    checksum256 merkle_root;
+    checksum256 task_merkle_root;
     eosio::extended_asset balance;
     uint32_t repetitions;
+    uint32_t tasks_done;
 
     uint64_t primary_key() const { return (uint64_t{campaign_id} << 32) | id; }
     uint32_t by_campaign() const { return campaign_id; }

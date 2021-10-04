@@ -62,6 +62,7 @@
     (<p-should-succeed! (tx-as acc-2 force-acc "mkcampaign"
                                {:owner ["name" acc-2]
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
+                                :reward {:quantity "1.0000 EFX" :contract token-acc}
                                 :sig nil}))))
 
 (async-deftest mkbatch
@@ -70,7 +71,8 @@
                                {:id 0
                                 :campaign_id 0
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
-                                :merkle_root "8eddac4c1c9be884586f99c045dd05df9dac2cebe2db4b83f04d34a21f56f667"
+                                :task_merkle_root "8eddac4c1c9be884586f99c045dd05df9dac2cebe2db4b83f04d34a21f56f667"
+                                :num_tasks 10
                                 :sig nil}))))
 
 (defn -main [& args]
