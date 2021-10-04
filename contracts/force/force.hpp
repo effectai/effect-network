@@ -41,6 +41,11 @@ public:
                uint32_t num_tasks,
                vaccount::sig sig);
 
+  [[eosio::action]]
+  void joincampaign(uint32_t account_id,
+                    uint32_t campaign_id,
+                    vaccount::sig sig);
+
 private:
   struct mkcampaign_params {
     uint8_t mark;
@@ -56,6 +61,12 @@ private:
     content content;
     checksum256 task_merkle_root;
     EOSLIB_SERIALIZE(mkbatch_params, (mark)(id)(campaign_id)(content)(task_merkle_root));
+  };
+
+  struct joincampaign_params {
+    uint8_t mark;
+    uint32_t campaign_id;
+    EOSLIB_SERIALIZE(joincampaign_params, (mark)(campaign_id));
   };
 
   struct [[eosio::table]] campaign {
@@ -82,6 +93,19 @@ private:
     uint32_t by_campaign() const { return campaign_id; }
   };
 
+  struct [[eosio::table]] campaignjoin {
+    uint32_t account_id;
+    uint32_t campaign_id;
+    uint64_t primary_key() const { return (uint64_t{campaign_id} << 32) | account_id; }
+  };
+
+  inline void require_vaccount(uint32_t acc_id, std::vector<char> msg, vaccount::sig sig) {
+    eosio::name vacc_contract = _config.get().vaccount_contract;
+    vaccount::account_table acc_tbl(vacc_contract, vacc_contract.value);
+    vaccount::account acc = acc_tbl.get((uint64_t) acc_id, "account row not found");
+    vaccount::require_auth(msg, acc.address, sig);
+  };
+
   struct [[eosio::table]] config {
     eosio::name vaccount_contract;
   };
@@ -90,6 +114,7 @@ private:
 
   typedef multi_index<"campaign"_n, campaign> campaign_table;
   typedef multi_index<"batch"_n, batch> batch_table;
+  typedef multi_index<"campaignjoin"_n, campaignjoin> campaignjoin_table;
 
   config_table _config;
 };

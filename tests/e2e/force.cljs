@@ -23,12 +23,15 @@
 (def token-acc (eos/random-account "tkn"))
 (def force-acc (eos/random-account "force"))
 (println "force-acc" force-acc)
+(println "vacc-acc" vacc-acc)
 
 (defn tx-as [acc contr action args]
   (eos/transact contr action args [{:actor acc :permission "active"}]))
 
+(def acc-3 (eos/random-account "acc"))
+(println "acc-3 " acc-3)
 (def accs [["address" (vacc/pub->addr vacc/keypair-pub)]
-           ["name" (eos/random-account "acc")]
+           ["name" acc-3]
            ["name" (eos/random-account "acc")]])
 
 (use-fixtures :once
@@ -46,7 +49,10 @@
           (<! (e2e.token/deploy-token token-acc [owner-acc token-acc]))
           (doseq [[type acc] accs]
             (when (= "name" type)
-              (<p! (eos/create-account owner-acc acc))))
+              (<p! (eos/create-account owner-acc acc)))
+            (<p! (tx-as owner-acc vacc-acc "open"
+                        {:acc [type acc] :payer owner-acc
+                         :symbol {:contract token-acc :sym "4,EFX"}})))
           (done)
           (catch js/Error e (prn "Error " e))))))
    :after (fn [])})
@@ -73,6 +79,13 @@
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :task_merkle_root "8eddac4c1c9be884586f99c045dd05df9dac2cebe2db4b83f04d34a21f56f667"
                                 :num_tasks 10
+                                :sig nil}))))
+
+(async-deftest campaignjoin
+  (testing "account can join a campaign"
+    (<p-should-succeed! (tx-as acc-3 force-acc "joincampaign"
+                               {:campaign_id 0
+                                :account_id 1
                                 :sig nil}))))
 
 (defn -main [& args]

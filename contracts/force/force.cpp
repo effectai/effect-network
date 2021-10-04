@@ -42,3 +42,11 @@ void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
                       b.task_merkle_root = task_merkle_root;
                     });
 }
+
+void force::joincampaign(uint32_t account_id, uint32_t campaign_id, vaccount::sig sig) {
+  joincampaign_params params = {7, campaign_id};
+  require_vaccount(account_id, pack(params), sig);
+
+  campaignjoin_table join_tbl(_self, _self.value);
+  join_tbl.emplace(_self, [&](auto& j) { j.account_id = account_id; j.campaign_id = campaign_id; });
+}
