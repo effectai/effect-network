@@ -28,7 +28,6 @@ Campaign information
 
 A batch holds a collection of tasks for a campaign.
 
-- primary key [uint64]: concatenation of the campaign ID and the batch ID
 - id [uint32]: batch ID incremental within this campaign
 - campaign_id [uint32]: ID of the campaign this batch belongs to
 - task_merkle_root [checksum256]: root of the task merkle tree
@@ -36,10 +35,24 @@ A batch holds a collection of tasks for a campaign.
 - repetitions [uint32]: number of repetitions per task
 - tasks_done [uint32]: how many tasks have been completed in this batch
 
+- primary key [uint64]: concatenation of the campaign ID and the batch ID
+
+#### campaignjoin
+
+A cache table that register which users access to a campaign.
+
+- account_id [uint32]: the vaccount balance index of the account
+- campaign_id [uint32]: the campaign id the account has access to
+
+- primary index [uint64]: the concatenation of the `campaign_id` and `account_id`
+
 ## Actions
 
 #### init
 Initialize the Effect Force smart contract. Can be called once.
+```
+void init(eosio::name vaccount_contract);
+```
 
 #### mkcampaign
 Create a campaign
@@ -59,4 +72,12 @@ void mkbatch(uint32_t id,
              checksum256 task_merkle_root,
              uint32_t num_tasks,
              vaccount::sig sig);
+```
+
+#### joincampaign
+Allows a user to join a campaign. The `account_id` is a `vaccount` balance index.
+```
+void joincampaign(uint32_t account_id,
+                  uint32_t campaign_id,
+                  vaccount::sig sig);
 ```
