@@ -60,6 +60,7 @@ Create a campaign
 void mkcampaign(vaccount::vaddress owner,
                 content content,
                 eosio::extended_asset reward,
+                eosio::name payer,
                 vaccount::sig sig);
 ```
 
@@ -71,6 +72,7 @@ void mkbatch(uint32_t id,
              content content,
              checksum256 task_merkle_root,
              uint32_t num_tasks,
+             eosio::name payer,
              vaccount::sig sig);
 ```
 
@@ -79,5 +81,6 @@ Allows a user to join a campaign. The `account_id` is a `vaccount` balance index
 ```
 void joincampaign(uint32_t account_id,
                   uint32_t campaign_id,
+                  eosio::name payer,
                   vaccount::sig sig);
 ```

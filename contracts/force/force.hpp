@@ -31,6 +31,7 @@ public:
   void mkcampaign(vaccount::vaddress owner,
                   content content,
                   eosio::extended_asset reward,
+                  eosio::name payer,
                   vaccount::sig sig);
 
   [[eosio::action]]
@@ -39,11 +40,13 @@ public:
                content content,
                checksum256 task_merkle_root,
                uint32_t num_tasks,
+               eosio::name payer,
                vaccount::sig sig);
 
   [[eosio::action]]
   void joincampaign(uint32_t account_id,
                     uint32_t campaign_id,
+                    eosio::name payer,
                     vaccount::sig sig);
 
 private:
