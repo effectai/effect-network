@@ -14,11 +14,12 @@
    [e2e.vaccount :as vacc]
    ["eosjs/dist/eosjs-key-conversions" :refer [PrivateKey Signature PublicKey]]
    ["eosjs/dist/ripemd" :refer [RIPEMD160]]
+   [merkletreejs :refer [MerkleTree]]
    [clojure.string :as string]
    [elliptic :refer [ec]]))
 
 (def owner-acc "eosio")
-(def acc-2 "acc")
+(def acc-2 (eos/random-account "acc"))
 (def vacc-acc (eos/random-account "vacc"))
 (def token-acc (eos/random-account "tkn"))
 (def force-acc (eos/random-account "force"))
@@ -32,7 +33,7 @@
 (println "acc-3 " acc-3)
 (def accs [["address" (vacc/pub->addr vacc/keypair-pub)]
            ["name" acc-3]
-           ["name" (eos/random-account "acc")]])
+           ["name" acc-2]])
 
 (use-fixtures :once
   {:before
@@ -43,7 +44,6 @@
         (try
           (<p-may-fail! (eos/create-account owner-acc vacc-acc))
           (<p-may-fail! (eos/create-account owner-acc force-acc))
-          (<p-may-fail! (eos/create-account owner-acc acc-2))
           (<p! (deploy-file vacc-acc "contracts/vaccount/vaccount"))
           (<p! (deploy-file force-acc "contracts/force/force"))
           (<! (e2e.token/deploy-token token-acc [owner-acc token-acc]))
@@ -78,7 +78,7 @@
                                {:id 0
                                 :campaign_id 0
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
-                                :task_merkle_root "8eddac4c1c9be884586f99c045dd05df9dac2cebe2db4b83f04d34a21f56f667"
+                                :task_merkle_root "363944d30edab512d827d74e66085eb327f7e700bf07011a1e407c66182b5a98"
                                 :num_tasks 10
                                 :payer acc-2
                                 :sig nil}))))
@@ -90,6 +90,56 @@
                                 :account_id 1
                                 :payer acc-3
                                 :sig nil}))))
+
+
+(defn sha256 [data]
+  (vacc/bytes->hex (.digest (.update (.hash ec) data))))
+
+(defn buf->hex [buf]
+  (.toString buf "hex"))
+
+(async-deftest reservetask
+  (let [task-data ["aa" "bb" "cc" "dd"]
+        leaves (map #(sha256 (vacc/hex->bytes %)) task-data)
+        tree (MerkleTree. (clj->js leaves) sha256)
+        root (.toString (.getRoot tree) "hex")
+
+        proof  (.getProof tree (first leaves))
+        hex-proof (map #(buf->hex (.-data %)) proof)
+        pos (map #(if (= (.-position %) "left") 0 1) proof)]
+    (testing "can make reservation"
+      (<p-should-succeed!
+       (tx-as acc-3 force-acc "reservetask" {:proof hex-proof
+                                             :position pos
+                                             :data (first task-data)
+                                             :campaign_id 0
+                                             :batch_id 0
+                                             :account_id 1
+                                             :payer acc-3
+                                             :sig nil
+                                             })))
+    (<p! (eos/wait-block (js/Promise.resolve 1)) 300)
+    (testing "cant exceed repetitions"
+      (<p-should-fail-with!
+       (tx-as acc-3 force-acc "reservetask" {:proof hex-proof
+                                             :position pos
+                                             :data (first task-data)
+                                             :campaign_id 0
+                                             :batch_id 0
+                                             :account_id 1
+                                             :payer acc-3
+                                             :sig nil})
+       "" "account already did task")
+      (<p-should-fail-with!
+       (tx-as acc-2 force-acc "reservetask" {:proof hex-proof
+                                             :position pos
+                                             :data (first task-data)
+                                             :campaign_id 0
+                                             :batch_id 0
+                                             :account_id 2
+                                             :payer acc-2
+                                             :sig nil})
+       "" "task already completed"))))
 
 (defn -main [& args]
   (run-tests))
