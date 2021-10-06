@@ -19,6 +19,16 @@ public:
 
   typedef std::tuple<uint8_t, std::string> content;
 
+  template <typename T>
+  void cleanTable(name code, uint64_t account, const uint32_t batchSize){
+    T db(code, account);
+    uint32_t counter = 0;
+    auto itr = db.begin();
+    while(itr != db.end() && counter++ < batchSize) {
+      itr = db.erase(itr);
+    }
+  }
+
   force(eosio::name receiver, eosio::name code, eosio::datastream<const char*> ds) :
     eosio::contract(receiver, code, ds), _config(_self, _self.value)
   {};
@@ -58,6 +68,10 @@ public:
                    uint32_t account_id,
                    eosio::name payer,
                    vaccount::sig sig);
+
+  // [[eosio::action]]
+  // void clean() { cleanTable<batch_table>(_self, _self.value, 100); };
+
 private:
   void require_merkle(std::vector<eosio::checksum256> proof,
                       std::vector<uint8_t> position,
