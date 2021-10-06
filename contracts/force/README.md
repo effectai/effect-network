@@ -46,6 +46,15 @@ A cache table that register which users access to a campaign.
 
 - primary index [uint64]: the concatenation of the `campaign_id` and `account_id`
 
+#### submission
+Task submissions and their data
+
+- id [uint64]: unique identifier
+- account_id [uint32]: worker account
+- content [optional content]: the submission data, empty for reserverations
+- leaf_hash [checksum256]: the task data hash used to track reptitions
+- batch_id [uint64]: id of the batch
+
 ## Actions
 
 #### init
@@ -83,4 +92,16 @@ void joincampaign(uint32_t account_id,
                   uint32_t campaign_id,
                   eosio::name payer,
                   vaccount::sig sig);
+```
+#### reservetask
+Make a reservation for a task. Creates an entry in the `submission` table.
+```
+void reservetask(std::vector<eosio::checksum256> proof,
+                 std::vector<uint8_t> position,
+                 std::vector<char> data,
+                 uint32_t campaign_id,
+                 uint32_t batch_id,
+                 uint32_t account_id,
+                 eosio::name payer,
+                 vaccount::sig sig);
 ```
