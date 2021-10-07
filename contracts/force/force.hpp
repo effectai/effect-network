@@ -10,6 +10,11 @@
 
 using namespace eosio;
 
+inline uint32_t now() {
+  static uint32_t current_time = eosio::current_time_point().sec_since_epoch();
+  return current_time;
+}
+
 class [[eosio::contract("force")]] force : public eosio::contract {
 private:
   struct account;
@@ -68,6 +73,14 @@ public:
                    uint32_t account_id,
                    eosio::name payer,
                    vaccount::sig sig);
+
+  [[eosio::action]]
+  void submittask(uint64_t task_id,
+                  std::string data,
+                  uint32_t account_id,
+                  uint64_t batch_id,
+                  eosio::name payer,
+                  vaccount::sig sig);
 
   // [[eosio::action]]
   // void clean() { cleanTable<batch_table>(_self, _self.value, 100); };
@@ -140,17 +153,31 @@ private:
     uint64_t primary_key() const { return (uint64_t{campaign_id} << 32) | account_id; }
   };
 
+  struct [[eosio::table]] payment {
+    uint32_t account_id;
+    uint64_t batch_id;
+    eosio::extended_asset pending;
+    eosio::time_point_sec last_submission_time;
+
+    // TODO: fix primary key
+    uint64_t primary_key() const { return (uint64_t{batch_id} << 32) | account_id; }
+    uint128_t by_account_batch() const { return (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32); }
+    uint64_t by_account() const { return (uint64_t) account_id; }
+  };
+
   struct [[eosio::table]] submission {
     uint64_t id;
     uint32_t account_id;
     std::optional<content> content;
     checksum256 leaf_hash;
     uint64_t batch_id;
+    std::string data;
+    bool paid;
 
     uint64_t primary_key() const { return id; }
     checksum256 by_leaf() const { return leaf_hash; }
 
-    EOSLIB_SERIALIZE(submission, (id)(account_id)(content)(leaf_hash)(batch_id))
+    EOSLIB_SERIALIZE(submission, (id)(account_id)(content)(leaf_hash)(batch_id)(data))
   };
 
   inline void require_vaccount(uint32_t acc_id, std::vector<char> msg, vaccount::sig sig) {
@@ -171,7 +198,11 @@ private:
   typedef multi_index<"campaignjoin"_n, campaignjoin> campaignjoin_table;
   typedef multi_index<"submission"_n, submission,
                       indexed_by<"leaf"_n, const_mem_fun<submission, checksum256, &submission::by_leaf>>>
-    submission_table;
+  submission_table;
+  typedef multi_index<"payment"_n, payment,
+                      indexed_by<"accbatch"_n, const_mem_fun<payment, uint128_t, &payment::by_account_batch>>,
+                      indexed_by<"acc"_n, const_mem_fun<payment, uint64_t, &payment::by_account>>>
+  payment_table;
 
   config_table _config;
 };

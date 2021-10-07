@@ -118,7 +118,7 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
   eosio::check(rep_count < batch.repetitions, "task already completed");
 
   if (rep_count >= batch.repetitions) {
-    batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.tasks_done++; });
+    batch_tbl.modify(batch, payer, [&](auto& b) { b.tasks_done++; });
   }
 
   submission_tbl.emplace(payer,
@@ -129,4 +129,36 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
                            s.leaf_hash = data_hash;
                            s.batch_id = batch_pk;
                          });
+}
+
+void force::submittask(uint64_t submission_id, std::string data, uint32_t account_id,
+                       uint64_t batch_id, name payer, vaccount::sig sig) {
+  submission_table submission_tbl(_self, _self.value);
+  payment_table payment_tbl(_self, _self.value);
+  batch_table batch_tbl(_self, _self.value);
+  campaign_table campaign_tbl(_self, _self.value);
+
+  auto& sub = submission_tbl.get(submission_id, "submission not found");
+  eosio::check(sub.account_id == account_id, "different account");
+  submission_tbl.modify(sub, payer, [&](auto& s) { s.data = data; });
+
+  auto& batch = batch_tbl.get(batch_id, "batch not found");
+  auto& camp = campaign_tbl.get(batch.campaign_id);
+
+  uint128_t payment_sk = (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32);
+  auto payment_idx = payment_tbl.get_index<"accbatch"_n>();
+  auto payment = payment_idx.find(payment_sk);
+
+  if (payment == payment_idx.end()) {
+    payment_tbl.emplace(payer,
+                        [&](auto& p)
+                        {
+                          p.account_id = account_id;
+                          p.batch_id = batch_id;
+                          p.pending = camp.reward;
+                          p.last_submission_time = time_point_sec(now());
+                        });
+  } else {
+    payment_idx.modify(payment, payer, [&](auto& p) { p.pending += camp.reward; p.last_submission_time = time_point_sec(now()); });
+  }
 }

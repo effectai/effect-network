@@ -56,6 +56,18 @@ Task submissions and their data
 - leaf_hash [checksum256]: the task data hash used to track reptitions
 - batch_id [uint64]: id of the batch
 
+#### payment
+Pending payments for an account and a batch.
+
+- account_id [uint32]: the effect account row
+- batch_id [uint64]: the primary id of the batch
+- pending [ext. asset]: the amount of tokens due
+- last_submission_time [time_point_sec]: time of the last submission
+
+- primary index [uint64]: composite of batch and account (broken)
+- by_account_batch [uint128]: composite of account and batch
+- by_account [uint64]: by an account id
+
 ## Actions
 
 #### init
@@ -105,4 +117,15 @@ void reservetask(std::vector<eosio::checksum256> proof,
                  uint32_t account_id,
                  eosio::name payer,
                  vaccount::sig sig);
+```
+
+#### submittask
+Submit the results for a task the toe `submission` table. Creates or increments a `payment` row as well.
+```
+  void submittask(uint64_t task_id,
+                  std::string data,
+                  uint32_t account_id,
+                  uint64_t batch_id,
+                  eosio::name payer,
+                  vaccount::sig sig);
 ```
