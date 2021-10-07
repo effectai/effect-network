@@ -42,6 +42,7 @@ void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
                       b.content = content;
                       b.task_merkle_root = task_merkle_root;
                       b.repetitions = 1;
+                      b.num_tasks = num_tasks;
                     });
 }
 
@@ -104,7 +105,7 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
   auto itr_start = by_leaf.lower_bound(data_hash);
   auto itr_end = by_leaf.upper_bound(data_hash);
   uint32_t rep_count = 0;
-  // TODO: can this loop get too big?j
+  // TODO: can this loop get too big?
   for (; itr_start != itr_end; itr_start++) {
     rep_count++;
     auto& subm = *itr_start;

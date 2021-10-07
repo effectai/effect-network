@@ -128,6 +128,7 @@ private:
     eosio::extended_asset balance;
     uint32_t repetitions;
     uint32_t tasks_done;
+    uint32_t num_tasks;
 
     uint64_t primary_key() const { return (uint64_t{campaign_id} << 32) | id; }
     uint32_t by_campaign() const { return campaign_id; }
