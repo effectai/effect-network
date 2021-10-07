@@ -113,6 +113,10 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
   }
   eosio::check(rep_count < batch.repetitions, "task already completed");
 
+  if (rep_count >= batch.repetitions) {
+    batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.tasks_done++; });
+  }
+
   submission_tbl.emplace(payer,
                          [&](auto& s)
                          {
