@@ -27,7 +27,7 @@ void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
                     checksum256 task_merkle_root, uint32_t num_tasks, eosio::name payer,
                     vaccount::sig sig) {
   campaign_table camp_tbl(_self, _self.value);
-  auto camp = camp_tbl.get(campaign_id, "campaign not found");
+  auto& camp = camp_tbl.get(campaign_id, "campaign not found");
 
   mkbatch_params params = {8, id, campaign_id, content, task_merkle_root};
   std::vector<char> msg_bytes = pack(params);
@@ -86,10 +86,14 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
   submission_table submission_tbl(_self, _self.value);
   batch_table batch_tbl(_self, _self.value);
   campaign_table campaign_tbl(_self, _self.value);
+  campaignjoin_table campaignjoin_tbl(_self, _self.value);
+
+  uint64_t campaignjoin_pk = (uint64_t{campaign_id} << 32) | account_id;
+  auto campaignjoin = campaignjoin_tbl.require_find(campaignjoin_pk, "campaign not joined");
 
   uint64_t batch_pk = (uint64_t{campaign_id} << 32) | batch_id;
-  auto batch = batch_tbl.get(batch_pk, "batch not found");
-  auto campaign = campaign_tbl.get(campaign_id, "campaign not found");
+  auto& batch = batch_tbl.get(batch_pk, "batch not found");
+  auto& campaign = campaign_tbl.get(campaign_id, "campaign not found");
 
   // TODO: verify depth of tree so cant be spoofed with partial proof
   checksum256 data_hash = sha256(&data[0], data.size());

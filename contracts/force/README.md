@@ -34,6 +34,7 @@ A batch holds a collection of tasks for a campaign.
 - balance [ext asset]: how much balance this batch has left
 - repetitions [uint32]: number of repetitions per task
 - tasks_done [uint32]: how many tasks have been completed in this batch
+- num_tasks [uint32]: number of repetitions completed in the batch
 
 - primary key [uint64]: concatenation of the campaign ID and the batch ID
 

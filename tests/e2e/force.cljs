@@ -119,6 +119,22 @@
                                              :sig nil
                                              })))
     (<p! (eos/wait-block (js/Promise.resolve 1)) 300)
+    (testing "must join campaign"
+      (<p-should-fail-with!
+       (tx-as acc-2 force-acc "reservetask" {:proof hex-proof
+                                             :position pos
+                                             :data (first task-data)
+                                             :campaign_id 0
+                                             :batch_id 0
+                                             :account_id 2
+                                             :payer acc-2
+                                             :sig nil})
+       "" "campaign not joined")
+      (tx-as acc-2 force-acc "joincampaign"
+             {:campaign_id 0
+              :account_id 2
+              :payer acc-2
+              :sig nil}))
     (testing "cant exceed repetitions"
       (<p-should-fail-with!
        (tx-as acc-3 force-acc "reservetask" {:proof hex-proof
@@ -130,6 +146,7 @@
                                              :payer acc-3
                                              :sig nil})
        "" "account already did task")
+
       (<p-should-fail-with!
        (tx-as acc-2 force-acc "reservetask" {:proof hex-proof
                                              :position pos
