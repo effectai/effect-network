@@ -17,6 +17,12 @@ void vaccount::open(vaddress addr, eosio::extended_symbol symbol, eosio::name pa
     break;
   }
 
+  auto addr_type = addr.index();
+  if (addr_type == 1) {
+    name addr_name = std::get<eosio::name>(addr);
+    eosio::check(is_account(addr_name), "account does not exist");
+  }
+
   if (found == false) {
     acc_tbl.emplace(payer,
                     [&](auto& a)

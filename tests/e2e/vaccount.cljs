@@ -162,6 +162,12 @@
                                         :payer owner-acc
                                         :symbol {:contract token-acc :sym "4,EFX"}}))))
 
+  (testing "eos account must exist"
+    (<p-should-fail-with!
+     (tx-as net-acc net-acc "open" {:acc ["name" "nonexist"]
+                                    :payer net-acc
+                                    :symbol {:contract token-acc :sym "4,EFX"}})
+     "" "account does not exist"))
   (testing "can't open same symbol twice"
     (<p-should-succeed!
      (tx-as net-acc net-acc "open" {:acc (first accs)
