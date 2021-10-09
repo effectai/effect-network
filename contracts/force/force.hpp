@@ -82,8 +82,14 @@ public:
                   eosio::name payer,
                   vaccount::sig sig);
 
-  // [[eosio::action]]
-  // void clean() { cleanTable<batch_table>(_self, _self.value, 100); };
+  [[eosio::action]]
+  void clean() {
+    cleanTable<submission_table>(_self, _self.value, 100);
+    cleanTable<batch_table>(_self, _self.value, 100);
+    cleanTable<campaign_table>(_self, _self.value, 100);
+    cleanTable<payment_table>(_self, _self.value, 100);
+    cleanTable<campaignjoin_table>(_self, _self.value, 100);
+  };
 
 private:
   void require_merkle(std::vector<eosio::checksum256> proof,
@@ -94,17 +100,22 @@ private:
   struct reservetask_params {
     uint8_t mark;
     checksum256 leaf_hash;
-    uint64_t submission_id;
     uint32_t campaign_id;
     uint32_t batch_id;
-    EOSLIB_SERIALIZE(reservetask_params, (mark)(leaf_hash)(submission_id)(campaign_id)(batch_id));
+    EOSLIB_SERIALIZE(reservetask_params, (mark)(leaf_hash)(campaign_id)(batch_id));
+  };
+
+  struct submittask_params {
+    uint8_t mark;
+    uint64_t submission_id;
+    std::string data;
+    EOSLIB_SERIALIZE(submittask_params, (mark)(submission_id)(data));
   };
 
   struct mkcampaign_params {
     uint8_t mark;
-    uint32_t id;
     content content;
-    EOSLIB_SERIALIZE(mkcampaign_params, (mark)(id)(content));
+    EOSLIB_SERIALIZE(mkcampaign_params, (mark)(content));
   };
 
   struct mkbatch_params {
@@ -154,13 +165,13 @@ private:
   };
 
   struct [[eosio::table]] payment {
+    uint64_t id;
     uint32_t account_id;
     uint64_t batch_id;
     eosio::extended_asset pending;
     eosio::time_point_sec last_submission_time;
 
-    // TODO: fix primary key
-    uint64_t primary_key() const { return (uint64_t{batch_id} << 32) | account_id; }
+    uint64_t primary_key() const { return id; }
     uint128_t by_account_batch() const { return (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32); }
     uint64_t by_account() const { return (uint64_t) account_id; }
   };
@@ -177,7 +188,7 @@ private:
     uint64_t primary_key() const { return id; }
     checksum256 by_leaf() const { return leaf_hash; }
 
-    EOSLIB_SERIALIZE(submission, (id)(account_id)(content)(leaf_hash)(batch_id)(data))
+    EOSLIB_SERIALIZE(submission, (id)(account_id)(content)(leaf_hash)(batch_id)(data)(paid))
   };
 
   inline void require_vaccount(uint32_t acc_id, std::vector<char> msg, vaccount::sig sig) {

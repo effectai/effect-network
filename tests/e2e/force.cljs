@@ -63,6 +63,41 @@
   (testing "owner can init"
     (<p-should-succeed! (eos/transact force-acc "init" {:vaccount_contract vacc-acc}))))
 
+(defn pack-mkcampaign-params [content]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize))
+     (.push 9) (.push 0) (.pushString content))))
+
+(defn pack-mkbatch-params [id camp-id content root]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize))
+     (.push 8) (.pushUint32 id) (.pushUint32 camp-id) (.push 0) (.pushString content)
+     (.pushUint8ArrayChecked (vacc/hex->bytes root) 32))))
+
+(defn pack-joincampaign-params [camp-id]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize)) (.push 7) (.pushUint32 camp-id))))
+
+(defn pack-reservetask-params [leaf-hash camp-id batch-id]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize))
+     (.push 6) (.pushUint8ArrayChecked (vacc/hex->bytes leaf-hash) 32)
+     (.pushUint32 camp-id) (.pushUint32 batch-id))))
+
+(defn pack-submittask-params [sub-id data]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize))
+     (.push 5) (.pushNumberAsUint64 sub-id) (.pushString data))))
+
+(defn hash-params [p] (.digest (.update (.hash ec) p)))
+
+(defn sign-params [p]
+  (as-> p x
+    (hash-params x)
+    (.sign vacc/keypair x)
+    (.fromElliptic Signature x 0)
+    (.toString x)))
+
 (async-deftest mkcampaign
   (testing "can create campaign from eos account"
     (<p-should-succeed! (tx-as acc-2 force-acc "mkcampaign"
@@ -70,7 +105,17 @@
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :reward {:quantity "1.0000 EFX" :contract token-acc}
                                 :payer acc-2
-                                :sig nil}))))
+                                :sig nil})))
+
+  (testing "can create campaign from pub key hash"
+    (let [ipfs-hash  "QmPU1fL3oVZGKhGeNSMGxJgY7NsK6MQEpMyZF3CvQwRz4T"
+          params (pack-mkcampaign-params ipfs-hash)]
+      (<p-should-succeed! (tx-as acc-2 force-acc "mkcampaign"
+                                 {:owner (first accs)
+                                  :content {:field_0 0 :field_1 ipfs-hash}
+                                  :reward {:quantity "115.0000 EFX" :contract token-acc}
+                                  :payer acc-2
+                                  :sig (sign-params params)})))))
 
 (async-deftest mkbatch
   (testing "campaign owner can create batch"
@@ -81,7 +126,18 @@
                                 :task_merkle_root "363944d30edab512d827d74e66085eb327f7e700bf07011a1e407c66182b5a98"
                                 :num_tasks 10
                                 :payer acc-2
-                                :sig nil}))))
+                                :sig nil})))
+  (testing "pub key hash can create batch"
+    (let [merkle-root "363944d30edab512d827d74e66085eb327f7e700bf07011a1e407c66182b5a98"
+          params (pack-mkbatch-params 0 1 vacc/hash160-1 merkle-root)]
+      (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
+                                 {:id 0
+                                  :campaign_id 1
+                                  :content {:field_0 0 :field_1 vacc/hash160-1}
+                                  :task_merkle_root merkle-root
+                                  :num_tasks 10
+                                  :payer acc-2
+                                  :sig (sign-params params)})))))
 
 (async-deftest campaignjoin
   (testing "account can join a campaign"
@@ -89,7 +145,13 @@
                                {:campaign_id 0
                                 :account_id 1
                                 :payer acc-3
-                                :sig nil}))))
+                                :sig nil})))
+  (testing "pub key hash can join a campaign"
+    (<p-should-succeed! (tx-as acc-3 force-acc "joincampaign"
+                               {:campaign_id 0
+                                :account_id 0
+                                :payer acc-3
+                                :sig (sign-params (pack-joincampaign-params 0))}))))
 
 
 (defn sha256 [data]
@@ -104,25 +166,40 @@
         tree (MerkleTree. (clj->js leaves) sha256)
         root (.toString (.getRoot tree) "hex")
 
-        proof  (.getProof tree (first leaves))
-        hex-proof (map #(buf->hex (.-data %)) proof)
-        pos (map #(if (= (.-position %) "left") 0 1) proof)]
+        proof-1  (.getProof tree (first leaves))
+        hex-proof-1 (map #(buf->hex (.-data %)) proof-1)
+        pos-1 (map #(if (= (.-position %) "left") 0 1) proof-1)
+
+        proof-2  (.getProof tree (second leaves))
+        hex-proof-2 (map #(buf->hex (.-data %)) proof-2)
+        pos-2 (map #(if (= (.-position %) "left") 0 1) proof-2)
+
+        params (pack-reservetask-params (second leaves) 0 0)]
     (testing "can make reservation"
       (<p-should-succeed!
-       (tx-as acc-3 force-acc "reservetask" {:proof hex-proof
-                                             :position pos
+       (tx-as acc-3 force-acc "reservetask" {:proof hex-proof-1
+                                             :position pos-1
                                              :data (first task-data)
                                              :campaign_id 0
                                              :batch_id 0
                                              :account_id 1
                                              :payer acc-3
                                              :sig nil
-                                             })))
+                                             }))
+      (<p-should-succeed!
+       (tx-as acc-3 force-acc "reservetask" {:proof hex-proof-2
+                                             :position pos-2
+                                             :data (second task-data)
+                                             :campaign_id 0
+                                             :batch_id 0
+                                             :account_id 0
+                                             :payer acc-3
+                                             :sig (sign-params params)})))
     (<p! (eos/wait-block (js/Promise.resolve 1)) 300)
     (testing "must join campaign"
       (<p-should-fail-with!
-       (tx-as acc-2 force-acc "reservetask" {:proof hex-proof
-                                             :position pos
+       (tx-as acc-2 force-acc "reservetask" {:proof hex-proof-1
+                                             :position pos-1
                                              :data (first task-data)
                                              :campaign_id 0
                                              :batch_id 0
@@ -137,8 +214,8 @@
               :sig nil}))
     (testing "cant exceed repetitions"
       (<p-should-fail-with!
-       (tx-as acc-3 force-acc "reservetask" {:proof hex-proof
-                                             :position pos
+       (tx-as acc-3 force-acc "reservetask" {:proof hex-proof-1
+                                             :position pos-1
                                              :data (first task-data)
                                              :campaign_id 0
                                              :batch_id 0
@@ -148,8 +225,8 @@
        "" "account already did task")
 
       (<p-should-fail-with!
-       (tx-as acc-2 force-acc "reservetask" {:proof hex-proof
-                                             :position pos
+       (tx-as acc-2 force-acc "reservetask" {:proof hex-proof-1
+                                             :position pos-1
                                              :data (first task-data)
                                              :campaign_id 0
                                              :batch_id 0
@@ -157,6 +234,24 @@
                                              :payer acc-2
                                              :sig nil})
        "" "task already completed"))))
+
+
+(async-deftest submit-task
+  (<p-should-succeed!
+   (tx-as acc-3 force-acc "submittask" {:data "testdata"
+                                        :batch_id 0
+                                        :task_id 0
+                                        :account_id 1
+                                        :sig nil
+                                        :payer acc-3}))
+  (let [data "testdata 2"]
+    (<p-should-succeed!
+     (tx-as acc-3 force-acc "submittask" {:data data
+                                          :batch_id 0
+                                          :task_id 1
+                                          :account_id 0
+                                          :sig (sign-params (pack-submittask-params 1 data))
+                                          :payer acc-3})))  )
 
 (defn -main [& args]
   (run-tests))

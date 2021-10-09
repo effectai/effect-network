@@ -9,8 +9,9 @@ void force::mkcampaign(vaccount::vaddress owner, content content, eosio::extende
                        eosio::name payer, vaccount::sig sig) {
   campaign_table camp_tbl(_self, _self.value);
   uint32_t camp_id = camp_tbl.available_primary_key();
-  mkcampaign_params params = {9, camp_id, content};
+  mkcampaign_params params = {9, content};
   std::vector<char> msg_bytes = pack(params);
+  printhex(&msg_bytes[0], msg_bytes.size());
   vaccount::require_auth(msg_bytes, owner, sig);
 
   camp_tbl.emplace(payer,
@@ -101,7 +102,7 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
 
   uint32_t submission_id = submission_tbl.available_primary_key();
 
-  reservetask_params params = {6, data_hash, submission_id, campaign_id, batch_id};
+  reservetask_params params = {6, data_hash, campaign_id, batch_id};
   require_vaccount(account_id, pack(params), sig);
 
   // check if repetitions are not done
@@ -117,7 +118,7 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
   }
   eosio::check(rep_count < batch.repetitions, "task already completed");
 
-  if (rep_count >= batch.repetitions) {
+  if (rep_count + 1 >= batch.repetitions) {
     batch_tbl.modify(batch, payer, [&](auto& b) { b.tasks_done++; });
   }
 
@@ -128,6 +129,7 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
                            s.account_id = account_id;
                            s.leaf_hash = data_hash;
                            s.batch_id = batch_pk;
+                           s.paid = false;
                          });
 }
 
@@ -142,8 +144,13 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
   eosio::check(sub.account_id == account_id, "different account");
   submission_tbl.modify(sub, payer, [&](auto& s) { s.data = data; });
 
-  auto& batch = batch_tbl.get(batch_id, "batch not found");
+  auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
   auto& camp = campaign_tbl.get(batch.campaign_id);
+
+  submittask_params params = {5, submission_id, data};
+  require_vaccount(account_id, pack(params), sig);
+
+  uint64_t payment_id = payment_tbl.available_primary_key();
 
   uint128_t payment_sk = (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32);
   auto payment_idx = payment_tbl.get_index<"accbatch"_n>();
@@ -153,6 +160,7 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
     payment_tbl.emplace(payer,
                         [&](auto& p)
                         {
+                          p.id = payment_id;
                           p.account_id = account_id;
                           p.batch_id = batch_id;
                           p.pending = camp.reward;
