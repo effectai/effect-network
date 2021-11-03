@@ -67,6 +67,7 @@ inline void vaccount::require_sig(std::vector<char> msg, account from, signature
 void vaccount::require_auth(std::vector<char> msg, account from, std::optional<signature> sig) {
   auto from_type = from.address.index();
   if (from_type == 1) {
+    eosio::check(!sig.has_value(), "signature not allowed for eos vaccounts");
     name from_name = std::get<name>(from.address);
     eosio::require_auth(from_name);
   } else if (from_type == 0) {

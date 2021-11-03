@@ -212,12 +212,33 @@
       (<p!
        (tx-as (get-in accs [2 1]) net-acc
               "vtransfer" {:from_id 0
-                          :to_id 2
-                          :quantity asset
-                          :sig (.toString eos-sig)
-                          :fee nil})))))
+                           :to_id 2
+                           :quantity asset
+                           :sig (.toString eos-sig)
+                           :fee nil})))))
 
 (async-deftest withdraw
+  (testing "can not withdraw from eos account with a sig"
+    (let [asset {:quantity "50.0000 EFX" :contract token-acc}]
+      (<p-should-fail-with!
+       (tx-as (get-in accs [2 1]) net-acc
+              "withdraw" {:from_id 2
+                          :to_account acc-2
+                          :quantity asset
+                          :memo "memo"
+                          :sig "SIG_K1_KyEZVRFZVAVWPBdmEw7QRfDBSTmMqzZbQvg6iidCNvDRocrd4w5yuo6X2kCPSzCF5em3k9vi2qsaombz1ZNzdTSM2qaLcV"
+                          :fee nil})
+       "" "signature not allowed for eos vaccounts")))
+  (testing "can withdraw from eos account"
+    (let [asset {:quantity "50.0000 EFX" :contract token-acc}]
+      (<p-should-succeed!
+       (tx-as (get-in accs [2 1]) net-acc
+              "withdraw" {:from_id 2
+                          :to_account acc-2
+                          :quantity asset
+                          :memo "memo"
+                          :sig nil
+                          :fee nil}))))
   (testing "can withdraw from pub key hash"
     (let [asset {:quantity "50.0000 EFX" :contract token-acc}
           transfer-params (pack-withdraw-params 1 0 acc-2 asset)
