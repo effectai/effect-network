@@ -68,6 +68,11 @@
    (doto (new (.-SerialBuffer Serialize))
      (.push 9) (.push 0) (.pushString content))))
 
+(defn pack-editcampaign-params [camp-id content]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize))
+     (.push 10) (.pushUint32 camp-id)  (.push 0) (.pushString content))))
+
 (defn pack-mkbatch-params [id camp-id content root]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize))
@@ -112,6 +117,27 @@
           params (pack-mkcampaign-params ipfs-hash)]
       (<p-should-succeed! (tx-as acc-2 force-acc "mkcampaign"
                                  {:owner (first accs)
+                                  :content {:field_0 0 :field_1 ipfs-hash}
+                                  :reward {:quantity "115.0000 EFX" :contract token-acc}
+                                  :payer acc-2
+                                  :sig (sign-params params)})))))
+
+(async-deftest editcampaign
+  (testing "can edit campaign from eos account"
+    (<p-should-succeed! (tx-as acc-2 force-acc "editcampaign"
+                               {:campaign_id 0
+                                :owner ["name" acc-2]
+                                :content {:field_0 0 :field_1 vacc/hash160-1}
+                                :reward {:quantity "3.0000 EFX" :contract token-acc}
+                                :payer acc-2
+                                :sig nil})))
+
+  (testing "can edit campaign from pub key hash"
+    (let [ipfs-hash "QmPoB7nH4Q94C4YxT4rEcQDv3m76HT14wHbUL1gpEa4vWG"
+          params (pack-editcampaign-params 1 ipfs-hash)]
+      (<p-should-succeed! (tx-as acc-2 force-acc "editcampaign"
+                                 {:campaign_id 1
+                                  :owner (first accs)
                                   :content {:field_0 0 :field_1 ipfs-hash}
                                   :reward {:quantity "115.0000 EFX" :contract token-acc}
                                   :payer acc-2

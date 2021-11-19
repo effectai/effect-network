@@ -23,7 +23,24 @@ void force::mkcampaign(vaccount::vaddress owner, content content, eosio::extende
                      c.reward = reward;
                    });
 }
+void force::editcampaign(uint32_t campaign_id, vaccount::vaddress owner, content content, eosio::extended_asset reward,
+                        eosio::name payer, vaccount::sig sig) {
+  campaign_table camp_tbl(_self, _self.value);
+  auto& camp = camp_tbl.get(campaign_id, "campaign does not exist");
 
+  editcampaign_params params = {10, campaign_id, content};
+  std::vector<char> msg_bytes = pack(params);
+  printhex(&msg_bytes[0], msg_bytes.size());
+  vaccount::require_auth(msg_bytes, owner, sig);
+
+  camp_tbl.modify(camp,
+                  payer,
+                  [&](auto& c)
+                  {
+                    c.content = content;
+                    c.reward = reward;
+                  });
+}
 void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
                     checksum256 task_merkle_root, uint32_t num_tasks, eosio::name payer,
                     vaccount::sig sig) {
