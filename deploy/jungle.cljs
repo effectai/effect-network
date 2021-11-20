@@ -3,93 +3,55 @@
    [eos-cljs.core :as eos]
    [cljs.core :refer [*command-line-args*]]
    [clojure.string :as string]
-   (clojure.pprint :refer [pprint])))
+   [clojure.pprint :refer [pprint]]
+   [cljs.core.async.interop :refer [<p!]]
+   [cljs.core.async :refer [go]]
+   [eos-cljs.node-api :refer [deploy-file]]
+   [eos-cljs.macros :refer-macros [<p-may-fail!]]))
 
-(def token-acc "forbeginners")
-(def swap-acc "dontworrybet")
-(def stake-acc "stktest11111")
-(def bk-acc "foreveryoung")
+(def token-acc   "efxtoken1111") ;;alt=toke3onkylin
+(def account-acc "efxaccount11")
+(def force-acc   "efxforce1111")
 
-(def tkn-sym "UTL")
-(def clm-sym "GOV")
-(def tkn-total-supply "650000000.0000")
-(def clm-total-supply "20000000000.0000")
+(def jungle-3-api
+  {:rpc-url "https://jungle3.cryptolions.io:443"
+   :chain-id "2a02a0053e5a8cf73a56ba0fda11e4d92e0238a4a2aa74fccf46d5a910746840"
+   :priv-keys []})
 
-(def sec-per-day 86400)
+(defn p-all
+  "Shorthand for applyin js/Promise.all to its arguments.
 
-(def stake-config {:token_contract token-acc :stake_symbol (str "4," tkn-sym)
-                   :claim_symbol (str "4," clm-sym) :age_limit (* 200 sec-per-day)
-                   :scale_factor (* 10000000000 sec-per-day)
-                   :unstake_delay_sec (* 7 sec-per-day)
-                   :stake_bonus_age (* 50 sec-per-day)
-                   :stake_bonus_deadline "2019-04-18T15:59:44.500"})
+  Promises may fail and the exception will just printend."
+  [& ps]
+  (js/Promise.all (clj->js (map #(.catch % (fn [e] (prn e))) ps))))
 
-(def swap-config {:token_contract token-acc :token_symbol tkn-sym
-                  :issue_memo (str "Welcome to EOS " tkn-sym "!")
-                  :tx_max_age 10000
-                  :min_tx_value 1 :max_tx_value 100000})
+(defn -main [& args]
+  (let [private-keys *command-line-args*]
+    (reset! eos/api (eos-cljs.node-api/make-api (assoc jungle-3-api :priv-keys private-keys)))
+    (go
+      (try
+        ;; deploy latest instance of every contract
+        (println "going")
+        (<p! (apply p-all
+                    (map
+                     (fn [[acc file]]  (deploy-file acc (str "contracts/" file "/" file)))
+                     [[token-acc "token"]
+                      [account-acc "vaccount"]
+                      [force-acc "force"]])))
+        (println "donene")
 
-(defn usage [opts]
-  (->> ["Run as `npm run deploy jungle <PRIVATE KEY FOR SIGNING>`"
-        ""
-        "The private key is used for signing all transactions."
-        ""
-        "Code will be deployed to:"
-        (str "- " token-acc " (token)")
-        (str "- " swap-acc " (swap)")
-        (str "- " stake-acc " (stake)")
-        ""
-        (str bk-acc " is a book keeper which is allowed to posttx")
-        ""]
-       (string/join "\n")))
+        (<p-may-fail! (eos/update-auth
+                       account-acc "xfer"
+                       [{:permission {:actor account-acc :permission "eosio.code"} :weight 1}]))
 
-(defn -main []
-  (if (empty? *command-line-args*)
-    (print (usage nil))
-    (let [[privatekey] *command-line-args*]
-      (eos/set-api! (assoc (:jungle eos/apis) :priv-keys [privatekey]))
-      (->
-       ;; deploy fresh code
-       (eos/deploy token-acc "contracts/token/token")
-       (.catch prn)
-       (.then #(eos/deploy swap-acc "contracts/swap/swap"))
-       (.catch prn)
-       (.then #(eos/deploy stake-acc "contracts/stake/stake"))
-       (.catch prn)
-       ;; set authorities
-       (.then
-        #(eos/update-auth swap-acc "active"
-                          [{:permission
-                            {:actor swap-acc :permission "eosio.code"}
-                            :weight 1}]))
-       (.then
-        #(eos/update-auth stake-acc "active"
-                          [{:permission
-                            {:actor stake-acc :permission "eosio.code"}
-                            :weight 1}]))
-       eos/wait-block
-       ;; create the token
-       (.then #(print "\n========================\nCREATE TOKEN" tkn-sym
-                      " in " token-acc "\n========================\n"))
-       (.then
-        #(eos/transact token-acc "create"
-                       {:issuer swap-acc :maximum_supply (str tkn-total-supply " " tkn-sym)}))
-       (.catch prn)
-       (.then
-        #(eos/transact token-acc "create"
-                       {:issuer stake-acc :maximum_supply (str clm-total-supply " " clm-sym)}))
-       (.catch prn)
-       ;; initialize stake and swap
-       (.then
-        #(eos/transact stake-acc "init" stake-config
-                       [{:actor stake-acc :permission "owner"}]))
-       (.catch prn)
-       (.then
-        #(eos/transact swap-acc "init" swap-config
-                       [{:actor swap-acc :permission "owner"}]))
-       (.catch prn)
-       ;; add a bookkeeper that can post neo txs
-       (.then #(eos/transact swap-acc "mkbookkeeper" {:account bk-acc}
-                             [{:actor swap-acc :permission "owner"}]))
-       (.catch prn)
-       (.then #(print "\nDone!\n"))))))
+        (<p-may-fail! (eos/transact "eosio" "linkauth"
+                                    {:account account-acc
+                                     :requirement "xfer"
+                                     :code token-acc
+                                     :type "transfer"}
+                                    [{:actor account-acc :permission "owner"}]))
+
+        (<p! (eos/transact force-acc "init" {:vaccount_contract account-acc}))
+
+
+        (catch js/Error e (prn e))))))
