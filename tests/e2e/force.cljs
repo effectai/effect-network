@@ -117,18 +117,21 @@
                                   :payer acc-2
                                   :sig (sign-params params)})))))
 
+;; NOTE: this root must match the merkle trees generated in `reservee-task`
+(def merkle-root "9b15f697ff7f53e58d1873c9091a91ef83017171449499e9796c84cfdc5dd886")
+
 (async-deftest mkbatch
   (testing "campaign owner can create batch"
     (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
                                {:id 0
                                 :campaign_id 0
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
-                                :task_merkle_root "363944d30edab512d827d74e66085eb327f7e700bf07011a1e407c66182b5a98"
+                                :task_merkle_root merkle-root
                                 :num_tasks 10
                                 :payer acc-2
                                 :sig nil})))
   (testing "pub key hash can create batch"
-    (let [merkle-root "363944d30edab512d827d74e66085eb327f7e700bf07011a1e407c66182b5a98"
+    (let [merkle-root merkle-root
           params (pack-mkbatch-params 0 1 vacc/hash160-1 merkle-root)]
       (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
                                  {:id 0
@@ -161,10 +164,16 @@
   (.toString buf "hex"))
 
 (async-deftest reservetask
-  (let [task-data ["aa" "bb" "cc" "dd"]
-        leaves (map #(sha256 (vacc/hex->bytes %)) task-data)
+  (let [camp-id 0
+        batch-id 0
+        batch-pk "0000000000000000"
+
+        task-data ["aaeebb" "bb1234" "cc" "dd"]
+        task-data-prep (map #(str batch-pk %) task-data)
+        leaves (map #(sha256 (vacc/hex->bytes %)) task-data-prep)
         tree (MerkleTree. (clj->js leaves) sha256)
         root (.toString (.getRoot tree) "hex")
+        _ (prn "merkle root: " root)
 
         proof-1  (.getProof tree (first leaves))
         hex-proof-1 (map #(buf->hex (.-data %)) proof-1)

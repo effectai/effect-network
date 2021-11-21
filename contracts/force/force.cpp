@@ -97,7 +97,18 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
   auto& campaign = campaign_tbl.get(campaign_id, "campaign not found");
 
   // TODO: verify depth of tree so cant be spoofed with partial proof
-  checksum256 data_hash = sha256(&data[0], data.size());
+
+  // we prepend the batch_pk to the data so that each data point has a unique
+  // entry in the submission table.
+  const uint16_t datasize = data.size() + sizeof batch_pk;
+  char buff[datasize];
+  std::copy(static_cast<char*>(static_cast<void*>(&batch_pk)),
+            static_cast<char*>(static_cast<void*>(&batch_pk)) + sizeof batch_pk,
+            &buff[0]);
+  std::copy(data.cbegin(), data.cend(), &buff[0] + sizeof batch_pk);
+
+  checksum256 data_hash = sha256(&buff[0], datasize);
+  // printhex(&data_hash.extract_as_byte_array()[0], 32);
   require_merkle(proof, position, batch.task_merkle_root, data_hash);
 
   uint32_t submission_id = submission_tbl.available_primary_key();
