@@ -59,7 +59,8 @@
 
 (async-deftest init
   (testing "other accounts cant init"
-    (<p-should-fail! (tx-as owner-acc force-acc "init" {:vaccount_contract vacc-acc})))
+    (<p-should-fail! (tx-as owner-acc force-acc "init" {:vaccount_contract vacc-acc
+                                                        })))
   (testing "owner can init"
     (<p-should-succeed! (eos/transact force-acc "init" {:vaccount_contract vacc-acc}))))
 
@@ -127,7 +128,6 @@
                                 :campaign_id 0
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :task_merkle_root merkle-root
-                                :num_tasks 10
                                 :payer acc-2
                                 :sig nil})))
   (testing "pub key hash can create batch"
@@ -138,9 +138,37 @@
                                   :campaign_id 1
                                   :content {:field_0 0 :field_1 vacc/hash160-1}
                                   :task_merkle_root merkle-root
-                                  :num_tasks 10
                                   :payer acc-2
                                   :sig (sign-params params)})))))
+
+(async-deftest deposit
+  ;; open an account for force, deposit some funds to acc-2
+  (<p! (eos/transact
+        [{:account vacc-acc :name "open"
+          :authorization [{:actor force-acc :permission "active"}]
+          :data {:acc ["name" force-acc]
+                 :payer force-acc
+                 :symbol {:contract token-acc :sym "4,EFX"}}}
+         {:account token-acc :name "transfer"
+          :authorization [{:actor owner-acc :permission "active"}]
+          :data {:from owner-acc :to vacc-acc :memo "2"
+                 :quantity "500.0000 EFX"}}]))
+
+  (<p! (eos/wait-block (js/Promise.resolve 1)) 300)
+
+  (testing "can deposit efx"
+    (<p! (tx-as acc-2 vacc-acc "vtransfer"
+                {:from_id 2
+                 :to_id 3
+                 :quantity {:quantity "50.0000 EFX" :contract token-acc}
+                 :memo "0"
+                 :sig nil
+                 :fee nil})))
+
+  (testing "can publish batch"
+    (<p! (tx-as acc-2 force-acc "publishbatch"
+                {:id 0
+                 :num_tasks 10}))))
 
 (async-deftest campaignjoin
   (testing "account can join a campaign"

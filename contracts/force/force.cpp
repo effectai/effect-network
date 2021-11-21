@@ -25,8 +25,7 @@ void force::mkcampaign(vaccount::vaddress owner, content content, eosio::extende
 }
 
 void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
-                    checksum256 task_merkle_root, uint32_t num_tasks, eosio::name payer,
-                    vaccount::sig sig) {
+                    checksum256 task_merkle_root, eosio::name payer, vaccount::sig sig) {
   campaign_table camp_tbl(_self, _self.value);
   auto& camp = camp_tbl.get(campaign_id, "campaign not found");
 
@@ -42,9 +41,19 @@ void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
                       b.id = id;
                       b.content = content;
                       b.task_merkle_root = task_merkle_root;
+                      b.balance = {0, camp.reward.get_extended_symbol()};
                       b.repetitions = 1;
-                      b.num_tasks = num_tasks;
+                      b.num_tasks = 0;
                     });
+}
+
+void force::publishbatch(uint64_t id, uint32_t num_tasks) {
+  batch_table batch_tbl(_self, _self.value);
+  auto& batch = batch_tbl.get(id, "batch not found");
+  campaign_table camp_tbl(_self, _self.value);
+  auto& camp = camp_tbl.get(batch.campaign_id);
+  eosio::check(batch.balance.quantity > (camp.reward.quantity * num_tasks), "batch is underfunded");
+  batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.num_tasks = num_tasks; });
 }
 
 void force::joincampaign(uint32_t account_id, uint32_t campaign_id, eosio::name payer,
@@ -180,4 +189,13 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
   } else {
     payment_idx.modify(payment, payer, [&](auto& p) { p.pending += camp.reward; p.last_submission_time = time_point_sec(now()); });
   }
+}
+
+void force::vtransfer_handler(uint64_t from_id, uint64_t to_id, extended_asset quantity,
+                              std::string memo, vaccount::sig sig,
+                              std::optional<extended_asset> fee) {
+  uint64_t batch_id = std::stoi(memo);
+  batch_table batch_tbl(_self, _self.value);
+  auto& batch = batch_tbl.get(batch_id, "batch not found");
+  batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.balance += quantity; });
 }
