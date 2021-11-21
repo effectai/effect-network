@@ -214,6 +214,7 @@
               "vtransfer" {:from_id 0
                            :to_id 2
                            :quantity asset
+                           :memo ""
                            :sig (.toString eos-sig)
                            :fee nil})))))
 
