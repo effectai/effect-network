@@ -196,7 +196,7 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
 void force::vtransfer_handler(uint64_t from_id, uint64_t to_id, extended_asset quantity,
                               std::string memo, vaccount::sig sig,
                               std::optional<extended_asset> fee) {
-  uint64_t batch_id = std::stoi(memo);
+  uint64_t batch_id = std::stoull(memo);
   batch_table batch_tbl(_self, _self.value);
   auto& batch = batch_tbl.get(batch_id, "batch not found");
   batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.balance += quantity; });
