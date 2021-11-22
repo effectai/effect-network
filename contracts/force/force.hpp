@@ -57,8 +57,10 @@ public:
                vaccount::sig sig);
 
   [[eosio::action]]
-  void publishbatch(uint64_t id,
-                    uint32_t num_tasks);
+  void publishbatch(uint32_t account_id,
+                    uint64_t batch_id,
+                    uint32_t num_tasks,
+                    vaccount::sig sig);
 
   [[eosio::action]]
   void joincampaign(uint32_t account_id,
