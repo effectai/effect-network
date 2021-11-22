@@ -50,6 +50,7 @@ void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
 void force::publishbatch(uint64_t id, uint32_t num_tasks) {
   batch_table batch_tbl(_self, _self.value);
   auto& batch = batch_tbl.get(id, "batch not found");
+  eosio::check(batch.num_tasks == 0, "batch already published");
   campaign_table camp_tbl(_self, _self.value);
   auto& camp = camp_tbl.get(batch.campaign_id);
   eosio::check(batch.balance.quantity > (camp.reward.quantity * num_tasks), "batch is underfunded");
