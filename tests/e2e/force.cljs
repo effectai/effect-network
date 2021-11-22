@@ -167,8 +167,10 @@
 
   (testing "can publish batch"
     (<p! (tx-as acc-2 force-acc "publishbatch"
-                {:id 0
-                 :num_tasks 10}))))
+                {:account_id 2
+                 :batch_id 0
+                 :num_tasks 10
+                 :sig nil}))))
 
 (async-deftest campaignjoin
   (testing "account can join a campaign"
