@@ -26,7 +26,8 @@ Campaign information
 
 #### batch
 
-A batch holds a collection of tasks for a campaign.
+A batch holds a collection of tasks for a campaign. Batches have to be funded
+with EFX before they can be published.
 
 - id [uint32]: batch ID incremental within this campaign
 - campaign_id [uint32]: ID of the campaign this batch belongs to
@@ -37,6 +38,12 @@ A batch holds a collection of tasks for a campaign.
 - num_tasks [uint32]: number of repetitions completed in the batch
 
 - primary key [uint64]: concatenation of the campaign ID and the batch ID
+
+The flow for creating a batch is as follows:
+
+1) Call `mkbatch` with required params. This will set `num_tasks` to 0, which means unpublished.
+2) Use `vtransfer` with the batch ID as memo to deposit funds. This will increase the batch's balance.
+3) Call `publishbatch` to set num_tasks and publish it.
 
 #### campaignjoin
 
@@ -93,9 +100,15 @@ void mkbatch(uint32_t id,
              uint32_t campaign_id,
              content content,
              checksum256 task_merkle_root,
-             uint32_t num_tasks,
              eosio::name payer,
              vaccount::sig sig);
+```
+
+#### publishbatch
+Publish a batch. The balance needs to cover `num_tasks * campaign.reward`.
+```
+void mkbatch(uint64_t id,
+             uint32_t num_tasks);
 ```
 
 #### joincampaign

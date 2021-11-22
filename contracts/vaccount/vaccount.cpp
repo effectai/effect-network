@@ -73,12 +73,12 @@ void vaccount::require_auth(std::vector<char> msg, account from, std::optional<s
   } else if (from_type == 0) {
     require_sig(msg, from, sig.value());
   } else {
-    check(false, "unkown account type");
+    check(false, "unknown account type");
   }
 }
 
 void vaccount::vtransfer(uint64_t from_id, uint64_t to_id, extended_asset quantity,
-                         std::optional<signature> sig,
+                         std::string memo, std::optional<signature> sig,
                          std::optional<extended_asset> fee) {
   // TODO: add fee to account
   account_table acc_tbl(_self, _self.value);
@@ -90,6 +90,7 @@ void vaccount::vtransfer(uint64_t from_id, uint64_t to_id, extended_asset quanti
   check(from.balance.get_extended_symbol() == quantity.get_extended_symbol(), "symbol mismatch");
   check(from.id != to->id, "cannot transfer to self");
   check(from.balance >= quantity, "not enough balance");
+  check(memo.size() <= 256, "memo has more than 256 bytes");
 
   transfer_params params = {1, from.nonce, from.id, to_id, quantity};
   std::vector<char> msg_bytes = pack(params);

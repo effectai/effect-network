@@ -42,8 +42,7 @@ void force::editcampaign(uint32_t campaign_id, vaccount::vaddress owner, content
                   });
 }
 void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
-                    checksum256 task_merkle_root, uint32_t num_tasks, eosio::name payer,
-                    vaccount::sig sig) {
+                    checksum256 task_merkle_root, eosio::name payer, vaccount::sig sig) {
   campaign_table camp_tbl(_self, _self.value);
   auto& camp = camp_tbl.get(campaign_id, "campaign not found");
 
@@ -59,9 +58,22 @@ void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
                       b.id = id;
                       b.content = content;
                       b.task_merkle_root = task_merkle_root;
+                      b.balance = {0, camp.reward.get_extended_symbol()};
                       b.repetitions = 1;
-                      b.num_tasks = num_tasks;
+                      b.num_tasks = 0;
                     });
+}
+
+void force::publishbatch(uint32_t account_id, uint64_t batch_id, uint32_t num_tasks, vaccount::sig sig) {
+  // TODO: check signature
+  batch_table batch_tbl(_self, _self.value);
+  auto& batch = batch_tbl.get(batch_id, "batch not found");
+  eosio::check(batch.num_tasks == 0, "batch already published");
+  campaign_table camp_tbl(_self, _self.value);
+  auto& camp = camp_tbl.get(batch.campaign_id);
+  eosio::asset quantity_needed = camp.reward.quantity * num_tasks * batch.repetitions;
+  eosio::check(batch.balance.quantity > quantity_needed, "batch is underfunded");
+  batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.num_tasks = num_tasks; });
 }
 
 void force::joincampaign(uint32_t account_id, uint32_t campaign_id, eosio::name payer,
@@ -114,7 +126,18 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
   auto& campaign = campaign_tbl.get(campaign_id, "campaign not found");
 
   // TODO: verify depth of tree so cant be spoofed with partial proof
-  checksum256 data_hash = sha256(&data[0], data.size());
+
+  // we prepend the batch_pk to the data so that each data point has a unique
+  // entry in the submission table.
+  const uint16_t datasize = data.size() + sizeof batch_pk;
+  char buff[datasize];
+  std::copy(static_cast<char*>(static_cast<void*>(&batch_pk)),
+            static_cast<char*>(static_cast<void*>(&batch_pk)) + sizeof batch_pk,
+            &buff[0]);
+  std::copy(data.cbegin(), data.cend(), &buff[0] + sizeof batch_pk);
+
+  checksum256 data_hash = sha256(&buff[0], datasize);
+  // printhex(&data_hash.extract_as_byte_array()[0], 32);
   require_merkle(proof, position, batch.task_merkle_root, data_hash);
 
   uint32_t submission_id = submission_tbl.available_primary_key();
@@ -186,4 +209,13 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
   } else {
     payment_idx.modify(payment, payer, [&](auto& p) { p.pending += camp.reward; p.last_submission_time = time_point_sec(now()); });
   }
+}
+
+void force::vtransfer_handler(uint64_t from_id, uint64_t to_id, extended_asset quantity,
+                              std::string memo, vaccount::sig sig,
+                              std::optional<extended_asset> fee) {
+  uint64_t batch_id = std::stoull(memo);
+  batch_table batch_tbl(_self, _self.value);
+  auto& batch = batch_tbl.get(batch_id, "batch not found");
+  batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.balance += quantity; });
 }

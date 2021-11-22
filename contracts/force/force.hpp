@@ -1,10 +1,10 @@
 #pragma once
 
-
-#include <eosio/crypto.hpp>
+#include <eosio/eosio.hpp>
 #include <eosio/singleton.hpp>
 #include <eosio/asset.hpp>
 #include <eosio/datastream.hpp>
+#include <eosio/crypto.hpp>
 
 #include "../vaccount/vaccount-shared.hpp"
 
@@ -61,9 +61,14 @@ public:
                uint32_t campaign_id,
                content content,
                checksum256 task_merkle_root,
-               uint32_t num_tasks,
                eosio::name payer,
                vaccount::sig sig);
+
+  [[eosio::action]]
+  void publishbatch(uint32_t account_id,
+                    uint64_t batch_id,
+                    uint32_t num_tasks,
+                    vaccount::sig sig);
 
   [[eosio::action]]
   void joincampaign(uint32_t account_id,
@@ -89,6 +94,14 @@ public:
                   uint64_t batch_id,
                   eosio::name payer,
                   vaccount::sig sig);
+
+  [[eosio::on_notify("*::vtransfer")]]
+  void vtransfer_handler(uint64_t from_id,
+                         uint64_t to_id,
+                         extended_asset quantity,
+                         std::string memo,
+                         vaccount::sig sig,
+                         std::optional<extended_asset> fee);
 
   [[eosio::action]]
   void clean() {
