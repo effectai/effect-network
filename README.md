@@ -33,7 +33,7 @@ contribute to any existing proposals or start a new one.
 - 👩🏻‍💻 **Developer**- If you are a developer and want to contribute to a
   project, please read our style and [contribution
   guides](.github/CONTRIBUTING.md). Look
-  through the Github issue boards and feel free to start a Pull Request.
+  through the Github issue boards and feel free to start a Pull Request. Developer documentation can be found at: [developer.effect.network](https://developer.effect.network)
 
 - 👨🏻‍🚒 **Community Management**- We need more people to help guide newer
   members as the community grows. You can help by assisting on the Discord
