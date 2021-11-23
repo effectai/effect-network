@@ -55,7 +55,7 @@ void force::publishbatch(uint32_t account_id, uint64_t batch_id, uint32_t num_ta
   campaign_table camp_tbl(_self, _self.value);
   auto& camp = camp_tbl.get(batch.campaign_id);
   eosio::asset quantity_needed = camp.reward.quantity * num_tasks * batch.repetitions;
-  eosio::check(batch.balance.quantity > quantity_needed, "batch is underfunded");
+  eosio::check(batch.balance.quantity >= quantity_needed, "batch is underfunded");
   batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.num_tasks = num_tasks; });
 }
 
