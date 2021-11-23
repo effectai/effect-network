@@ -139,7 +139,7 @@ private:
     EOSLIB_SERIALIZE(mkcampaign_params, (mark)(content));
   };
 
-    struct editcampaign_params {
+  struct editcampaign_params {
     uint8_t mark;
     uint32_t campaign_id;
     content content;
