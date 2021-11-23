@@ -69,6 +69,11 @@
    (doto (new (.-SerialBuffer Serialize))
      (.push 9) (.push 0) (.pushString content))))
 
+(defn pack-editcampaign-params [camp-id content]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize))
+     (.push 10) (.pushUint32 camp-id)  (.push 0) (.pushString content))))
+
 (defn pack-mkbatch-params [id camp-id content root]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize))
@@ -118,7 +123,28 @@
                                   :payer acc-2
                                   :sig (sign-params params)})))))
 
-;; NOTE: this root must match the merkle trees generated in `reservee-task`
+(async-deftest editcampaign
+  (testing "can edit campaign from eos account"
+    (<p-should-succeed! (tx-as acc-2 force-acc "editcampaign"
+                               {:campaign_id 0
+                                :owner ["name" acc-2]
+                                :content {:field_0 0 :field_1 vacc/hash160-1}
+                                :reward {:quantity "3.0000 EFX" :contract token-acc}
+                                :payer acc-2
+                                :sig nil})))
+
+  (testing "can edit campaign from pub key hash"
+    (let [ipfs-hash "QmPoB7nH4Q94C4YxT4rEcQDv3m76HT14wHbUL1gpEa4vWG"
+          params (pack-editcampaign-params 1 ipfs-hash)]
+      (<p-should-succeed! (tx-as acc-2 force-acc "editcampaign"
+                                 {:campaign_id 1
+                                  :owner (first accs)
+                                  :content {:field_0 0 :field_1 ipfs-hash}
+                                  :reward {:quantity "115.0000 EFX" :contract token-acc}
+                                  :payer acc-2
+                                  :sig (sign-params params)})))))
+
+;; NOTE: this root must match the merkle trees generated in `reserve-task`
 (def merkle-root "9b15f697ff7f53e58d1873c9091a91ef83017171449499e9796c84cfdc5dd886")
 
 (async-deftest mkbatch
