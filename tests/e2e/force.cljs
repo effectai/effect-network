@@ -74,6 +74,11 @@
    (doto (new (.-SerialBuffer Serialize))
      (.push 10) (.pushUint32 camp-id)  (.push 0) (.pushString content))))
 
+(defn pack-rmcampaign-params [camp-id]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize))
+     (.push 11) (.pushUint32 camp-id))))
+
 (defn pack-mkbatch-params [id camp-id content root]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize))
@@ -111,6 +116,12 @@
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :reward {:quantity "1.0000 EFX" :contract token-acc}
                                 :payer acc-2
+                                :sig nil}))
+    (<p-should-succeed! (tx-as acc-2 force-acc "mkcampaign"
+                               {:owner ["name" acc-2]
+                                :content {:field_0 0 :field_1 vacc/hash160-1}
+                                :reward {:quantity "11.0000 EFX" :contract token-acc}
+                                :payer acc-2
                                 :sig nil})))
 
   (testing "can create campaign from pub key hash"
@@ -120,6 +131,12 @@
                                  {:owner (first accs)
                                   :content {:field_0 0 :field_1 ipfs-hash}
                                   :reward {:quantity "115.0000 EFX" :contract token-acc}
+                                  :payer acc-2
+                                  :sig (sign-params params)}))
+      (<p-should-succeed! (tx-as acc-2 force-acc "mkcampaign"
+                                 {:owner (first accs)
+                                  :content {:field_0 0 :field_1 ipfs-hash}
+                                  :reward {:quantity "110.0000 EFX" :contract token-acc}
                                   :payer acc-2
                                   :sig (sign-params params)})))))
 
@@ -135,14 +152,40 @@
 
   (testing "can edit campaign from pub key hash"
     (let [ipfs-hash "QmPoB7nH4Q94C4YxT4rEcQDv3m76HT14wHbUL1gpEa4vWG"
-          params (pack-editcampaign-params 1 ipfs-hash)]
+          params (pack-editcampaign-params 2 ipfs-hash)]
       (<p-should-succeed! (tx-as acc-2 force-acc "editcampaign"
-                                 {:campaign_id 1
+                                 {:campaign_id 2
                                   :owner (first accs)
                                   :content {:field_0 0 :field_1 ipfs-hash}
                                   :reward {:quantity "115.0000 EFX" :contract token-acc}
                                   :payer acc-2
                                   :sig (sign-params params)})))))
+
+
+(async-deftest rmcampaign
+  (testing "only campaign owner can erase"
+    (<p-should-fail! (tx-as acc-3 force-acc "rmcampaign"
+                            {:campaign_id 1
+                             :owner ["name" acc-2]
+                             :sig nil}))
+    (is (some? (<p! (eos/get-table-row force-acc force-acc "campaign" 1)))))
+
+  (testing "can erase campaign from eos account"
+    (is (not (nil? (<p! (eos/get-table-row force-acc force-acc "campaign" 1)))))
+    (<p-should-succeed! (tx-as acc-2 force-acc "rmcampaign"
+                               {:campaign_id 1
+                                :owner ["name" acc-2]
+                                :sig nil}))
+    (is (nil? (<p! (eos/get-table-row force-acc force-acc "campaign" 1)))))
+
+  (testing "can erase campaign from pub key hash"
+    (is (not (nil? (<p! (eos/get-table-row force-acc force-acc "campaign" 3)))))
+    (let [params (pack-rmcampaign-params 3)]
+      (<p-should-succeed! (tx-as acc-2 force-acc "rmcampaign"
+                                 {:campaign_id 3
+                                  :owner (first accs)
+                                  :sig (sign-params params)})))
+    (is (nil? (<p! (eos/get-table-row force-acc force-acc "campaign" 3))))))
 
 ;; NOTE: this root must match the merkle trees generated in `reserve-task`
 (def merkle-root "9b15f697ff7f53e58d1873c9091a91ef83017171449499e9796c84cfdc5dd886")
@@ -158,10 +201,10 @@
                                 :sig nil})))
   (testing "pub key hash can create batch"
     (let [merkle-root merkle-root
-          params (pack-mkbatch-params 0 1 vacc/hash160-1 merkle-root)]
+          params (pack-mkbatch-params 0 2 vacc/hash160-1 merkle-root)]
       (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
                                  {:id 0
-                                  :campaign_id 1
+                                  :campaign_id 2
                                   :content {:field_0 0 :field_1 vacc/hash160-1}
                                   :task_merkle_root merkle-root
                                   :payer acc-2

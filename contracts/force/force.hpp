@@ -57,6 +57,11 @@ public:
                     vaccount::sig sig);
 
   [[eosio::action]]
+  void rmcampaign(uint32_t campaign_id,
+                    vaccount::vaddress owner,
+                    vaccount::sig sig);
+
+  [[eosio::action]]
   void mkbatch(uint32_t id,
                uint32_t campaign_id,
                content content,
@@ -144,6 +149,12 @@ private:
     uint32_t campaign_id;
     content content;
     EOSLIB_SERIALIZE(editcampaign_params, (mark)(campaign_id)(content));
+  };
+
+  struct rmcampaign_params {
+    uint8_t mark;
+    uint32_t campaign_id;
+    EOSLIB_SERIALIZE(rmcampaign_params, (mark)(campaign_id));
   };
 
   struct mkbatch_params {
