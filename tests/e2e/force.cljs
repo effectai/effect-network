@@ -163,18 +163,29 @@
 
 
 (async-deftest rmcampaign
+  (testing "only campaign owner can erase"
+    (<p-should-fail! (tx-as acc-3 force-acc "rmcampaign"
+                            {:campaign_id 1
+                             :owner ["name" acc-2]
+                             :sig nil}))
+    (is (some? (<p! (eos/get-table-row force-acc force-acc "campaign" 1)))))
+
   (testing "can erase campaign from eos account"
+    (is (not (nil? (<p! (eos/get-table-row force-acc force-acc "campaign" 1)))))
     (<p-should-succeed! (tx-as acc-2 force-acc "rmcampaign"
                                {:campaign_id 1
                                 :owner ["name" acc-2]
-                                :sig nil})))
+                                :sig nil}))
+    (is (nil? (<p! (eos/get-table-row force-acc force-acc "campaign" 1)))))
 
   (testing "can erase campaign from pub key hash"
+    (is (not (nil? (<p! (eos/get-table-row force-acc force-acc "campaign" 3)))))
     (let [params (pack-rmcampaign-params 3)]
       (<p-should-succeed! (tx-as acc-2 force-acc "rmcampaign"
                                  {:campaign_id 3
                                   :owner (first accs)
-                                  :sig (sign-params params)})))))
+                                  :sig (sign-params params)})))
+    (is (nil? (<p! (eos/get-table-row force-acc force-acc "campaign" 3))))))
 
 ;; NOTE: this root must match the merkle trees generated in `reserve-task`
 (def merkle-root "9b15f697ff7f53e58d1873c9091a91ef83017171449499e9796c84cfdc5dd886")
