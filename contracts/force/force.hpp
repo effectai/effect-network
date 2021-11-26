@@ -57,9 +57,8 @@ public:
                     vaccount::sig sig);
 
   [[eosio::action]]
-  void delcampaign(uint32_t campaign_id,
+  void rmcampaign(uint32_t campaign_id,
                     vaccount::vaddress owner,
-                    content content,
                     vaccount::sig sig);
 
   [[eosio::action]]
@@ -152,11 +151,10 @@ private:
     EOSLIB_SERIALIZE(editcampaign_params, (mark)(campaign_id)(content));
   };
 
-  struct delcampaign_params {
+  struct rmcampaign_params {
     uint8_t mark;
     uint32_t campaign_id;
-    content content;
-    EOSLIB_SERIALIZE(delcampaign_params, (mark)(campaign_id)(content));
+    EOSLIB_SERIALIZE(rmcampaign_params, (mark)(campaign_id));
   };
 
   struct mkbatch_params {

@@ -42,12 +42,12 @@ void force::editcampaign(uint32_t campaign_id, vaccount::vaddress owner, content
                   });
 }
 
-void force::delcampaign(uint32_t campaign_id, vaccount::vaddress owner, content content,vaccount::sig sig) {
+void force::rmcampaign(uint32_t campaign_id, vaccount::vaddress owner, vaccount::sig sig) {
   campaign_table camp_tbl(_self, _self.value);
   auto camp_itr = camp_tbl.find(campaign_id);
   eosio::check(camp_itr != camp_tbl.end(), "campaign does not exist");
 
-  delcampaign_params params = {11, campaign_id, content};
+  rmcampaign_params params = {11, campaign_id};
   std::vector<char> msg_bytes = pack(params);
   printhex(&msg_bytes[0], msg_bytes.size());
   vaccount::require_auth(msg_bytes, owner, sig);

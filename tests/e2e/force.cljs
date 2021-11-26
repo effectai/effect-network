@@ -74,10 +74,10 @@
    (doto (new (.-SerialBuffer Serialize))
      (.push 10) (.pushUint32 camp-id)  (.push 0) (.pushString content))))
 
-(defn pack-delcampaign-params [camp-id content]
+(defn pack-rmcampaign-params [camp-id]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize))
-     (.push 11) (.pushUint32 camp-id)  (.push 0) (.pushString content))))
+     (.push 11) (.pushUint32 camp-id))))
 
 (defn pack-mkbatch-params [id camp-id content root]
   (.asUint8Array
@@ -162,21 +162,18 @@
                                   :sig (sign-params params)})))))
 
 
-(async-deftest delcampaign
+(async-deftest rmcampaign
   (testing "can erase campaign from eos account"
-    (<p-should-succeed! (tx-as acc-2 force-acc "delcampaign"
+    (<p-should-succeed! (tx-as acc-2 force-acc "rmcampaign"
                                {:campaign_id 1
                                 :owner ["name" acc-2]
-                                :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :sig nil})))
 
   (testing "can erase campaign from pub key hash"
-    (let [ipfs-hash "QmPoB7nH4Q94C4YxT4rEcQDv3m76HT14wHbUL1gpEa4vWG"
-          params (pack-delcampaign-params 3 ipfs-hash)]
-      (<p-should-succeed! (tx-as acc-2 force-acc "delcampaign"
+    (let [params (pack-rmcampaign-params 3)]
+      (<p-should-succeed! (tx-as acc-2 force-acc "rmcampaign"
                                  {:campaign_id 3
                                   :owner (first accs)
-                                  :content {:field_0 0 :field_1 ipfs-hash}
                                   :sig (sign-params params)})))))
 
 ;; NOTE: this root must match the merkle trees generated in `reserve-task`
