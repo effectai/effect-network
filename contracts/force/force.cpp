@@ -41,6 +41,20 @@ void force::editcampaign(uint32_t campaign_id, vaccount::vaddress owner, content
                     c.reward = reward;
                   });
 }
+
+void force::delcampaign(uint32_t campaign_id, vaccount::vaddress owner, content content,vaccount::sig sig) {
+  campaign_table camp_tbl(_self, _self.value);
+  auto camp_itr = camp_tbl.find(campaign_id);
+  eosio::check(camp_itr != camp_tbl.end(), "campaign does not exist");
+
+  delcampaign_params params = {11, campaign_id, content};
+  std::vector<char> msg_bytes = pack(params);
+  printhex(&msg_bytes[0], msg_bytes.size());
+  vaccount::require_auth(msg_bytes, owner, sig);
+
+  camp_tbl.erase(camp_itr);
+}
+
 void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
                     checksum256 task_merkle_root, eosio::name payer, vaccount::sig sig) {
   campaign_table camp_tbl(_self, _self.value);

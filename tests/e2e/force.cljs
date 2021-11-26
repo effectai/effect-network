@@ -74,6 +74,11 @@
    (doto (new (.-SerialBuffer Serialize))
      (.push 10) (.pushUint32 camp-id)  (.push 0) (.pushString content))))
 
+(defn pack-delcampaign-params [camp-id content]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize))
+     (.push 11) (.pushUint32 camp-id)  (.push 0) (.pushString content))))
+
 (defn pack-mkbatch-params [id camp-id content root]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize))
@@ -111,6 +116,12 @@
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :reward {:quantity "1.0000 EFX" :contract token-acc}
                                 :payer acc-2
+                                :sig nil}))
+    (<p-should-succeed! (tx-as acc-2 force-acc "mkcampaign"
+                               {:owner ["name" acc-2]
+                                :content {:field_0 0 :field_1 vacc/hash160-1}
+                                :reward {:quantity "11.0000 EFX" :contract token-acc}
+                                :payer acc-2
                                 :sig nil})))
 
   (testing "can create campaign from pub key hash"
@@ -120,6 +131,12 @@
                                  {:owner (first accs)
                                   :content {:field_0 0 :field_1 ipfs-hash}
                                   :reward {:quantity "115.0000 EFX" :contract token-acc}
+                                  :payer acc-2
+                                  :sig (sign-params params)}))
+      (<p-should-succeed! (tx-as acc-2 force-acc "mkcampaign"
+                                 {:owner (first accs)
+                                  :content {:field_0 0 :field_1 ipfs-hash}
+                                  :reward {:quantity "110.0000 EFX" :contract token-acc}
                                   :payer acc-2
                                   :sig (sign-params params)})))))
 
@@ -135,13 +152,31 @@
 
   (testing "can edit campaign from pub key hash"
     (let [ipfs-hash "QmPoB7nH4Q94C4YxT4rEcQDv3m76HT14wHbUL1gpEa4vWG"
-          params (pack-editcampaign-params 1 ipfs-hash)]
+          params (pack-editcampaign-params 2 ipfs-hash)]
       (<p-should-succeed! (tx-as acc-2 force-acc "editcampaign"
-                                 {:campaign_id 1
+                                 {:campaign_id 2
                                   :owner (first accs)
                                   :content {:field_0 0 :field_1 ipfs-hash}
                                   :reward {:quantity "115.0000 EFX" :contract token-acc}
                                   :payer acc-2
+                                  :sig (sign-params params)})))))
+
+
+(async-deftest delcampaign
+  (testing "can erase campaign from eos account"
+    (<p-should-succeed! (tx-as acc-2 force-acc "delcampaign"
+                               {:campaign_id 1
+                                :owner ["name" acc-2]
+                                :content {:field_0 0 :field_1 vacc/hash160-1}
+                                :sig nil})))
+
+  (testing "can erase campaign from pub key hash"
+    (let [ipfs-hash "QmPoB7nH4Q94C4YxT4rEcQDv3m76HT14wHbUL1gpEa4vWG"
+          params (pack-delcampaign-params 3 ipfs-hash)]
+      (<p-should-succeed! (tx-as acc-2 force-acc "delcampaign"
+                                 {:campaign_id 3
+                                  :owner (first accs)
+                                  :content {:field_0 0 :field_1 ipfs-hash}
                                   :sig (sign-params params)})))))
 
 ;; NOTE: this root must match the merkle trees generated in `reserve-task`
@@ -158,10 +193,10 @@
                                 :sig nil})))
   (testing "pub key hash can create batch"
     (let [merkle-root merkle-root
-          params (pack-mkbatch-params 0 1 vacc/hash160-1 merkle-root)]
+          params (pack-mkbatch-params 0 2 vacc/hash160-1 merkle-root)]
       (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
                                  {:id 0
-                                  :campaign_id 1
+                                  :campaign_id 2
                                   :content {:field_0 0 :field_1 vacc/hash160-1}
                                   :task_merkle_root merkle-root
                                   :payer acc-2
