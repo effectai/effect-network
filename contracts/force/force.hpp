@@ -74,13 +74,17 @@ public:
                     uint64_t batch_id,
                     uint32_t num_tasks,
                     vaccount::sig sig);
-
+  
+  [[eosio::action]]
+  void rmbatch(uint32_t id,
+               uint32_t campaign_id,
+               vaccount::sig sig);
+  
   [[eosio::action]]
   void joincampaign(uint32_t account_id,
                     uint32_t campaign_id,
                     eosio::name payer,
                     vaccount::sig sig);
-
 
   [[eosio::action]]
   void reservetask(std::vector<eosio::checksum256> proof,
@@ -164,6 +168,13 @@ private:
     content content;
     checksum256 task_merkle_root;
     EOSLIB_SERIALIZE(mkbatch_params, (mark)(id)(campaign_id)(content)(task_merkle_root));
+  };
+
+  struct rmbatch_params {
+    uint8_t mark;
+    uint32_t id;
+    uint32_t campaign_id;
+    EOSLIB_SERIALIZE(rmbatch_params, (mark)(id)(campaign_id));
   };
 
   struct joincampaign_params {
