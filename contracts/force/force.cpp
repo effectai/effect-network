@@ -1,8 +1,8 @@
 #include "force.hpp"
 
-void force::init(eosio::name vaccount_contract) {
+void force::init(eosio::name vaccount_contract, uint32_t force_vaccount_id) {
   eosio::require_auth(_self);
-  _config.set(config{vaccount_contract}, _self);
+  _config.set(config{vaccount_contract, force_vaccount_id}, _self);
 }
 
 void force::mkcampaign(vaccount::vaddress owner, content content, eosio::extended_asset reward,
@@ -185,6 +185,34 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
                            s.batch_id = batch_pk;
                            s.paid = false;
                          });
+}
+void force::payout(uint64_t batch_id,
+                   uint32_t account_id,
+                   uint32_t date_in_sec,
+                   std::optional<eosio::signature> sig,
+                   std::optional<eosio::extended_asset> fee) {
+  payment_table payment_tbl(_self, _self.value);
+  batch_table batch_tbl(_self, _self.value);
+  auto& batch = batch_tbl.get(batch_id, "batch not found");
+  
+  payout_params params = {13, batch_id, account_id, date_in_sec};
+  require_vaccount(account_id, pack(params), sig);
+
+  uint128_t payment_sk = (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32);  
+  auto payment_idx = payment_tbl.get_index<"accbatch"_n>();
+  auto& payment = payment_idx.get(payment_sk);
+
+  uint64_t from_id = _config.get().force_vaccount_id;
+  uint64_t to_id = account_id;
+  bool date_is_within_range = compare_time(payment.last_submission_time.sec_since_epoch(), date_in_sec);
+
+  eosio::check(date_is_within_range == true, "time is not within range.");
+  action(
+    permission_level{_self, "active"_n},
+    _config.get().vaccount_contract,
+    "vtransfer"_n,
+    std::make_tuple(from_id, to_id, (eosio::extended_asset)payment.pending, std::string(""), NULL, fee))
+  .send();
 }
 
 void force::submittask(uint64_t submission_id, std::string data, uint32_t account_id,

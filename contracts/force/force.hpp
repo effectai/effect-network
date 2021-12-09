@@ -5,7 +5,6 @@
 #include <eosio/asset.hpp>
 #include <eosio/datastream.hpp>
 #include <eosio/crypto.hpp>
-
 #include "../vaccount/vaccount-shared.hpp"
 
 using namespace eosio;
@@ -13,6 +12,10 @@ using namespace eosio;
 inline uint32_t now() {
   static uint32_t current_time = eosio::current_time_point().sec_since_epoch();
   return current_time;
+}
+inline bool compare_time(uint32_t date_sec, uint32_t now_sec) {
+  uint32_t threedays = date_sec + 259200; // 3 days in sec
+  return (now_sec > threedays ? true : false);
 }
 
 class [[eosio::contract("force")]] force : public eosio::contract {
@@ -39,7 +42,7 @@ public:
   {};
 
   [[eosio::action]]
-  void init(eosio::name vaccount_contract);
+  void init(eosio::name vaccount_contract, uint32_t force_vaccount_id);
 
   [[eosio::action]]
   void mkcampaign(vaccount::vaddress owner,
@@ -99,6 +102,12 @@ public:
                   uint64_t batch_id,
                   eosio::name payer,
                   vaccount::sig sig);
+  [[eosio::action]]
+  void payout(uint64_t batch_id,
+              uint32_t account_id,
+              uint32_t date_in_sec,
+              std::optional<eosio::signature> sig,
+              std::optional<eosio::extended_asset> fee);
 
   [[eosio::on_notify("*::vtransfer")]]
   void vtransfer_handler(uint64_t from_id,
@@ -171,6 +180,14 @@ private:
     uint32_t campaign_id;
     EOSLIB_SERIALIZE(joincampaign_params, (mark)(campaign_id));
   };
+  
+  struct payout_params {
+    uint8_t mark;
+    uint64_t batch_id;
+    uint32_t account_id;
+    uint32_t time_sec;
+    EOSLIB_SERIALIZE(payout_params, (mark)(batch_id)(account_id)(time_sec));
+  };
 
   struct [[eosio::table]] campaign {
     uint32_t id;
@@ -239,6 +256,7 @@ private:
 
   struct [[eosio::table]] config {
     eosio::name vaccount_contract;
+    uint32_t force_vaccount_id;
   };
 
   typedef singleton<"config"_n, config> config_table;

@@ -29,6 +29,9 @@
 (defn tx-as [acc contr action args]
   (eos/transact contr action args [{:actor acc :permission "active"}]))
 
+(defn tx-as-owner [acc contr action args]
+  (eos/transact contr action args [{:actor acc :permission "owner"}]))
+
 (def acc-3 (eos/random-account "acc"))
 (println "acc-3 " acc-3)
 (def accs [["address" (vacc/pub->addr vacc/keypair-pub)]
@@ -46,7 +49,10 @@
           (<p-may-fail! (eos/create-account owner-acc force-acc))
           (<p! (deploy-file vacc-acc "contracts/vaccount/vaccount"))
           (<p! (deploy-file force-acc "contracts/force/force"))
-          (<! (e2e.token/deploy-token token-acc [owner-acc token-acc]))
+          (<!  (e2e.token/deploy-token token-acc [owner-acc token-acc]))
+          (<p! (eos/update-auth force-acc "active"
+                  [{:permission {:actor force-acc :permission "eosio.code"}
+                    :weight 1}]))
           (doseq [[type acc] accs]
             (when (= "name" type)
               (<p! (eos/create-account owner-acc acc)))
@@ -60,9 +66,10 @@
 (async-deftest init
   (testing "other accounts cant init"
     (<p-should-fail! (tx-as owner-acc force-acc "init" {:vaccount_contract vacc-acc
-                                                        })))
+                                                        :force_vaccount_id 3})))
   (testing "owner can init"
-    (<p-should-succeed! (eos/transact force-acc "init" {:vaccount_contract vacc-acc}))))
+    (<p-should-succeed! (tx-as-owner force-acc force-acc "init" {:vaccount_contract vacc-acc
+                                                        :force_vaccount_id 3}))))
 
 (defn pack-mkcampaign-params [content]
   (.asUint8Array
@@ -88,6 +95,10 @@
 (defn pack-joincampaign-params [camp-id]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize)) (.push 7) (.pushUint32 camp-id))))
+
+(defn pack-payout-params [batch-id acc-id time]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize)) (.push 13) (.pushNumberAsUint64 batch-id) (.pushUint32 acc-id) (.pushUint32 time))))
 
 (defn pack-reservetask-params [leaf-hash camp-id batch-id]
   (.asUint8Array
@@ -214,7 +225,7 @@
   ;; open an account for force, deposit some funds to acc-2
   (<p! (eos/transact
         [{:account vacc-acc :name "open"
-          :authorization [{:actor force-acc :permission "active"}]
+          :authorization [{:actor force-acc :permission "owner"}]
           :data {:acc ["name" force-acc]
                  :payer force-acc
                  :symbol {:contract token-acc :sym "4,EFX"}}}
@@ -225,7 +236,7 @@
 
   (<p! (eos/wait-block (js/Promise.resolve 1)) 300)
 
-  (testing "can deposit efx"
+  (testing "vaccount can transfer efx to batch"
     (<p! (tx-as acc-2 vacc-acc "vtransfer"
                 {:from_id 2
                  :to_id 3
@@ -359,7 +370,34 @@
                                           :task_id 1
                                           :account_id 0
                                           :sig (sign-params (pack-submittask-params 1 data))
-                                          :payer acc-3})))  )
+                                          :payer acc-3}))))
+
+(async-deftest payout
+  (let [time-within-three-days (quot (.now js/Date) 1000)
+        time-after-three-days (+ (quot (.now js/Date) 1000) 345600) ;; 4 days
+        params (pack-payout-params 0 0 time-after-three-days)]
+    (testing "cannot payout within 3 days of last submission date."
+      (<p-should-fail! (tx-as acc-3 force-acc "payout"
+                  {:batch_id 0
+                  :account_id 1
+                  :date_in_sec time-within-three-days
+                  :sig nil
+                  :fee nil})))
+    (testing "can payout from eos account."
+      (<p-should-succeed! (tx-as acc-3 force-acc "payout"
+                  {:batch_id 0
+                  :account_id 1
+                  :date_in_sec time-after-three-days
+                  :sig nil
+                  :fee nil})))
+
+    (testing "can payout from pub key hash."
+      (<p-should-succeed! (tx-as acc-2 force-acc "payout"
+                  {:batch_id 0
+                  :account_id 0
+                  :date_in_sec time-after-three-days
+                  :sig (sign-params params)
+                  :fee nil})))))
 
 (defn -main [& args]
   (run-tests))
