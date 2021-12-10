@@ -198,20 +198,37 @@ void force::payout(uint64_t batch_id,
   payout_params params = {13, batch_id, account_id, date_in_sec};
   require_vaccount(account_id, pack(params), sig);
 
-  uint128_t payment_sk = (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32);  
-  auto payment_idx = payment_tbl.get_index<"accbatch"_n>();
-  auto& payment = payment_idx.get(payment_sk);
+  auto payment_idx = payment_tbl.get_index<"acc"_n>();
+  auto itr_start = payment_idx.lower_bound(account_id);
+  auto itr_end = payment_idx.upper_bound(account_id);
+  uint64_t amount = 0;
+  static bool got_sym;
+  eosio::extended_symbol sym;
 
-  uint64_t from_id = _config.get().force_vaccount_id;
-  uint64_t to_id = account_id;
-  bool date_is_within_range = compare_time(payment.last_submission_time.sec_since_epoch(), date_in_sec);
+  for (; itr_start != itr_end; itr_start++) {
+    auto& payment = *itr_start;
+    bool date_is_within_range = compare_time(payment.last_submission_time.sec_since_epoch(), date_in_sec);
 
-  eosio::check(date_is_within_range == true, "time is not within range.");
+    if (date_is_within_range == true) {
+      amount += payment.pending.quantity.amount;
+    }
+    if(!got_sym) {
+      got_sym = true;
+      eosio::check(payment.pending.get_extended_symbol().get_symbol().is_valid(), "symbol is not valid.");
+      sym = payment.pending.get_extended_symbol();
+    }
+  }
+  eosio::check(amount != 0, "amount is zero.");
+  eosio::extended_asset payment_asset = eosio::extended_asset(
+    amount,
+    sym
+  );
+  eosio::check(payment_asset.get_extended_symbol().get_symbol().is_valid(), "symbol is not valid.");
   action(
     permission_level{_self, "active"_n},
     _config.get().vaccount_contract,
     "vtransfer"_n,
-    std::make_tuple(from_id, to_id, (eosio::extended_asset)payment.pending, std::string(""), NULL, fee))
+    std::make_tuple((uint64_t)_config.get().force_vaccount_id, (uint64_t)account_id, payment_asset, std::string(""), NULL, fee))
   .send();
 }
 
