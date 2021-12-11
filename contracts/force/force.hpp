@@ -103,8 +103,7 @@ public:
                   eosio::name payer,
                   vaccount::sig sig);
   [[eosio::action]]
-  void payout(uint64_t batch_id,
-              uint32_t account_id,
+  void payout(uint32_t account_id,
               uint32_t date_in_sec,
               std::optional<eosio::signature> sig,
               std::optional<eosio::extended_asset> fee);
@@ -183,10 +182,9 @@ private:
   
   struct payout_params {
     uint8_t mark;
-    uint64_t batch_id;
     uint32_t account_id;
     uint32_t time_sec;
-    EOSLIB_SERIALIZE(payout_params, (mark)(batch_id)(account_id)(time_sec));
+    EOSLIB_SERIALIZE(payout_params, (mark)(account_id)(time_sec));
   };
 
   struct [[eosio::table]] campaign {

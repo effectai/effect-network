@@ -186,16 +186,12 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
                            s.paid = false;
                          });
 }
-void force::payout(uint64_t batch_id,
-                   uint32_t account_id,
+void force::payout(uint32_t account_id,
                    uint32_t date_in_sec,
                    std::optional<eosio::signature> sig,
                    std::optional<eosio::extended_asset> fee) {
   payment_table payment_tbl(_self, _self.value);
-  batch_table batch_tbl(_self, _self.value);
-  auto& batch = batch_tbl.get(batch_id, "batch not found");
-  
-  payout_params params = {13, batch_id, account_id, date_in_sec};
+  payout_params params = {13, account_id, date_in_sec};
   require_vaccount(account_id, pack(params), sig);
 
   auto payment_idx = payment_tbl.get_index<"acc"_n>();
@@ -205,17 +201,18 @@ void force::payout(uint64_t batch_id,
   static bool got_sym;
   eosio::extended_symbol sym;
 
-  for (; itr_start != itr_end; itr_start++) {
+  for (; itr_start != itr_end;) {
     auto& payment = *itr_start;
-    bool date_is_within_range = compare_time(payment.last_submission_time.sec_since_epoch(), date_in_sec);
+    bool time_is_after_period = compare_time(payment.last_submission_time.sec_since_epoch(), date_in_sec);
 
-    if (date_is_within_range == true) {
-      amount += payment.pending.quantity.amount;
-    }
     if(!got_sym) {
       got_sym = true;
       eosio::check(payment.pending.get_extended_symbol().get_symbol().is_valid(), "symbol is not valid.");
       sym = payment.pending.get_extended_symbol();
+    }
+    if (time_is_after_period == true) {
+      amount += payment.pending.quantity.amount;
+      itr_start = payment_idx.erase(itr_start);
     }
   }
   eosio::check(amount != 0, "amount is zero.");
