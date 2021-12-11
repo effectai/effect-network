@@ -34,6 +34,7 @@
 
 (def acc-3 (eos/random-account "acc"))
 (println "acc-3 " acc-3)
+(println "acc-2 " acc-2)
 (def accs [["address" (vacc/pub->addr vacc/keypair-pub)]
            ["name" acc-3]
            ["name" acc-2]])
@@ -96,9 +97,9 @@
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize)) (.push 7) (.pushUint32 camp-id))))
 
-(defn pack-payout-params [batch-id acc-id time]
+(defn pack-payout-params [acc-id time]
   (.asUint8Array
-   (doto (new (.-SerialBuffer Serialize)) (.push 13) (.pushNumberAsUint64 batch-id) (.pushUint32 acc-id) (.pushUint32 time))))
+   (doto (new (.-SerialBuffer Serialize)) (.push 13) (.pushUint32 acc-id) (.pushUint32 time))))
 
 (defn pack-reservetask-params [leaf-hash camp-id batch-id]
   (.asUint8Array
@@ -375,29 +376,35 @@
 (async-deftest payout
   (let [time-within-three-days (quot (.now js/Date) 1000)
         time-after-three-days (+ (quot (.now js/Date) 1000) 345600) ;; 4 days
-        params (pack-payout-params 0 0 time-after-three-days)]
+        params-1 (pack-payout-params 0 time-after-three-days)
+        params-2 (pack-payout-params 2 time-after-three-days)]
     (testing "cannot payout within 3 days of last submission date."
       (<p-should-fail! (tx-as acc-3 force-acc "payout"
-                  {:batch_id 0
-                  :account_id 1
-                  :date_in_sec time-within-three-days
-                  :sig nil
-                  :fee nil})))
+                  {:account_id 1
+                   :date_in_sec time-within-three-days
+                   :sig nil
+                   :fee nil})))
     (testing "can payout from eos account."
       (<p-should-succeed! (tx-as acc-3 force-acc "payout"
-                  {:batch_id 0
-                  :account_id 1
-                  :date_in_sec time-after-three-days
-                  :sig nil
-                  :fee nil})))
+                  {:account_id 1
+                   :date_in_sec time-after-three-days
+                   :sig nil
+                   :fee nil})))
 
     (testing "can payout from pub key hash."
       (<p-should-succeed! (tx-as acc-2 force-acc "payout"
-                  {:batch_id 0
-                  :account_id 0
-                  :date_in_sec time-after-three-days
-                  :sig (sign-params params)
-                  :fee nil})))))
+                  {:account_id 0
+                   :date_in_sec time-after-three-days
+                   :sig (sign-params params-1)
+                   :fee nil})))
+
+    (testing "cannot payout with nonexisting payment entries."
+      (<p-should-fail! (tx-as acc-2 force-acc "payout"
+                  {:account_id 2
+                   :date_in_sec time-after-three-days
+                   :sig (sign-params params-2)
+                   :fee nil})))
+                   ))
 
 (defn -main [& args]
   (run-tests))
