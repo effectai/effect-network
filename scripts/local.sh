@@ -30,8 +30,6 @@ pkill nodeos
 pkill keosd
 pkill node
 
-
-
 echo '🔐 Creating wallet.'
 # Create wallet, unlock and open
 cleos wallet create --file default.wallet 
@@ -147,14 +145,5 @@ npm link ../effect-js
 npm run dev &
 cd ..
 
-
 # Finished? Ready to go!
 echo '🎉 Finished! Ready to go!'
-
-
-
-
-
-
-
-

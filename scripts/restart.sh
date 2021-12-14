@@ -2,11 +2,16 @@
 
 echo "🪐 Restarting Local Effect Network. Working Directory: $(pwd)"
 
-# Remove the temporary directory
-# echo '🔥 Cleaning folder.'
-# rm -rf effect.accnt effect.force effect.token effect-js force-frontend-new force-frontend-new.nuxt vaccount-relayer
-# rm default.wallet nodeos.log
-# rm -rf ~/eosio-wallet/default.wallet
+if [ "$1" = "--replay" ]; then
+    echo "🚲 Restarting with replay"
+    delete_replay="--replay-blockchain"
+elif [ "$1" = "--delete" ]; then
+    echo "🚲 Restarting afresh, deleting all blocks"
+    delete_replay="--delete-all-blocks"
+else
+    echo "🚲 Restarting with default, using replay"
+    delete_replay="--replay-blockchain"
+fi
 
 # Kill running instances
 echo '🔥 Killing running instances.'
@@ -34,7 +39,7 @@ nodeos \
 --access-control-allow-origin="*" \
 --access-control-allow-headers="*" \
 --http-validate-host=false \
---replay-blockchain \
+$delete_replay \
 > nodeos.log 2>&1 & 
 
 sleep 5
