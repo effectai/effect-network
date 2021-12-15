@@ -195,6 +195,7 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
   campaign_table campaign_tbl(_self, _self.value);
 
   auto& sub = submission_tbl.get(submission_id, "submission not found");
+  eosio::check(sub.account_id.has_value(), "task not reserved");
   eosio::check(sub.account_id == account_id, "different account");
   submission_tbl.modify(sub, payer, [&](auto& s) { s.data = data; });
 
@@ -223,6 +224,57 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
   } else {
     payment_idx.modify(payment, payer, [&](auto& p) { p.pending += camp.reward; p.last_submission_time = time_point_sec(now()); });
   }
+}
+
+void force::releasetask(uint64_t task_id, uint32_t account_id,
+                        eosio::name payer, vaccount::sig sig) {
+  submission_table submission_tbl(_self, _self.value);
+  batch_table batch_tbl(_self, _self.value);
+  campaign_table campaign_tbl(_self, _self.value);
+  vaccount::account_table account_tbl(_config.get().vaccount_contract, _config.get().vaccount_contract.value);
+  auto acc_idx = account_tbl.get_index<"token"_n>();
+
+  task_params params = {14, task_id, account_id};
+  require_vaccount(account_id, pack(params), sig);
+
+  auto& sub = submission_tbl.get(task_id, "reservation not found");
+  auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
+  auto& camp = campaign_tbl.get(batch.campaign_id, "campaign not found");
+
+  eosio::checksum256 token = vaccount::make_token_index(camp.reward.contract, camp.owner);  
+  
+  auto acc_itr_start = acc_idx.lower_bound(token);
+  auto acc_itr_end = acc_idx.upper_bound(token);
+
+
+  /**
+   * TODO: should be possible to get vaccount.id with .find method
+  **/
+  for (; acc_itr_start != acc_itr_end; acc_itr_start++) {
+    auto& acc = *acc_itr_start;
+    eosio::print_f("acc_id: %", acc.id);
+
+    eosio::check(
+      sub.account_id == account_id || acc.id == account_id,
+      "only worker who reserved it or campaign owner can release task."
+    );
+  }
+  eosio::check(sub.account_id.has_value(), "cannot release already released task.");
+  eosio::check(sub.data == std::string(""), "cannot release task with data.");
+  submission_tbl.modify(sub, payer, [&](auto& s) { s.account_id.reset(); });  
+}
+
+void force::reclaimtask(uint64_t task_id, uint32_t account_id,
+                        eosio::name payer, vaccount::sig sig) {
+  submission_table submission_tbl(_self, _self.value);
+  
+  task_params params = {15, task_id, account_id};
+  require_vaccount(account_id, pack(params), sig);
+  
+  auto& sub = submission_tbl.get(task_id, "reservation not found");
+
+  eosio::check(!sub.account_id.has_value() && sub.data == std::string(""), "Cannot reclaim reserved task.");
+  submission_tbl.modify(sub, payer, [&](auto& s) { s.account_id = account_id; });
 }
 
 void force::vtransfer_handler(uint64_t from_id, uint64_t to_id, extended_asset quantity,
