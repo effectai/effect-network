@@ -187,11 +187,9 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
                          });
 }
 void force::payout(uint32_t account_id,
-                   uint32_t date_in_sec,
-                   std::optional<eosio::signature> sig,
-                   std::optional<eosio::extended_asset> fee) {
+                   std::optional<eosio::signature> sig) {
   payment_table payment_tbl(_self, _self.value);
-  payout_params params = {13, account_id, date_in_sec};
+  payout_params params = {13, account_id};
   require_vaccount(account_id, pack(params), sig);
 
   auto payment_idx = payment_tbl.get_index<"acc"_n>();
@@ -203,7 +201,7 @@ void force::payout(uint32_t account_id,
 
   for (; itr_start != itr_end;) {
     auto& payment = *itr_start;
-    bool time_is_after_period = compare_time(payment.last_submission_time.sec_since_epoch(), date_in_sec);
+    bool time_is_after_period = compare_time(payment.last_submission_time);
 
     if(!got_sym) {
       got_sym = true;
@@ -213,6 +211,8 @@ void force::payout(uint32_t account_id,
     if (time_is_after_period == true) {
       amount += payment.pending.quantity.amount;
       itr_start = payment_idx.erase(itr_start);
+    } else {
+      itr_start++;
     }
   }
   eosio::check(amount != 0, "amount is zero.");
@@ -225,7 +225,7 @@ void force::payout(uint32_t account_id,
     permission_level{_self, "active"_n},
     _config.get().vaccount_contract,
     "vtransfer"_n,
-    std::make_tuple((uint64_t)_config.get().force_vaccount_id, (uint64_t)account_id, payment_asset, std::string(""), NULL, fee))
+    std::make_tuple((uint64_t)_config.get().force_vaccount_id, (uint64_t)account_id, payment_asset, std::string(""), NULL, NULL))
   .send();
 }
 

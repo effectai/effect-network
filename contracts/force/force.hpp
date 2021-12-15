@@ -13,9 +13,9 @@ inline uint32_t now() {
   static uint32_t current_time = eosio::current_time_point().sec_since_epoch();
   return current_time;
 }
-inline bool compare_time(uint32_t date_sec, uint32_t now_sec) {
-  uint32_t threedays = date_sec + 259200; // 3 days in sec
-  return (now_sec > threedays ? true : false);
+inline bool compare_time(time_point_sec date_sec) {
+  time_point_sec threedays = date_sec + 259200; // 3 days in sec
+  return (time_point_sec(now()) > threedays ? true : false);
 }
 
 class [[eosio::contract("force")]] force : public eosio::contract {
@@ -104,9 +104,7 @@ public:
                   vaccount::sig sig);
   [[eosio::action]]
   void payout(uint32_t account_id,
-              uint32_t date_in_sec,
-              std::optional<eosio::signature> sig,
-              std::optional<eosio::extended_asset> fee);
+              std::optional<eosio::signature> sig);
 
   [[eosio::on_notify("*::vtransfer")]]
   void vtransfer_handler(uint64_t from_id,
@@ -183,8 +181,7 @@ private:
   struct payout_params {
     uint8_t mark;
     uint32_t account_id;
-    uint32_t time_sec;
-    EOSLIB_SERIALIZE(payout_params, (mark)(account_id)(time_sec));
+    EOSLIB_SERIALIZE(payout_params, (mark)(account_id));
   };
 
   struct [[eosio::table]] campaign {
