@@ -264,8 +264,9 @@ void force::reclaimtask(uint64_t task_id, uint32_t account_id,
 
   task_params params = {15, task_id, account_id};
   require_vaccount(account_id, pack(params), sig);
-  
-  eosio::check(!sub.account_id.has_value() && sub.data == std::string(""), "Cannot reclaim reserved task.");
+
+  eosio::check(!sub.account_id.has_value(), "task already reserved");
+  eosio::check(sub.data.empty(), "task already submitted");
   submission_tbl.modify(sub, payer, [&](auto& s) { s.account_id = account_id; });
 }
 

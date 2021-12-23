@@ -383,21 +383,27 @@
                                 :sig (sign-params (pack-task-params 14 1 0))}))))
 
 (async-deftest reclaimtask
+  (testing "can not reclaim task from not joined campaign"
+    (<p-should-fail-with! (tx-as acc-2 force-acc "reclaimtask"
+                                 {:task_id 1
+                                  :account_id 3
+                                  :payer acc-2
+                                  :sig nil})
+                          "" "campaign not joined"))
+
   (testing "can reclaim released task with eos account"
     (<p-should-succeed! (tx-as acc-2 force-acc "reclaimtask"
                                {:task_id 1
                                 :account_id 2
                                 :payer acc-2
-                                :sig nil
-                                })))
+                                :sig nil})))
 
   (testing "can reclaim released task with pub key hash"
     (<p-should-succeed! (tx-as acc-3 force-acc "reclaimtask"
                                {:task_id 0
                                 :account_id 0
                                 :payer acc-3
-                                :sig (sign-params (pack-task-params 15 0 0))})))
-)
+                                :sig (sign-params (pack-task-params 15 0 0))}))))
 
 (async-deftest submit-task
   (<p-should-succeed!
