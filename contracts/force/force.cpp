@@ -231,37 +231,23 @@ void force::releasetask(uint64_t task_id, uint32_t account_id,
   submission_table submission_tbl(_self, _self.value);
   batch_table batch_tbl(_self, _self.value);
   campaign_table campaign_tbl(_self, _self.value);
-  vaccount::account_table account_tbl(_config.get().vaccount_contract, _config.get().vaccount_contract.value);
-  auto acc_idx = account_tbl.get_index<"token"_n>();
-
-  task_params params = {14, task_id, account_id};
-  require_vaccount(account_id, pack(params), sig);
+  auto vacc_contract = _config.get().vaccount_contract;
 
   auto& sub = submission_tbl.get(task_id, "reservation not found");
-  auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
-  auto& camp = campaign_tbl.get(batch.campaign_id, "campaign not found");
-
-  eosio::checksum256 token = vaccount::make_token_index(camp.reward.contract, camp.owner);  
-  
-  auto acc_itr_start = acc_idx.lower_bound(token);
-  auto acc_itr_end = acc_idx.upper_bound(token);
-
-
-  /**
-   * TODO: should be possible to get vaccount.id with .find method
-  **/
-  for (; acc_itr_start != acc_itr_end; acc_itr_start++) {
-    auto& acc = *acc_itr_start;
-    eosio::print_f("acc_id: %", acc.id);
-
-    eosio::check(
-      sub.account_id == account_id || acc.id == account_id,
-      "only worker who reserved it or campaign owner can release task."
-    );
-  }
   eosio::check(sub.account_id.has_value(), "cannot release already released task.");
   eosio::check(sub.data == std::string(""), "cannot release task with data.");
-  submission_tbl.modify(sub, payer, [&](auto& s) { s.account_id.reset(); });  
+
+  task_params params = {14, task_id, account_id};
+  std::vector<char> msg_bytes = pack(params);
+  if (sub.account_id == account_id) {
+    require_vaccount(account_id, msg_bytes, sig);
+  } else {
+    auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
+    auto& camp = campaign_tbl.get(batch.campaign_id, "campaign not found");
+    vaccount::require_auth(msg_bytes, camp.owner, sig);
+  }
+
+  submission_tbl.modify(sub, eosio::same_payer, [&](auto& s) { s.account_id.reset(); });
 }
 
 void force::reclaimtask(uint64_t task_id, uint32_t account_id,
