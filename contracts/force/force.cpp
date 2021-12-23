@@ -253,12 +253,18 @@ void force::releasetask(uint64_t task_id, uint32_t account_id,
 void force::reclaimtask(uint64_t task_id, uint32_t account_id,
                         eosio::name payer, vaccount::sig sig) {
   submission_table submission_tbl(_self, _self.value);
-  
+  batch_table batch_tbl(_self, _self.value);
+  campaignjoin_table campaignjoin_tbl(_self, _self.value);
+
+  auto& sub = submission_tbl.get(task_id, "reservation not found");
+  auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
+
+  uint64_t campaignjoin_pk = (uint64_t{batch.campaign_id} << 32) | account_id;
+  auto campaignjoin = campaignjoin_tbl.require_find(campaignjoin_pk, "campaign not joined");
+
   task_params params = {15, task_id, account_id};
   require_vaccount(account_id, pack(params), sig);
   
-  auto& sub = submission_tbl.get(task_id, "reservation not found");
-
   eosio::check(!sub.account_id.has_value() && sub.data == std::string(""), "Cannot reclaim reserved task.");
   submission_tbl.modify(sub, payer, [&](auto& s) { s.account_id = account_id; });
 }
