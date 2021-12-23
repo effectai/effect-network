@@ -20,6 +20,8 @@
 
 (def owner-acc "eosio")
 (def acc-2 (eos/random-account "acc"))
+(def acc-3 (eos/random-account "acc"))
+(def acc-4 (eos/random-account "acc"))
 (def vacc-acc (eos/random-account "vacc"))
 (def token-acc (eos/random-account "tkn"))
 (def force-acc (eos/random-account "force"))
@@ -29,11 +31,11 @@
 (defn tx-as [acc contr action args]
   (eos/transact contr action args [{:actor acc :permission "active"}]))
 
-(def acc-3 (eos/random-account "acc"))
 (println "acc-3 " acc-3)
 (def accs [["address" (vacc/pub->addr vacc/keypair-pub)]
            ["name" acc-3]
-           ["name" acc-2]])
+           ["name" acc-2]
+           ["name" acc-4]])
 
 (use-fixtures :once
   {:before
@@ -78,6 +80,11 @@
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize))
      (.push 11) (.pushUint32 camp-id))))
+
+(defn pack-task-params [mark task-id acc-id]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize))
+     (.push mark) (.pushNumberAsUint64 task-id)(.pushUint32 acc-id))))
 
 (defn pack-mkbatch-params [id camp-id content root]
   (.asUint8Array
@@ -228,7 +235,7 @@
   (testing "can deposit efx"
     (<p! (tx-as acc-2 vacc-acc "vtransfer"
                 {:from_id 2
-                 :to_id 3
+                 :to_id 4
                  :quantity {:quantity "50.0000 EFX" :contract token-acc}
                  :memo "0"
                  :sig nil
@@ -343,23 +350,77 @@
                                              :sig nil})
        "" "task already completed"))))
 
+(async-deftest releasetask
+  (testing "campaign owner can release reserved task with eos account"
+    (<p-should-succeed! (tx-as acc-2 force-acc "releasetask"
+                               {:task_id 0
+                                :account_id 2
+                                :payer acc-2
+                                :sig nil
+                                })))
+
+  (testing "worker cannot release already released task"
+    (<p-should-fail! (tx-as acc-3 force-acc "releasetask"
+                               {:task_id 0
+                                :account_id 1
+                                :payer acc-3
+                                :sig nil
+                                })))
+
+  (testing "other workers cannot release reserved tasks"
+    (<p-should-fail! (tx-as acc-4 force-acc "releasetask"
+                               {:task_id 1
+                                :account_id 3
+                                :payer acc-4
+                                :sig nil
+                                })))
+
+  (testing "can release reserved task with pub key hash"
+    (<p-should-succeed! (tx-as acc-4 force-acc "releasetask"
+                               {:task_id 1
+                                :account_id 0
+                                :payer acc-4
+                                :sig (sign-params (pack-task-params 14 1 0))}))))
+
+(async-deftest reclaimtask
+  (testing "can not reclaim task from not joined campaign"
+    (<p-should-fail-with! (tx-as acc-2 force-acc "reclaimtask"
+                                 {:task_id 1
+                                  :account_id 3
+                                  :payer acc-2
+                                  :sig nil})
+                          "" "campaign not joined"))
+
+  (testing "can reclaim released task with eos account"
+    (<p-should-succeed! (tx-as acc-2 force-acc "reclaimtask"
+                               {:task_id 1
+                                :account_id 2
+                                :payer acc-2
+                                :sig nil})))
+
+  (testing "can reclaim released task with pub key hash"
+    (<p-should-succeed! (tx-as acc-3 force-acc "reclaimtask"
+                               {:task_id 0
+                                :account_id 0
+                                :payer acc-3
+                                :sig (sign-params (pack-task-params 15 0 0))}))))
 
 (async-deftest submit-task
   (<p-should-succeed!
-   (tx-as acc-3 force-acc "submittask" {:data "testdata"
+   (tx-as acc-2 force-acc "submittask" {:data "testdata"
                                         :batch_id 0
-                                        :task_id 0
-                                        :account_id 1
+                                        :task_id 1
+                                        :account_id 2
                                         :sig nil
-                                        :payer acc-3}))
+                                        :payer acc-2}))
   (let [data "testdata 2"]
     (<p-should-succeed!
      (tx-as acc-3 force-acc "submittask" {:data data
                                           :batch_id 0
-                                          :task_id 1
+                                          :task_id 0
                                           :account_id 0
-                                          :sig (sign-params (pack-submittask-params 1 data))
-                                          :payer acc-3})))  )
+                                          :sig (sign-params (pack-submittask-params 0 data))
+                                          :payer acc-3}))))
 
 (defn -main [& args]
   (run-tests))
