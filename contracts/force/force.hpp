@@ -103,7 +103,7 @@ public:
                   eosio::name payer,
                   vaccount::sig sig);
   [[eosio::action]]
-  void payout(uint32_t account_id,
+  void payout(uint64_t payment_id,
               std::optional<eosio::signature> sig);
 
   [[eosio::on_notify("*::vtransfer")]]

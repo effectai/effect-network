@@ -188,42 +188,28 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
                          });
 }
 
-void force::payout(uint32_t account_id, std::optional<eosio::signature> sig) {
+void force::payout(uint64_t payment_id, std::optional<eosio::signature> sig) {
   payment_table payment_tbl(_self, _self.value);
-  payout_params params = {13, account_id};
-  require_vaccount(account_id, pack(params), sig);
 
-  auto payment_idx = payment_tbl.get_index<"acc"_n>();
-  auto itr_start = payment_idx.lower_bound(account_id);
-  auto itr_end = payment_idx.upper_bound(account_id);
-  uint64_t amount = 0;
-  static bool got_sym;
-  eosio::extended_symbol sym;
+  auto& payment = payment_tbl.get(payment_id, "payment not found");
 
-  for (; itr_start != itr_end;) {
-    auto& payment = *itr_start;
+  payout_params params = {13, payment.account_id};
+  require_vaccount(payment.account_id, pack(params), sig);
+  eosio::check(past_payout_delay(payment.last_submission_time), "not past payout delay");
+  eosio::check(payment.pending.quantity.amount > 0, "nothing to payout");
 
-    if (!got_sym) {
-      got_sym = true;
-      sym = payment.pending.get_extended_symbol();
-    }
-
-    if (past_payout_delay(payment.last_submission_time)) {
-      amount += payment.pending.quantity.amount;
-      itr_start = payment_idx.erase(itr_start);
-    } else {
-      itr_start++;
-    }
-  }
-
-  eosio::check(amount != 0, "amount is zero");
-  eosio::extended_asset payment_asset = eosio::extended_asset(amount, sym);
+  payment_tbl.erase(payment);
 
   action(
     permission_level{_self, "active"_n},
     _config.get().vaccount_contract,
     "vtransfer"_n,
-    std::make_tuple((uint64_t) _config.get().force_vaccount_id, (uint64_t) account_id, payment_asset, std::string(""), NULL, NULL))
+    std::make_tuple((uint64_t) _config.get().force_vaccount_id,
+                    (uint64_t) payment.account_id,
+                    payment.pending,
+                    std::string(""),
+                    NULL,
+                    NULL))
   .send();
 }
 

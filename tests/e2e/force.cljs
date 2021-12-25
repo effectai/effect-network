@@ -376,32 +376,45 @@
                                           :sig (sign-params (pack-submittask-params 1 data))
                                           :payer acc-3}))))
 
+(defn get-in-rows
+  "Applies `get-in` on the result of `get-table-rows`
+
+  Scope is assumed to be the same as account"
+  [acc tbl vec]
+  (.then (eos/get-table-rows acc acc tbl)
+         #(get-in % vec)))
+
 (async-deftest payout
   (let [params-1 (pack-payout-params 0)
         params-2 (pack-payout-params 2)]
 
     (testing "cannot payout before the delay is past"
       (<p-should-fail-with! (tx-as acc-3 force-acc "payout"
-                                   {:account_id 1
+                                   {:payment_id 0
                                     :sig nil})
-                            "" "amount is zero"))
+                            "" "not past payout delay"))
 
-    (testing "cannot payout with nonexisting payment entries."
-      (<p-should-fail! (tx-as acc-2 force-acc "payout"
-                              {:account_id 2
-                               :sig (sign-params params-2)})))
+    (testing "cannot payout with nonexisting payment"
+      (<p-should-fail-with! (tx-as acc-2 force-acc "payout"
+                                   {:payment_id 2
+                                    :sig (sign-params params-2)})
+                            "" "payment not found"))
 
     (<p! (util/wait 10000))
 
     (testing "can payout from eos account."
+      (is (= (<p! (get-in-rows force-acc "payment" [1 "pending" "quantity"])) "3.0000 EFX"))
+      (is (= (<p! (get-in-rows vacc-acc "account" [1 "balance" "quantity"])) "0.0000 EFX"))
+
       (<p-should-succeed! (tx-as acc-3 force-acc "payout"
-                  {:account_id 1
-                   :sig nil})))
+                                 {:payment_id 0
+                                  :sig nil}))
+      (is (= (<p! (get-in-rows vacc-acc "account" [1 "balance" "quantity"])) "3.0000 EFX")))
 
     (testing "can payout from pub key hash."
       (<p-should-succeed! (tx-as acc-2 force-acc "payout"
-                  {:account_id 0
-                   :sig (sign-params params-1)})))))
+                                 {:payment_id 1
+                                  :sig (sign-params params-1)})))))
 
 (defn -main [& args]
   (run-tests))
