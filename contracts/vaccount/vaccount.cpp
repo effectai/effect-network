@@ -2,12 +2,10 @@
 
 void vaccount::open(vaddress addr, eosio::extended_symbol symbol, eosio::name payer) {
   account_table acc_tbl(_self, _self.value);
-  uint64_t id = acc_tbl.available_primary_key();
-  eosio::extended_asset asset(0, symbol);
 
   // check user does not already have a balance for this symbol
   auto acc_tbl_idx = acc_tbl.get_index<"token"_n>();
-  auto idx_key = make_token_index(symbol.get_contract(), addr);
+  eosio::checksum256 idx_key = this->make_token_index(symbol.get_contract(), addr);
   auto itr_start = acc_tbl_idx.lower_bound(idx_key);
   auto itr_end = acc_tbl_idx.upper_bound(idx_key);
 
@@ -24,6 +22,8 @@ void vaccount::open(vaddress addr, eosio::extended_symbol symbol, eosio::name pa
   }
 
   if (found == false) {
+    uint64_t id = acc_tbl.available_primary_key();
+    eosio::extended_asset asset(0, symbol);
     acc_tbl.emplace(payer,
                     [&](auto& a)
                     {

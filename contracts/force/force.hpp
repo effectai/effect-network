@@ -116,6 +116,7 @@ public:
 
   [[eosio::action]]
   void clean() {
+    require_auth(_self);
     cleanTable<submission_table>(_self, _self.value, 100);
     cleanTable<batch_table>(_self, _self.value, 100);
     cleanTable<campaign_table>(_self, _self.value, 100);
