@@ -13,10 +13,8 @@ inline uint32_t now() {
   static uint32_t current_time = eosio::current_time_point().sec_since_epoch();
   return current_time;
 }
-inline bool compare_time(time_point_sec date_sec) {
-  time_point_sec threedays = date_sec + 259200; // 3 days in sec
-  return (time_point_sec(now()) > threedays ? true : false);
-}
+
+
 
 class [[eosio::contract("force")]] force : public eosio::contract {
 private:
@@ -42,7 +40,9 @@ public:
   {};
 
   [[eosio::action]]
-  void init(eosio::name vaccount_contract, uint32_t force_vaccount_id);
+  void init(eosio::name vaccount_contract,
+            uint32_t force_vaccount_id,
+            uint32_t payout_delay_sec);
 
   [[eosio::action]]
   void mkcampaign(vaccount::vaddress owner,
@@ -124,6 +124,10 @@ public:
   };
 
 private:
+  inline bool past_payout_delay(time_point_sec base_time) {
+    return time_point_sec(now()) > (base_time + _config.get().payout_delay_sec);
+  }
+
   void require_merkle(std::vector<eosio::checksum256> proof,
                       std::vector<uint8_t> position,
                       eosio::checksum256 root,
@@ -177,7 +181,7 @@ private:
     uint32_t campaign_id;
     EOSLIB_SERIALIZE(joincampaign_params, (mark)(campaign_id));
   };
-  
+
   struct payout_params {
     uint8_t mark;
     uint32_t account_id;
@@ -252,6 +256,7 @@ private:
   struct [[eosio::table]] config {
     eosio::name vaccount_contract;
     uint32_t force_vaccount_id;
+    uint32_t payout_delay_sec;
   };
 
   typedef singleton<"config"_n, config> config_table;

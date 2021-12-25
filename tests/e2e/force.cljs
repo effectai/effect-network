@@ -67,10 +67,12 @@
 (async-deftest init
   (testing "other accounts cant init"
     (<p-should-fail! (tx-as owner-acc force-acc "init" {:vaccount_contract vacc-acc
-                                                        :force_vaccount_id 3})))
+                                                        :force_vaccount_id 3
+                                                        :payout_delay_sec 1})))
   (testing "owner can init"
     (<p-should-succeed! (tx-as-owner force-acc force-acc "init" {:vaccount_contract vacc-acc
-                                                        :force_vaccount_id 3}))))
+                                                                 :force_vaccount_id 3
+                                                                 :payout_delay_sec 1}))))
 
 (defn pack-mkcampaign-params [content]
   (.asUint8Array
@@ -211,6 +213,7 @@
                                 :task_merkle_root merkle-root
                                 :payer acc-2
                                 :sig nil})))
+
   (testing "pub key hash can create batch"
     (let [merkle-root merkle-root
           params (pack-mkbatch-params 0 2 vacc/hash160-1 merkle-root)]
@@ -377,18 +380,19 @@
   (let [params-1 (pack-payout-params 0)
         params-2 (pack-payout-params 2)]
 
-    (testing "cannot payout within 3 days of last submission date."
-      (<p-should-fail! (tx-as acc-3 force-acc "payout"
-                  {:account_id 1
-                   :sig nil})))
+    (testing "cannot payout before the delay is past"
+      (<p-should-fail-with! (tx-as acc-3 force-acc "payout"
+                                   {:account_id 1
+                                    :sig nil})
+                            "" "amount is zero"))
 
     (testing "cannot payout with nonexisting payment entries."
       (<p-should-fail! (tx-as acc-2 force-acc "payout"
-                  {:account_id 2
-                   :sig (sign-params params-2)})))
+                              {:account_id 2
+                               :sig (sign-params params-2)})))
 
-    ;; Don't forget to change the period value in compare_time.
     (<p! (util/wait 10000))
+
     (testing "can payout from eos account."
       (<p-should-succeed! (tx-as acc-3 force-acc "payout"
                   {:account_id 1

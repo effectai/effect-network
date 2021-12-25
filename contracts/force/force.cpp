@@ -1,8 +1,9 @@
 #include "force.hpp"
 
-void force::init(eosio::name vaccount_contract, uint32_t force_vaccount_id) {
+void force::init(eosio::name vaccount_contract, uint32_t force_vaccount_id,
+                 uint32_t payout_delay_sec) {
   eosio::require_auth(_self);
-  _config.set(config{vaccount_contract, force_vaccount_id}, _self);
+  _config.set(config{vaccount_contract, force_vaccount_id, payout_delay_sec}, _self);
 }
 
 void force::mkcampaign(vaccount::vaddress owner, content content, eosio::extended_asset reward,
@@ -186,8 +187,8 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
                            s.paid = false;
                          });
 }
-void force::payout(uint32_t account_id,
-                   std::optional<eosio::signature> sig) {
+
+void force::payout(uint32_t account_id, std::optional<eosio::signature> sig) {
   payment_table payment_tbl(_self, _self.value);
   payout_params params = {13, account_id};
   require_vaccount(account_id, pack(params), sig);
@@ -201,31 +202,28 @@ void force::payout(uint32_t account_id,
 
   for (; itr_start != itr_end;) {
     auto& payment = *itr_start;
-    bool time_is_after_period = compare_time(payment.last_submission_time);
 
-    if(!got_sym) {
+    if (!got_sym) {
       got_sym = true;
-      eosio::check(payment.pending.get_extended_symbol().get_symbol().is_valid(), "symbol is not valid.");
       sym = payment.pending.get_extended_symbol();
     }
-    if (time_is_after_period == true) {
+
+    if (past_payout_delay(payment.last_submission_time)) {
       amount += payment.pending.quantity.amount;
       itr_start = payment_idx.erase(itr_start);
     } else {
       itr_start++;
     }
   }
-  eosio::check(amount != 0, "amount is zero.");
-  eosio::extended_asset payment_asset = eosio::extended_asset(
-    amount,
-    sym
-  );
-  eosio::check(payment_asset.get_extended_symbol().get_symbol().is_valid(), "symbol is not valid.");
+
+  eosio::check(amount != 0, "amount is zero");
+  eosio::extended_asset payment_asset = eosio::extended_asset(amount, sym);
+
   action(
     permission_level{_self, "active"_n},
     _config.get().vaccount_contract,
     "vtransfer"_n,
-    std::make_tuple((uint64_t)_config.get().force_vaccount_id, (uint64_t)account_id, payment_asset, std::string(""), NULL, NULL))
+    std::make_tuple((uint64_t) _config.get().force_vaccount_id, (uint64_t) account_id, payment_asset, std::string(""), NULL, NULL))
   .send();
 }
 
@@ -263,7 +261,13 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
                           p.last_submission_time = time_point_sec(now());
                         });
   } else {
-    payment_idx.modify(payment, payer, [&](auto& p) { p.pending += camp.reward; p.last_submission_time = time_point_sec(now()); });
+    payment_idx.modify(payment,
+                       payer,
+                       [&](auto& p)
+                       {
+                         p.pending += camp.reward;
+                         p.last_submission_time = time_point_sec(now());
+                       });
   }
 }
 
