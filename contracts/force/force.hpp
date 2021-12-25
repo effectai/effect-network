@@ -106,6 +106,18 @@ public:
   void payout(uint64_t payment_id,
               std::optional<eosio::signature> sig);
 
+[[eosio::action]]
+  void releasetask(uint64_t task_id,
+                  uint32_t account_id,
+                  eosio::name payer,
+                  vaccount::sig sig);
+
+[[eosio::action]]
+  void reclaimtask(uint64_t task_id,
+                  uint32_t account_id,
+                  eosio::name payer,
+                  vaccount::sig sig);
+
   [[eosio::on_notify("*::vtransfer")]]
   void vtransfer_handler(uint64_t from_id,
                          uint64_t to_id,
@@ -185,8 +197,15 @@ private:
 
   struct payout_params {
     uint8_t mark;
+    uint32_t payment_id;
+    EOSLIB_SERIALIZE(payout_params, (mark)(payment_id));
+  };
+
+  struct task_params {
+    uint8_t mark;
+    uint64_t task_id;
     uint32_t account_id;
-    EOSLIB_SERIALIZE(payout_params, (mark)(account_id));
+    EOSLIB_SERIALIZE(task_params, (mark)(task_id)(account_id));
   };
 
   struct [[eosio::table]] campaign {
@@ -234,7 +253,7 @@ private:
 
   struct [[eosio::table]] submission {
     uint64_t id;
-    uint32_t account_id;
+    std::optional<uint32_t> account_id;
     std::optional<content> content;
     checksum256 leaf_hash;
     uint64_t batch_id;

@@ -20,6 +20,8 @@
 
 (def owner-acc "eosio")
 (def acc-2 (eos/random-account "acc"))
+(def acc-3 (eos/random-account "acc"))
+(def acc-4 (eos/random-account "acc"))
 (def vacc-acc (eos/random-account "vacc"))
 (def token-acc (eos/random-account "tkn"))
 (def force-acc (eos/random-account "force"))
@@ -32,12 +34,12 @@
 (defn tx-as-owner [acc contr action args]
   (eos/transact contr action args [{:actor acc :permission "owner"}]))
 
-(def acc-3 (eos/random-account "acc"))
 (println "acc-3 " acc-3)
 (println "acc-2 " acc-2)
 (def accs [["address" (vacc/pub->addr vacc/keypair-pub)]
            ["name" acc-3]
-           ["name" acc-2]])
+           ["name" acc-2]
+           ["name" acc-4]])
 
 (use-fixtures :once
   {:before
@@ -67,11 +69,11 @@
 (async-deftest init
   (testing "other accounts cant init"
     (<p-should-fail! (tx-as owner-acc force-acc "init" {:vaccount_contract vacc-acc
-                                                        :force_vaccount_id 3
+                                                        :force_vaccount_id 4
                                                         :payout_delay_sec 1})))
   (testing "owner can init"
     (<p-should-succeed! (tx-as-owner force-acc force-acc "init" {:vaccount_contract vacc-acc
-                                                                 :force_vaccount_id 3
+                                                                 :force_vaccount_id 4
                                                                  :payout_delay_sec 1}))))
 
 (defn pack-mkcampaign-params [content]
@@ -88,6 +90,11 @@
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize))
      (.push 11) (.pushUint32 camp-id))))
+
+(defn pack-task-params [mark task-id acc-id]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize))
+     (.push mark) (.pushNumberAsUint64 task-id)(.pushUint32 acc-id))))
 
 (defn pack-mkbatch-params [id camp-id content root]
   (.asUint8Array
@@ -243,7 +250,7 @@
   (testing "vaccount can transfer efx to batch"
     (<p! (tx-as acc-2 vacc-acc "vtransfer"
                 {:from_id 2
-                 :to_id 3
+                 :to_id 4
                  :quantity {:quantity "50.0000 EFX" :contract token-acc}
                  :memo "0"
                  :sig nil
@@ -358,22 +365,76 @@
                                              :sig nil})
        "" "task already completed"))))
 
+(async-deftest releasetask
+  (testing "campaign owner can release reserved task with eos account"
+    (<p-should-succeed! (tx-as acc-2 force-acc "releasetask"
+                               {:task_id 0
+                                :account_id 2
+                                :payer acc-2
+                                :sig nil
+                                })))
+
+  (testing "worker cannot release already released task"
+    (<p-should-fail! (tx-as acc-3 force-acc "releasetask"
+                               {:task_id 0
+                                :account_id 1
+                                :payer acc-3
+                                :sig nil
+                                })))
+
+  (testing "other workers cannot release reserved tasks"
+    (<p-should-fail! (tx-as acc-4 force-acc "releasetask"
+                               {:task_id 1
+                                :account_id 3
+                                :payer acc-4
+                                :sig nil
+                                })))
+
+  (testing "can release reserved task with pub key hash"
+    (<p-should-succeed! (tx-as acc-4 force-acc "releasetask"
+                               {:task_id 1
+                                :account_id 0
+                                :payer acc-4
+                                :sig (sign-params (pack-task-params 14 1 0))}))))
+
+(async-deftest reclaimtask
+  (testing "can not reclaim task from not joined campaign"
+    (<p-should-fail-with! (tx-as acc-2 force-acc "reclaimtask"
+                                 {:task_id 1
+                                  :account_id 3
+                                  :payer acc-2
+                                  :sig nil})
+                          "" "campaign not joined"))
+
+  (testing "can reclaim released task with eos account"
+    (<p-should-succeed! (tx-as acc-2 force-acc "reclaimtask"
+                               {:task_id 1
+                                :account_id 2
+                                :payer acc-2
+                                :sig nil})))
+
+  (testing "can reclaim released task with pub key hash"
+    (<p-should-succeed! (tx-as acc-3 force-acc "reclaimtask"
+                               {:task_id 0
+                                :account_id 0
+                                :payer acc-3
+                                :sig (sign-params (pack-task-params 15 0 0))}))))
 
 (async-deftest submit-task
   (<p-should-succeed!
-   (tx-as acc-3 force-acc "submittask" {:data "testdata"
+   (tx-as acc-2 force-acc "submittask" {:data "testdata"
                                         :batch_id 0
-                                        :task_id 0
-                                        :account_id 1
+                                        :task_id 1
+                                        :account_id 2
                                         :sig nil
-                                        :payer acc-3}))
+                                        :payer acc-2}))
   (let [data "testdata 2"]
     (<p-should-succeed!
      (tx-as acc-3 force-acc "submittask" {:data data
                                           :batch_id 0
-                                          :task_id 1
+                                          :task_id 0
                                           :account_id 0
-                                          :sig (sign-params (pack-submittask-params 1 data))
+                                          :sig (sign-params (pack-submittask-params 0 data))
                                           :payer acc-3}))))
 
 (defn get-in-rows
@@ -389,7 +450,7 @@
         params-2 (pack-payout-params 2)]
 
     (testing "cannot payout before the delay is past"
-      (<p-should-fail-with! (tx-as acc-3 force-acc "payout"
+      (<p-should-fail-with! (tx-as acc-2 force-acc "payout"
                                    {:payment_id 0
                                     :sig nil})
                             "" "not past payout delay"))
@@ -402,14 +463,15 @@
 
     (<p! (util/wait 10000))
 
-    (testing "can payout from eos account."
+    (testing "can payout from eos account"
+      ;; test that account balance increases after payment
       (is (= (<p! (get-in-rows force-acc "payment" [1 "pending" "quantity"])) "3.0000 EFX"))
-      (is (= (<p! (get-in-rows vacc-acc "account" [1 "balance" "quantity"])) "0.0000 EFX"))
+      (is (= (<p! (get-in-rows vacc-acc "account" [2 "balance" "quantity"])) "450.0000 EFX"))
 
-      (<p-should-succeed! (tx-as acc-3 force-acc "payout"
+      (<p-should-succeed! (tx-as acc-2 force-acc "payout"
                                  {:payment_id 0
                                   :sig nil}))
-      (is (= (<p! (get-in-rows vacc-acc "account" [1 "balance" "quantity"])) "3.0000 EFX")))
+      (is (= (<p! (get-in-rows vacc-acc "account" [2 "balance" "quantity"])) "453.0000 EFX")))
 
     (testing "can payout from pub key hash."
       (<p-should-succeed! (tx-as acc-2 force-acc "payout"
