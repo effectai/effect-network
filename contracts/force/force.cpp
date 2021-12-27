@@ -1,8 +1,9 @@
 #include "force.hpp"
 
-void force::init(eosio::name vaccount_contract) {
+void force::init(eosio::name vaccount_contract, uint32_t force_vaccount_id,
+                 uint32_t payout_delay_sec) {
   eosio::require_auth(_self);
-  _config.set(config{vaccount_contract}, _self);
+  _config.set(config{vaccount_contract, force_vaccount_id, payout_delay_sec}, _self);
 }
 
 void force::mkcampaign(vaccount::vaddress owner, content content, eosio::extended_asset reward,
@@ -187,6 +188,31 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
                          });
 }
 
+void force::payout(uint64_t payment_id, std::optional<eosio::signature> sig) {
+  payment_table payment_tbl(_self, _self.value);
+
+  auto& payment = payment_tbl.get(payment_id, "payment not found");
+
+  payout_params params = {13, payment.account_id};
+  require_vaccount(payment.account_id, pack(params), sig);
+  eosio::check(past_payout_delay(payment.last_submission_time), "not past payout delay");
+  eosio::check(payment.pending.quantity.amount > 0, "nothing to payout");
+
+  payment_tbl.erase(payment);
+
+  action(
+    permission_level{_self, "active"_n},
+    _config.get().vaccount_contract,
+    "vtransfer"_n,
+    std::make_tuple((uint64_t) _config.get().force_vaccount_id,
+                    (uint64_t) payment.account_id,
+                    payment.pending,
+                    std::string(""),
+                    NULL,
+                    NULL))
+  .send();
+}
+
 void force::submittask(uint64_t submission_id, std::string data, uint32_t account_id,
                        uint64_t batch_id, name payer, vaccount::sig sig) {
   submission_table submission_tbl(_self, _self.value);
@@ -222,7 +248,13 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
                           p.last_submission_time = time_point_sec(now());
                         });
   } else {
-    payment_idx.modify(payment, payer, [&](auto& p) { p.pending += camp.reward; p.last_submission_time = time_point_sec(now()); });
+    payment_idx.modify(payment,
+                       payer,
+                       [&](auto& p)
+                       {
+                         p.pending += camp.reward;
+                         p.last_submission_time = time_point_sec(now());
+                       });
   }
 }
 

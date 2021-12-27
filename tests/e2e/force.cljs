@@ -31,7 +31,11 @@
 (defn tx-as [acc contr action args]
   (eos/transact contr action args [{:actor acc :permission "active"}]))
 
+(defn tx-as-owner [acc contr action args]
+  (eos/transact contr action args [{:actor acc :permission "owner"}]))
+
 (println "acc-3 " acc-3)
+(println "acc-2 " acc-2)
 (def accs [["address" (vacc/pub->addr vacc/keypair-pub)]
            ["name" acc-3]
            ["name" acc-2]
@@ -48,7 +52,10 @@
           (<p-may-fail! (eos/create-account owner-acc force-acc))
           (<p! (deploy-file vacc-acc "contracts/vaccount/vaccount"))
           (<p! (deploy-file force-acc "contracts/force/force"))
-          (<! (e2e.token/deploy-token token-acc [owner-acc token-acc]))
+          (<!  (e2e.token/deploy-token token-acc [owner-acc token-acc]))
+          (<p! (eos/update-auth force-acc "active"
+                  [{:permission {:actor force-acc :permission "eosio.code"}
+                    :weight 1}]))
           (doseq [[type acc] accs]
             (when (= "name" type)
               (<p! (eos/create-account owner-acc acc)))
@@ -62,9 +69,12 @@
 (async-deftest init
   (testing "other accounts cant init"
     (<p-should-fail! (tx-as owner-acc force-acc "init" {:vaccount_contract vacc-acc
-                                                        })))
+                                                        :force_vaccount_id 4
+                                                        :payout_delay_sec 1})))
   (testing "owner can init"
-    (<p-should-succeed! (eos/transact force-acc "init" {:vaccount_contract vacc-acc}))))
+    (<p-should-succeed! (tx-as-owner force-acc force-acc "init" {:vaccount_contract vacc-acc
+                                                                 :force_vaccount_id 4
+                                                                 :payout_delay_sec 1}))))
 
 (defn pack-mkcampaign-params [content]
   (.asUint8Array
@@ -95,6 +105,10 @@
 (defn pack-joincampaign-params [camp-id]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize)) (.push 7) (.pushUint32 camp-id))))
+
+(defn pack-payout-params [acc-id]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize)) (.push 13) (.pushUint32 acc-id))))
 
 (defn pack-reservetask-params [leaf-hash camp-id batch-id]
   (.asUint8Array
@@ -206,6 +220,7 @@
                                 :task_merkle_root merkle-root
                                 :payer acc-2
                                 :sig nil})))
+
   (testing "pub key hash can create batch"
     (let [merkle-root merkle-root
           params (pack-mkbatch-params 0 2 vacc/hash160-1 merkle-root)]
@@ -221,7 +236,7 @@
   ;; open an account for force, deposit some funds to acc-2
   (<p! (eos/transact
         [{:account vacc-acc :name "open"
-          :authorization [{:actor force-acc :permission "active"}]
+          :authorization [{:actor force-acc :permission "owner"}]
           :data {:acc ["name" force-acc]
                  :payer force-acc
                  :symbol {:contract token-acc :sym "4,EFX"}}}
@@ -232,7 +247,7 @@
 
   (<p! (eos/wait-block (js/Promise.resolve 1)) 300)
 
-  (testing "can deposit efx"
+  (testing "vaccount can transfer efx to batch"
     (<p! (tx-as acc-2 vacc-acc "vtransfer"
                 {:from_id 2
                  :to_id 4
@@ -421,6 +436,47 @@
                                           :account_id 0
                                           :sig (sign-params (pack-submittask-params 0 data))
                                           :payer acc-3}))))
+
+(defn get-in-rows
+  "Applies `get-in` on the result of `get-table-rows`
+
+  Scope is assumed to be the same as account"
+  [acc tbl vec]
+  (.then (eos/get-table-rows acc acc tbl)
+         #(get-in % vec)))
+
+(async-deftest payout
+  (let [params-1 (pack-payout-params 0)
+        params-2 (pack-payout-params 2)]
+
+    (testing "cannot payout before the delay is past"
+      (<p-should-fail-with! (tx-as acc-2 force-acc "payout"
+                                   {:payment_id 0
+                                    :sig nil})
+                            "" "not past payout delay"))
+
+    (testing "cannot payout with nonexisting payment"
+      (<p-should-fail-with! (tx-as acc-2 force-acc "payout"
+                                   {:payment_id 2
+                                    :sig (sign-params params-2)})
+                            "" "payment not found"))
+
+    (<p! (util/wait 10000))
+
+    (testing "can payout from eos account"
+      ;; test that account balance increases after payment
+      (is (= (<p! (get-in-rows force-acc "payment" [1 "pending" "quantity"])) "3.0000 EFX"))
+      (is (= (<p! (get-in-rows vacc-acc "account" [2 "balance" "quantity"])) "450.0000 EFX"))
+
+      (<p-should-succeed! (tx-as acc-2 force-acc "payout"
+                                 {:payment_id 0
+                                  :sig nil}))
+      (is (= (<p! (get-in-rows vacc-acc "account" [2 "balance" "quantity"])) "453.0000 EFX")))
+
+    (testing "can payout from pub key hash."
+      (<p-should-succeed! (tx-as acc-2 force-acc "payout"
+                                 {:payment_id 1
+                                  :sig (sign-params params-1)})))))
 
 (defn -main [& args]
   (run-tests))
