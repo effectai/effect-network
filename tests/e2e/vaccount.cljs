@@ -237,7 +237,16 @@
                            :quantity asset
                            :memo ""
                            :sig (.toString eos-sig)
-                           :fee nil})))))
+                           :fee nil}))))
+
+  (testing "can't open same symbol twice after adding balance"
+    (let [n-rows (count (<p! (eos/get-table-rows net-acc net-acc "account")))]
+      (<p-should-succeed!
+       (tx-as net-acc net-acc "open" {:acc (nth accs 2)
+                                      :payer net-acc
+                                      :symbol {:contract token-acc :sym "4,EFX"}}))
+      (let [new-n-rows (count (<p! (eos/get-table-rows net-acc net-acc "account")))]
+        (is (= new-n-rows n-rows) "duplicate account entry")))))
 
 (async-deftest withdraw
   (testing "can not withdraw from eos account with a sig"
