@@ -102,6 +102,11 @@
      (.push 8) (.pushUint32 id) (.pushUint32 camp-id) (.push 0) (.pushString content)
      (.pushUint8ArrayChecked (vacc/hex->bytes root) 32))))
 
+(defn pack-rmbatch-params [id camp-id]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize))
+     (.push 12) (.pushUint32 id) (.pushUint32 camp-id))))
+
 (defn pack-joincampaign-params [camp-id]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize)) (.push 7) (.pushUint32 camp-id))))
@@ -219,18 +224,65 @@
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :task_merkle_root merkle-root
                                 :payer acc-2
+                                :sig nil}))
+    (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
+                               {:id 1
+                                :campaign_id 0
+                                :content {:field_0 0 :field_1 vacc/hash160-1}
+                                :task_merkle_root merkle-root
+                                :payer acc-2
                                 :sig nil})))
 
   (testing "pub key hash can create batch"
     (let [merkle-root merkle-root
-          params (pack-mkbatch-params 0 2 vacc/hash160-1 merkle-root)]
+          params-1 (pack-mkbatch-params 0 2 vacc/hash160-1 merkle-root)
+          params-2 (pack-mkbatch-params 1 2 vacc/hash160-1 merkle-root)]
       (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
                                  {:id 0
                                   :campaign_id 2
                                   :content {:field_0 0 :field_1 vacc/hash160-1}
                                   :task_merkle_root merkle-root
                                   :payer acc-2
-                                  :sig (sign-params params)})))))
+                                  :sig (sign-params params-1)}))
+      (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
+                                 {:id 1
+                                  :campaign_id 2
+                                  :content {:field_0 0 :field_1 vacc/hash160-1}
+                                  :task_merkle_root merkle-root
+                                  :payer acc-2
+                                  :sig (sign-params params-2)})))))
+
+(async-deftest rmbatch
+  (testing "only campaign owner can erase batch"
+    (<p-should-fail! (tx-as acc-3 force-acc "rmbatch"
+                            {:id 1
+                             :campaign_id 0
+                             :sig nil})))
+
+  (testing "cannot erase batch from nonexistent campaign"
+    (<p-should-fail! (tx-as acc-2 force-acc "rmbatch"
+                            {:id 1
+                             :campaign_id 99
+                             :sig nil})))
+
+  (testing "cannot erase nonexistent batch"
+    (<p-should-fail! (tx-as acc-2 force-acc "rmbatch"
+                            {:id 99
+                             :campaign_id 0
+                             :sig nil})))
+
+  (testing "can erase batch from eos account"
+    (<p-should-succeed! (tx-as acc-2 force-acc "rmbatch"
+                            {:id 1
+                             :campaign_id 0
+                             :sig nil})))
+
+  (testing "can erase batch from pub key hash"
+    (let [params (pack-rmbatch-params 1 2)]
+      (<p-should-succeed! (tx-as acc-2 force-acc "rmbatch"
+                            {:id 1
+                             :campaign_id 2
+                             :sig (sign-params params)})))))
 
 (async-deftest deposit
   ;; open an account for force, deposit some funds to acc-2

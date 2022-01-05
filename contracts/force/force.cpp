@@ -79,6 +79,25 @@ void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
                     });
 }
 
+void force::rmbatch(uint32_t id, uint32_t campaign_id, vaccount::sig sig) {
+  batch_table batch_tbl(_self, _self.value);
+  campaign_table camp_tbl(_self, _self.value);
+  
+  uint64_t batch_pk =(uint64_t{campaign_id} << 32) | id;;
+
+  auto& camp = camp_tbl.get(campaign_id, "campaign not found");
+  auto batch_itr = batch_tbl.find(batch_pk);
+  eosio::check(batch_itr != batch_tbl.end(), "batch does not exist");
+
+  rmbatch_params params = {12, id, campaign_id};
+  
+  std::vector<char> msg_bytes = pack(params);
+  printhex(&msg_bytes[0], msg_bytes.size());
+  vaccount::require_auth(msg_bytes, camp.owner, sig);
+
+  batch_tbl.erase(batch_itr);
+}
+
 void force::publishbatch(uint32_t account_id, uint64_t batch_id, uint32_t num_tasks, vaccount::sig sig) {
   // TODO: check signature
   batch_table batch_tbl(_self, _self.value);
