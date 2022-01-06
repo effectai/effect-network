@@ -128,7 +128,7 @@ cleos --url http://localhost:8888 set contract effect.daofx effect.daofx \
 cleos --url http://localhost:8888 set contract effect.props effect.props \
 --abi effect.props.abi -p effect.props@active
 cleos --url http://localhost:8888 set contract effect.votes effect.props \
---abi effect.props.abi -p effect.props@active
+--abi effect.props.abi -p effect.votes@active
 cleos --url http://localhost:8888 set contract effect.stake effect.stake \
 --abi effect.stake.abi -p effect.stake@active
 
@@ -156,14 +156,24 @@ echo '⭐ Initilize proposal for DAO.'
 # void init(cycle_duration_sec, voting_duration_sec, extended_asset_prop_cost, quorum, first_cycle_start_time, dao_contract)
 # duration in seconds is 450000, it costs 1337 EFX to create a prop, takes one vote to make it count, 
 # The unixtimestamp when this cycle starts is 1642003200, the DAO contract is effect.daofx
-cleos push action effect.props init '{ "cycle_duration_sec": "500000", "cycle_voting_duration_sec": "450000", "proposal_cost": { "quantity": "42.0000 NFX", "contract": "effect.token" }, "quorum": "100", "first_cycle_start_time": "2022-01-05T19:00:00", "dao_contract": "effect.daofx" }' -p effect.props@active
+cleos push action effect.props init '{ "cycle_duration_sec": "500000", "cycle_voting_duration_sec": "450000", "proposal_cost": { "quantity": "42.0000 EFX", "contract": "effect.token" }, "quorum": "100", "first_cycle_start_time": "2022-01-05T19:00:00", "dao_contract": "effect.daofx" }' -p effect.props@active
 
 echo '⭐ Initilize votes for DAO.'
-cleos push action effect.votes init '{ "cycle_duration_sec": "500000", "cycle_voting_duration_sec": "450000", "proposal_cost": { "quantity": "1337.0000 NFX", "contract": "effect.token" }, "quorum": "1", "first_cycle_start_time": "2022-01-05T19:00:00", "dao_contract": "effect.daofx" }' -p effect.votes@active
+cleos push action effect.votes init '{ "cycle_duration_sec": "500000", "cycle_voting_duration_sec": "450000", "proposal_cost": { "quantity": "1337.0000 EFX", "contract": "effect.token" }, "quorum": "1", "first_cycle_start_time": "2022-01-05T19:00:00", "dao_contract": "effect.daofx" }' -p effect.votes@active
+
 
 # init Dao contracts
 echo '⭐ Initialize Dao contracts.'
-cleos push action effect.daofx init '{ "stake_contract": "effect.stake", "proposal_contract": "effect.props", "utl_token_sym": { "contract": "effect.token", "sym": "4,EFX" }, "gov_token_sym": { "contract": "effect.govrn", "sym": "4,NFX" } }' -p effect.daofx@active
+cleos push action effect.daofx init '{ "stake_contract": "effect.stake", "proposal_contract": "effect.votes", "utl_token_sym": { "contract": "effect.token", "sym": "4,EFX" }, "gov_token_sym": { "contract": "effect.govrn", "sym": "4,NFX" } }' -p effect.daofx@active
+
+cleos push action effect.daofx newmemterms '{ "hash": "720e878c4ac6f9a1193818cf9471731589472008dc0adb012172386411e58a2a" }' -p effect.daofx@active
+
+cleos push action effect.daofx memberreg '{ "account": "effect.admin", "agreedterms": "720e878c4ac6f9a1193818cf9471731589472008dc0adb012172386411e58a2a" }' -p effect.admin@active
+cleos push action effect.token transfer '["effect.admin", "effect.votes", "1337.0000 EFX", "proposal"]' -p effect.admin@active
+
+echo '⭐ Create proposal for hackathon votes for effect.admin@active'
+cleos push action effect.votes createprop \
+'{  "author": "effect.admin", "content_hash": "QmajcCFiwdaMows9uGkTNLS8Ah9dcXEZ9a9VicEv7q8n1E", "pay": [ { "field_0": { "quantity": "0.0000 EFX", "contract": "effecttokens" }, "field_1": "2022-01-05T11:45:10" } ], "vote_counts": [ { "key": 0, "value": 0 }, { "key": 1, "value": 0 }, { "key": 2, "value": 0 } ], "state": 0, "cycle": 1, "category": 1, "transaction_hash": "00" }' -p effect.admin@active
 
 
 sleep 2
