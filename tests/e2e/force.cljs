@@ -75,6 +75,12 @@
     (<p-should-succeed! (tx-as-owner force-acc force-acc "init" {:vaccount_contract vacc-acc
                                                                  :force_vaccount_id 4
                                                                  :payout_delay_sec 1}))))
+(defn get-composite-key [id-1 id-2]
+  (js/parseInt
+    (.binaryToDecimal Numeric 
+      (.getUint8Array 
+        (doto (new (.-SerialBuffer Serialize))
+          (.reserve 64) (.pushUint32 id-1) (.pushUint32 id-2)) 8))))
 
 (defn pack-mkcampaign-params [content]
   (.asUint8Array
