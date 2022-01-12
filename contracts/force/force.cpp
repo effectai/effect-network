@@ -159,6 +159,8 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
   auto& batch = batch_tbl.get(batch_pk, "batch not found");
   auto& campaign = campaign_tbl.get(campaign_id, "campaign not found");
 
+  eosio::check(batch.tasks_done >= 0 && batch.num_tasks > 0,
+               "cannot reserve task on paused batch.");
   // TODO: verify depth of tree so cant be spoofed with partial proof
 
   // we prepend the batch_pk to the data so that each data point has a unique
@@ -310,6 +312,9 @@ void force::reclaimtask(uint64_t task_id, uint32_t account_id,
   auto& sub = submission_tbl.get(task_id, "reservation not found");
   auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
 
+  eosio::check(batch.tasks_done >= 0 && batch.num_tasks > 0,
+               "cannot reclaim task on paused batch.");
+
   uint64_t campaignjoin_pk = (uint64_t{batch.campaign_id} << 32) | account_id;
   auto campaignjoin = campaignjoin_tbl.require_find(campaignjoin_pk, "campaign not joined");
 
@@ -320,6 +325,43 @@ void force::reclaimtask(uint64_t task_id, uint32_t account_id,
   eosio::check(sub.data.empty(), "task already submitted");
   submission_tbl.modify(sub, payer, [&](auto& s) { s.account_id = account_id; });
 }
+
+void force::closebatch(uint64_t batch_id, vaccount::vaddress owner, vaccount::sig sig) {
+  batch_table batch_tbl(_self, _self.value);
+  campaign_table camp_tbl(_self, _self.value);
+  
+  auto& batch = batch_tbl.get(batch_id, "batch not found");
+  auto& camp = camp_tbl.get(batch.campaign_id, "campaign not found");
+
+  closebatch_params params = {16, batch_id};
+
+  eosio::check(camp.owner == owner, "Only campaign owner can pause batch.");
+  vaccount::require_auth(pack(params), owner, sig);
+  eosio::check(batch.tasks_done >= 0 && batch.num_tasks > 0 && batch.tasks_done < batch.num_tasks,
+               "can only pause batches with active tasks.");
+
+  batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.num_tasks = 0; });
+}
+
+void force::reopenbatch(uint64_t batch_id, vaccount::vaddress owner, uint32_t num_tasks, vaccount::sig sig) {
+  batch_table batch_tbl(_self, _self.value);
+  campaign_table camp_tbl(_self, _self.value);
+
+  auto& batch = batch_tbl.get(batch_id, "batch not found");
+  auto& camp = camp_tbl.get(batch.campaign_id, "campaign not found");
+
+  reopenbatch_params params = {17, batch_id};
+
+  eosio::check(num_tasks > 0, "number of tasks must be greater than zero.");
+  eosio::check(camp.owner == owner, "Only campaign owner can reopen batch.");
+  vaccount::require_auth(pack(params), owner, sig);
+
+  eosio::check(batch.tasks_done >= 0 && batch.num_tasks == 0,
+               "can only reopen paused batches.");
+
+  batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.num_tasks = num_tasks; });
+}
+
 
 void force::vtransfer_handler(uint64_t from_id, uint64_t to_id, extended_asset quantity,
                               std::string memo, vaccount::sig sig,
