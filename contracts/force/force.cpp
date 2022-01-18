@@ -1,9 +1,9 @@
 #include "force.hpp"
 
 void force::init(eosio::name vaccount_contract, uint32_t force_vaccount_id,
-                 uint32_t payout_delay_sec) {
+                 uint32_t payout_delay_sec, uint32_t release_task_delay_sec) {
   eosio::require_auth(_self);
-  _config.set(config{vaccount_contract, force_vaccount_id, payout_delay_sec}, _self);
+  _config.set(config{vaccount_contract, force_vaccount_id, payout_delay_sec, release_task_delay_sec}, _self);
 }
 
 void force::mkcampaign(vaccount::vaddress owner, content content, eosio::extended_asset reward,
@@ -204,6 +204,7 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
                            s.leaf_hash = data_hash;
                            s.batch_id = batch_pk;
                            s.paid = false;
+                           s.submitted_on = time_point_sec(now());
                          });
 }
 
@@ -214,7 +215,7 @@ void force::payout(uint64_t payment_id, std::optional<eosio::signature> sig) {
 
   payout_params params = {13, payment.account_id};
   require_vaccount(payment.account_id, pack(params), sig);
-  eosio::check(past_payout_delay(payment.last_submission_time), "not past payout delay");
+  eosio::check(past_delay(payment.last_submission_time, "payout"), "not past payout delay");
   eosio::check(payment.pending.quantity.amount > 0, "nothing to payout");
 
   payment_tbl.erase(payment);
@@ -284,20 +285,30 @@ void force::releasetask(uint64_t task_id, uint32_t account_id,
   campaign_table campaign_tbl(_self, _self.value);
   auto vacc_contract = _config.get().vaccount_contract;
 
+  vaccount::account_table acc_tbl(vacc_contract, vacc_contract.value);
+  vaccount::account acc = acc_tbl.get((uint64_t) account_id, "account row not found");
+  
   auto& sub = submission_tbl.get(task_id, "reservation not found");
+
+  auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
+  auto& camp = campaign_tbl.get(batch.campaign_id, "campaign not found");
+
   eosio::check(sub.account_id.has_value(), "cannot release already released task.");
   eosio::check(sub.data == std::string(""), "cannot release task with data.");
 
   task_params params = {14, task_id, account_id};
   std::vector<char> msg_bytes = pack(params);
-  if (sub.account_id == account_id) {
-    require_vaccount(account_id, msg_bytes, sig);
-  } else {
-    auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
-    auto& camp = campaign_tbl.get(batch.campaign_id, "campaign not found");
-    vaccount::require_auth(msg_bytes, camp.owner, sig);
-  }
 
+  if(!past_delay(sub.submitted_on, "release_task")) {
+    if (sub.account_id == account_id) {
+      require_vaccount(account_id, msg_bytes, sig);
+    }
+    else if (acc.address == camp.owner) {
+      vaccount::require_auth(msg_bytes, acc.address, sig);
+    } else {
+      eosio::check(past_delay(sub.submitted_on, "release_task"), "cannot release task before delay.");
+    }
+  }
   submission_tbl.modify(sub, eosio::same_payer, [&](auto& s) { s.account_id.reset(); });
 }
 

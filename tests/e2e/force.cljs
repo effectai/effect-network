@@ -70,11 +70,13 @@
   (testing "other accounts cant init"
     (<p-should-fail! (tx-as owner-acc force-acc "init" {:vaccount_contract vacc-acc
                                                         :force_vaccount_id 4
-                                                        :payout_delay_sec 1})))
+                                                        :payout_delay_sec 1
+                                                        :release_task_delay_sec 20})))
   (testing "owner can init"
     (<p-should-succeed! (tx-as-owner force-acc force-acc "init" {:vaccount_contract vacc-acc
                                                                  :force_vaccount_id 4
-                                                                 :payout_delay_sec 1}))))
+                                                                 :payout_delay_sec 1
+                                                                 :release_task_delay_sec 20}))))
 
 (defn pack-mkcampaign-params [content]
   (.asUint8Array
@@ -418,6 +420,14 @@
        "" "task already completed"))))
 
 (async-deftest releasetask
+  (testing "cannot release reserved task before delay."
+    (<p-should-fail! (tx-as acc-4 force-acc "releasetask"
+                               {:task_id 1
+                                :account_id 3
+                                :payer acc-4
+                                :sig nil
+                                })))
+  (<p! (util/wait 10000))
   (testing "campaign owner can release reserved task with eos account"
     (<p-should-succeed! (tx-as acc-2 force-acc "releasetask"
                                {:task_id 0
@@ -513,7 +523,7 @@
                                     :sig (sign-params params-2)})
                             "" "payment not found"))
 
-    (<p! (util/wait 10000))
+    (<p! (util/wait 3000))
 
     (testing "can payout from eos account"
       ;; test that account balance increases after payment
