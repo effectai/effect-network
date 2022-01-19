@@ -299,16 +299,15 @@ void force::releasetask(uint64_t task_id, uint32_t account_id,
   task_params params = {14, task_id, account_id};
   std::vector<char> msg_bytes = pack(params);
 
-  if(!past_delay(sub.submitted_on, "release_task")) {
-    if (sub.account_id == account_id) {
-      require_vaccount(account_id, msg_bytes, sig);
-    }
-    else if (acc.address == camp.owner) {
-      vaccount::require_auth(msg_bytes, acc.address, sig);
-    } else {
-      eosio::check(past_delay(sub.submitted_on, "release_task"), "cannot release task before delay.");
-    }
+  if (sub.account_id == account_id) {
+    require_vaccount(account_id, msg_bytes, sig);
   }
+  else if (acc.address == camp.owner) {
+    vaccount::require_auth(msg_bytes, acc.address, sig);
+  } else {
+    eosio::check(past_delay(sub.submitted_on, "release_task"), "cannot release task before delay.");
+  }
+
   submission_tbl.modify(sub, eosio::same_payer, [&](auto& s) { s.account_id.reset(); });
 }
 
