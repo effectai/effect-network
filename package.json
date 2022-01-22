@@ -8,7 +8,7 @@
     "eos-cljs": "./eos-cljs",
     "andare": "^1.1.587",
     "eosjs": "^21.0.4",
-    "node-fetch": "^2.6.1"
+    "node-fetch": "^3.1.1"
   },
   "scripts": {
     "test": "lumo -c tests -m e2e.test",
