@@ -34,6 +34,15 @@
 (defn tx-as-owner [acc contr action args]
   (eos/transact contr action args [{:actor acc :permission "owner"}]))
 
+(defn get-in-rows
+  "Applies `get-in` on the result of `get-table-rows`
+
+  Scope is assumed to be the same as account"
+  [acc tbl vec]
+  (.then (eos/get-table-rows acc acc tbl)
+         #(get-in % vec)))
+
+(println "acc-4 " acc-4)
 (println "acc-3 " acc-3)
 (println "acc-2 " acc-2)
 (def accs [["address" (vacc/pub->addr vacc/keypair-pub)]
@@ -75,6 +84,12 @@
     (<p-should-succeed! (tx-as-owner force-acc force-acc "init" {:vaccount_contract vacc-acc
                                                                  :force_vaccount_id 4
                                                                  :payout_delay_sec 1}))))
+(defn get-composite-key [id-1 id-2]
+  (js/parseInt
+    (.binaryToDecimal Numeric
+      (.getUint8Array
+        (doto (new (.-SerialBuffer Serialize))
+          (.reserve 64) (.pushUint32 id-1) (.pushUint32 id-2)) 8))))
 
 (defn pack-mkcampaign-params [content]
   (.asUint8Array
@@ -106,6 +121,14 @@
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize))
      (.push 12) (.pushUint32 id) (.pushUint32 camp-id))))
+
+(defn pack-closebatch-params [id]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize)) (.push 16) (.pushNumberAsUint64 id))))
+
+(defn pack-reopenbatch-params [id]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize)) (.push 17) (.pushNumberAsUint64 id))))
 
 (defn pack-joincampaign-params [camp-id]
   (.asUint8Array
@@ -148,6 +171,12 @@
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :reward {:quantity "11.0000 EFX" :contract token-acc}
                                 :payer acc-2
+                                :sig nil}))
+    (<p-should-succeed! (tx-as acc-4 force-acc "mkcampaign"
+                               {:owner ["name" acc-4]
+                                :content {:field_0 0 :field_1 vacc/hash160-1}
+                                :reward {:quantity "2.0000 EFX" :contract token-acc}
+                                :payer acc-4
                                 :sig nil})))
 
   (testing "can create campaign from pub key hash"
@@ -164,6 +193,12 @@
                                   :content {:field_0 0 :field_1 ipfs-hash}
                                   :reward {:quantity "110.0000 EFX" :contract token-acc}
                                   :payer acc-2
+                                  :sig (sign-params params)}))
+      (<p-should-succeed! (tx-as acc-4 force-acc "mkcampaign"
+                                 {:owner (first accs)
+                                  :content {:field_0 0 :field_1 ipfs-hash}
+                                  :reward {:quantity "11.0000 EFX" :contract token-acc}
+                                  :payer acc-4
                                   :sig (sign-params params)})))))
 
 (async-deftest editcampaign
@@ -178,9 +213,9 @@
 
   (testing "can edit campaign from pub key hash"
     (let [ipfs-hash "QmPoB7nH4Q94C4YxT4rEcQDv3m76HT14wHbUL1gpEa4vWG"
-          params (pack-editcampaign-params 2 ipfs-hash)]
+          params (pack-editcampaign-params 3 ipfs-hash)]
       (<p-should-succeed! (tx-as acc-2 force-acc "editcampaign"
-                                 {:campaign_id 2
+                                 {:campaign_id 3
                                   :owner (first accs)
                                   :content {:field_0 0 :field_1 ipfs-hash}
                                   :reward {:quantity "115.0000 EFX" :contract token-acc}
@@ -205,13 +240,13 @@
     (is (nil? (<p! (eos/get-table-row force-acc force-acc "campaign" 1)))))
 
   (testing "can erase campaign from pub key hash"
-    (is (not (nil? (<p! (eos/get-table-row force-acc force-acc "campaign" 3)))))
-    (let [params (pack-rmcampaign-params 3)]
+    (is (not (nil? (<p! (eos/get-table-row force-acc force-acc "campaign" 4)))))
+    (let [params (pack-rmcampaign-params 4)]
       (<p-should-succeed! (tx-as acc-2 force-acc "rmcampaign"
-                                 {:campaign_id 3
+                                 {:campaign_id 4
                                   :owner (first accs)
                                   :sig (sign-params params)})))
-    (is (nil? (<p! (eos/get-table-row force-acc force-acc "campaign" 3))))))
+    (is (nil? (<p! (eos/get-table-row force-acc force-acc "campaign" 4))))))
 
 ;; NOTE: this root must match the merkle trees generated in `reserve-task`
 (def merkle-root "9b15f697ff7f53e58d1873c9091a91ef83017171449499e9796c84cfdc5dd886")
@@ -231,26 +266,41 @@
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :task_merkle_root merkle-root
                                 :payer acc-2
-                                :sig nil})))
+                                :sig nil})
+    (<p-should-succeed! (tx-as acc-4 force-acc "mkbatch"
+                               {:id 0
+                                :campaign_id 2
+                                :content {:field_0 0 :field_1 vacc/hash160-1}
+                                :task_merkle_root merkle-root
+                                :payer acc-4
+                                :sig nil}))))
 
   (testing "pub key hash can create batch"
     (let [merkle-root merkle-root
-          params-1 (pack-mkbatch-params 0 2 vacc/hash160-1 merkle-root)
-          params-2 (pack-mkbatch-params 1 2 vacc/hash160-1 merkle-root)]
+          params-1 (pack-mkbatch-params 0 3 vacc/hash160-1 merkle-root)
+          params-2 (pack-mkbatch-params 1 3 vacc/hash160-1 merkle-root)
+          params-3 (pack-mkbatch-params 0 5 vacc/hash160-1 merkle-root)]
       (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
                                  {:id 0
-                                  :campaign_id 2
+                                  :campaign_id 3
                                   :content {:field_0 0 :field_1 vacc/hash160-1}
                                   :task_merkle_root merkle-root
                                   :payer acc-2
                                   :sig (sign-params params-1)}))
       (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
                                  {:id 1
-                                  :campaign_id 2
+                                  :campaign_id 3
                                   :content {:field_0 0 :field_1 vacc/hash160-1}
                                   :task_merkle_root merkle-root
                                   :payer acc-2
-                                  :sig (sign-params params-2)})))))
+                                  :sig (sign-params params-2)}))
+      (<p-should-succeed! (tx-as acc-4 force-acc "mkbatch"
+                                 {:id 0
+                                  :campaign_id 5
+                                  :content {:field_0 0 :field_1 vacc/hash160-1}
+                                  :task_merkle_root merkle-root
+                                  :payer acc-4
+                                  :sig (sign-params params-3)})))))
 
 (async-deftest rmbatch
   (testing "only campaign owner can erase batch"
@@ -278,10 +328,10 @@
                              :sig nil})))
 
   (testing "can erase batch from pub key hash"
-    (let [params (pack-rmbatch-params 1 2)]
+    (let [params (pack-rmbatch-params 1 3)]
       (<p-should-succeed! (tx-as acc-2 force-acc "rmbatch"
                             {:id 1
-                             :campaign_id 2
+                             :campaign_id 3
                              :sig (sign-params params)})))))
 
 (async-deftest deposit
@@ -295,6 +345,10 @@
          {:account token-acc :name "transfer"
           :authorization [{:actor owner-acc :permission "active"}]
           :data {:from owner-acc :to vacc-acc :memo "2"
+                 :quantity "500.0000 EFX"}}
+         {:account token-acc :name "transfer"
+          :authorization [{:actor owner-acc :permission "active"}]
+          :data {:from owner-acc :to vacc-acc :memo "3"
                  :quantity "500.0000 EFX"}}]))
 
   (<p! (eos/wait-block (js/Promise.resolve 1)) 300)
@@ -306,14 +360,37 @@
                  :quantity {:quantity "50.0000 EFX" :contract token-acc}
                  :memo "0"
                  :sig nil
+                 :fee nil}))
+    (<p! (tx-as acc-4 vacc-acc "vtransfer"
+                {:from_id 3
+                 :to_id 4
+                 :quantity {:quantity "50.0000 EFX" :contract token-acc}
+                 :memo (str (get-composite-key 0 2))
+                 :sig nil
+                 :fee nil}))
+    (<p! (tx-as acc-4 vacc-acc "vtransfer"
+                {:from_id 3
+                 :to_id 4
+                 :quantity {:quantity "50.0000 EFX" :contract token-acc}
+                 :memo (str (get-composite-key 0 5))
+                 :sig nil
                  :fee nil})))
-
   (testing "can publish batch"
     (<p! (tx-as acc-2 force-acc "publishbatch"
                 {:account_id 2
                  :batch_id 0
                  :num_tasks 10
-                 :sig nil}))))
+                 :sig nil}))
+    (<p! (tx-as acc-4 force-acc "publishbatch"
+                {:account_id 3
+                 :batch_id (get-composite-key 0 2)
+                 :num_tasks 11
+                 :sig nil}))
+    (<p! (tx-as acc-4 force-acc "publishbatch"
+                {:account_id 3
+                 :batch_id (get-composite-key 0 5)
+                 :num_tasks 3
+                 :sig (sign-params (pack-reopenbatch-params (get-composite-key 0 5)))}))))
 
 (async-deftest campaignjoin
   (testing "account can join a campaign"
@@ -321,6 +398,16 @@
                                {:campaign_id 0
                                 :account_id 1
                                 :payer acc-3
+                                :sig nil}))
+    (<p-should-succeed! (tx-as acc-2 force-acc "joincampaign"
+                               {:campaign_id 2
+                                :account_id 2
+                                :payer acc-2
+                                :sig nil}))
+    (<p-should-succeed! (tx-as acc-2 force-acc "joincampaign"
+                               {:campaign_id 5
+                                :account_id 2
+                                :payer acc-2
                                 :sig nil})))
   (testing "pub key hash can join a campaign"
     (<p-should-succeed! (tx-as acc-3 force-acc "joincampaign"
@@ -335,6 +422,39 @@
 
 (defn buf->hex [buf]
   (.toString buf "hex"))
+
+(async-deftest closebatch
+  (let [params (pack-closebatch-params (get-composite-key 0 5))]
+    (testing "campaign owner can pause batch"
+      (is (= (<p! (get-in-rows force-acc "batch" [1 "num_tasks"])) 11))
+      (is (= (<p! (get-in-rows force-acc "batch" [3 "num_tasks"])) 3))
+
+      (<p-should-succeed! (tx-as acc-4 force-acc "closebatch"
+                                {:batch_id (get-composite-key 0 2)
+                                 :owner ["name" acc-4]
+                                 :sig nil}))
+      (is (= (<p! (get-in-rows force-acc "batch" [1 "num_tasks"])) 0))
+      (<p-should-succeed! (tx-as acc-2 force-acc "closebatch"
+                                {:batch_id (get-composite-key 0 5)
+                                 :owner (first accs)
+                                 :sig (sign-params params)}))
+      (is (= (<p! (get-in-rows force-acc "batch" [3 "num_tasks"])) 0)))))
+
+(async-deftest reopenbatch
+  (let [params (pack-reopenbatch-params (get-composite-key 0 5))]
+    (testing "campaign owner can pause batch"
+      (is (= (<p! (get-in-rows force-acc "batch" [1 "num_tasks"])) 0))
+      (is (= (<p! (get-in-rows force-acc "batch" [3 "num_tasks"])) 0))
+      (<p-should-succeed! (tx-as acc-4 force-acc "publishbatch"
+                                {:batch_id (get-composite-key 0 2)
+                                  :num_tasks 10
+                                  :sig nil}))
+      (is (= (<p! (get-in-rows force-acc "batch" [1 "num_tasks"])) 10))
+      (<p-should-succeed! (tx-as acc-2 force-acc "publishbatch"
+                                {:batch_id (get-composite-key 0 5)
+                                  :num_tasks 3
+                                  :sig (sign-params params)}))
+      (is (= (<p! (get-in-rows force-acc "batch" [3 "num_tasks"])) 3)))))
 
 (async-deftest reservetask
   (let [camp-id 0
@@ -489,13 +609,7 @@
                                           :sig (sign-params (pack-submittask-params 0 data))
                                           :payer acc-3}))))
 
-(defn get-in-rows
-  "Applies `get-in` on the result of `get-table-rows`
 
-  Scope is assumed to be the same as account"
-  [acc tbl vec]
-  (.then (eos/get-table-rows acc acc tbl)
-         #(get-in % vec)))
 
 (async-deftest payout
   (let [params-1 (pack-payout-params 0)
