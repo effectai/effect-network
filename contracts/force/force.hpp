@@ -74,16 +74,20 @@ public:
                vaccount::sig sig);
 
   [[eosio::action]]
-  void publishbatch(uint32_t account_id,
-                    uint64_t batch_id,
+  void publishbatch(uint64_t batch_id,
                     uint32_t num_tasks,
                     vaccount::sig sig);
-  
+
   [[eosio::action]]
   void rmbatch(uint32_t id,
                uint32_t campaign_id,
                vaccount::sig sig);
-  
+
+  [[eosio::action]]
+  void closebatch(uint64_t batch_id,
+                 vaccount::vaddress owner,
+                 vaccount::sig sig);
+
   [[eosio::action]]
   void joincampaign(uint32_t account_id,
                     uint32_t campaign_id,
@@ -196,6 +200,18 @@ private:
     content content;
     checksum256 task_merkle_root;
     EOSLIB_SERIALIZE(mkbatch_params, (mark)(id)(campaign_id)(content)(task_merkle_root));
+  };
+
+  struct closebatch_params {
+    uint8_t mark;
+    uint64_t id;
+    EOSLIB_SERIALIZE(closebatch_params, (mark)(id));
+  };
+
+  struct reopenbatch_params {
+    uint8_t mark;
+    uint64_t id;
+    EOSLIB_SERIALIZE(reopenbatch_params, (mark)(id));
   };
 
   struct rmbatch_params {
