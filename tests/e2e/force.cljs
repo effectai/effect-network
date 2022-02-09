@@ -34,6 +34,14 @@
 (defn tx-as-owner [acc contr action args]
   (eos/transact contr action args [{:actor acc :permission "owner"}]))
 
+(defn get-in-rows
+  "Applies `get-in` on the result of `get-table-rows`
+
+  Scope is assumed to be the same as account"
+  [acc tbl vec]
+  (.then (eos/get-table-rows acc acc tbl)
+         #(get-in % vec)))
+
 (println "acc-4 " acc-4)
 (println "acc-3 " acc-3)
 (println "acc-2 " acc-2)
@@ -78,8 +86,8 @@
                                                                  :payout_delay_sec 1}))))
 (defn get-composite-key [id-1 id-2]
   (js/parseInt
-    (.binaryToDecimal Numeric 
-      (.getUint8Array 
+    (.binaryToDecimal Numeric
+      (.getUint8Array
         (doto (new (.-SerialBuffer Serialize))
           (.reserve 64) (.pushUint32 id-1) (.pushUint32 id-2)) 8))))
 
@@ -367,7 +375,6 @@
                  :memo (str (get-composite-key 0 5))
                  :sig nil
                  :fee nil})))
-
   (testing "can publish batch"
     (<p! (tx-as acc-2 force-acc "publishbatch"
                 {:account_id 2
@@ -377,13 +384,13 @@
     (<p! (tx-as acc-4 force-acc "publishbatch"
                 {:account_id 3
                  :batch_id (get-composite-key 0 2)
-                 :num_tasks 10
+                 :num_tasks 11
                  :sig nil}))
     (<p! (tx-as acc-4 force-acc "publishbatch"
                 {:account_id 3
                  :batch_id (get-composite-key 0 5)
                  :num_tasks 3
-                 :sig nil}))))
+                 :sig (sign-params (pack-reopenbatch-params (get-composite-key 0 5)))}))))
 
 (async-deftest campaignjoin
   (testing "account can join a campaign"
@@ -419,7 +426,7 @@
 (async-deftest closebatch
   (let [params (pack-closebatch-params (get-composite-key 0 5))]
     (testing "campaign owner can pause batch"
-      (is (= (<p! (get-in-rows force-acc "batch" [1 "num_tasks"])) 10))
+      (is (= (<p! (get-in-rows force-acc "batch" [1 "num_tasks"])) 11))
       (is (= (<p! (get-in-rows force-acc "batch" [3 "num_tasks"])) 3))
 
       (<p-should-succeed! (tx-as acc-4 force-acc "closebatch"
@@ -435,18 +442,16 @@
 
 (async-deftest reopenbatch
   (let [params (pack-reopenbatch-params (get-composite-key 0 5))]
-    (testing "campaign owner can pause batch" 
+    (testing "campaign owner can pause batch"
       (is (= (<p! (get-in-rows force-acc "batch" [1 "num_tasks"])) 0))
       (is (= (<p! (get-in-rows force-acc "batch" [3 "num_tasks"])) 0))
-      (<p-should-succeed! (tx-as acc-4 force-acc "reopenbatch"
+      (<p-should-succeed! (tx-as acc-4 force-acc "publishbatch"
                                 {:batch_id (get-composite-key 0 2)
-                                  :owner ["name" acc-4]
                                   :num_tasks 10
                                   :sig nil}))
       (is (= (<p! (get-in-rows force-acc "batch" [1 "num_tasks"])) 10))
-      (<p-should-succeed! (tx-as acc-2 force-acc "reopenbatch"
+      (<p-should-succeed! (tx-as acc-2 force-acc "publishbatch"
                                 {:batch_id (get-composite-key 0 5)
-                                  :owner (first accs)
                                   :num_tasks 3
                                   :sig (sign-params params)}))
       (is (= (<p! (get-in-rows force-acc "batch" [3 "num_tasks"])) 3)))))
@@ -604,13 +609,7 @@
                                           :sig (sign-params (pack-submittask-params 0 data))
                                           :payer acc-3}))))
 
-(defn get-in-rows
-  "Applies `get-in` on the result of `get-table-rows`
 
-  Scope is assumed to be the same as account"
-  [acc tbl vec]
-  (.then (eos/get-table-rows acc acc tbl)
-         #(get-in % vec)))
 
 (async-deftest payout
   (let [params-1 (pack-payout-params 0)
