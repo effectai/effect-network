@@ -3,7 +3,10 @@
 void force::init(eosio::name vaccount_contract, uint32_t force_vaccount_id,
                  uint32_t payout_delay_sec, uint32_t release_task_delay_sec) {
   eosio::require_auth(_self);
-  _config.set(config{vaccount_contract, force_vaccount_id, payout_delay_sec, release_task_delay_sec}, _self);
+  _config.set(config{vaccount_contract,
+                     force_vaccount_id,
+                     payout_delay_sec,
+                     release_task_delay_sec}, _self);
 }
 
 void force::mkcampaign(vaccount::vaddress owner, content content, eosio::extended_asset reward,
@@ -24,8 +27,8 @@ void force::mkcampaign(vaccount::vaddress owner, content content, eosio::extende
                      c.reward = reward;
                    });
 }
-void force::editcampaign(uint32_t campaign_id, vaccount::vaddress owner, content content, eosio::extended_asset reward,
-                        eosio::name payer, vaccount::sig sig) {
+void force::editcampaign(uint32_t campaign_id, vaccount::vaddress owner, content content,
+                         eosio::extended_asset reward, eosio::name payer, vaccount::sig sig) {
   campaign_table camp_tbl(_self, _self.value);
   auto& camp = camp_tbl.get(campaign_id, "campaign does not exist");
 
@@ -294,7 +297,7 @@ void force::releasetask(uint64_t task_id, uint32_t account_id,
 
   vaccount::account_table acc_tbl(vacc_contract, vacc_contract.value);
   vaccount::account acc = acc_tbl.get((uint64_t) account_id, "account row not found");
-  
+
   auto& sub = submission_tbl.get(task_id, "reservation not found");
 
   auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
