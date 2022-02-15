@@ -259,33 +259,35 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
   auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
   auto& camp = campaign_tbl.get(batch.campaign_id);
 
-  submittask_params params = {5, submission_id, data};
-  require_vaccount(account_id, pack(params), sig);
+  if (camp.reward.quantity.amount > 0) {
+    submittask_params params = {5, submission_id, data};
+    require_vaccount(account_id, pack(params), sig);
 
-  uint64_t payment_id = payment_tbl.available_primary_key();
+    uint64_t payment_id = payment_tbl.available_primary_key();
 
-  uint128_t payment_sk = (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32);
-  auto payment_idx = payment_tbl.get_index<"accbatch"_n>();
-  auto payment = payment_idx.find(payment_sk);
+    uint128_t payment_sk = (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32);
+    auto payment_idx = payment_tbl.get_index<"accbatch"_n>();
+    auto payment = payment_idx.find(payment_sk);
 
-  if (payment == payment_idx.end()) {
-    payment_tbl.emplace(payer,
-                        [&](auto& p)
-                        {
-                          p.id = payment_id;
-                          p.account_id = account_id;
-                          p.batch_id = batch_id;
-                          p.pending = camp.reward;
-                          p.last_submission_time = time_point_sec(now());
-                        });
-  } else {
-    payment_idx.modify(payment,
-                       payer,
-                       [&](auto& p)
-                       {
-                         p.pending += camp.reward;
-                         p.last_submission_time = time_point_sec(now());
-                       });
+    if (payment == payment_idx.end()) {
+      payment_tbl.emplace(payer,
+                          [&](auto& p)
+                          {
+                            p.id = payment_id;
+                            p.account_id = account_id;
+                            p.batch_id = batch_id;
+                            p.pending = camp.reward;
+                            p.last_submission_time = time_point_sec(now());
+                          });
+    } else {
+      payment_idx.modify(payment,
+                         payer,
+                         [&](auto& p)
+                         {
+                           p.pending += camp.reward;
+                           p.last_submission_time = time_point_sec(now());
+                         });
+    }
   }
 }
 

@@ -286,6 +286,7 @@
                                 :campaign_id 2
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :task_merkle_root merkle-root
+                                :repetitions 1
                                 :payer acc-4
                                 :sig nil}))))
 
@@ -316,6 +317,7 @@
                                   :content {:field_0 0 :field_1 vacc/hash160-1}
                                   :task_merkle_root merkle-root
                                   :payer acc-4
+                                  :repetitions 1
                                   :sig (sign-params params-3)})))))
 
 (async-deftest rmbatch
@@ -512,7 +514,7 @@
                                               :batch_id 0
                                               :account_id 0
                                               :payer acc-3
-                                              :sig (sign-params params-1)}))                                  
+                                              :sig (sign-params params-1)}))
       (<p-should-succeed!
         (tx-as acc-3 force-acc "reservetask" {:proof hex-proof-2
                                               :position pos-2
