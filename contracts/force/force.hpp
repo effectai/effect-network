@@ -21,6 +21,7 @@ private:
   struct account;
 
 public:
+  const uint8_t MAX_REPETITIONS = 100;
   using contract::contract;
 
   typedef std::tuple<uint8_t, std::string> content;
@@ -70,6 +71,7 @@ public:
                uint32_t campaign_id,
                content content,
                checksum256 task_merkle_root,
+               uint32_t repetitions,
                eosio::name payer,
                vaccount::sig sig);
 
