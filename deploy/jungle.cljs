@@ -11,7 +11,7 @@
 
 (def token-acc   "efxtoken1111") ;;alt=toke3onkylin
 (def account-acc "efxaccount11")
-(def force-acc   "efxforce1111")
+(def force-acc   "efxforce1112") ;;old=efxforce1111
 
 (def jungle-3-api
   {:rpc-url "https://jungle3.cryptolions.io:443"
@@ -51,7 +51,10 @@
                                      :type "transfer"}
                                     [{:actor account-acc :permission "owner"}]))
 
-        (<p! (eos/transact force-acc "init" {:vaccount_contract account-acc}))
+        (<p! (eos/transact force-acc "init" {:vaccount_contract account-acc
+                                             :force_vaccount_id 333
+                                             :payout_delay_sec 1800
+                                             :release_task_delay_sec 300}))
 
 
         (catch js/Error e (prn e))))))
