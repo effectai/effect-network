@@ -42,7 +42,8 @@ public:
   [[eosio::action]]
   void init(eosio::name vaccount_contract,
             uint32_t force_vaccount_id,
-            uint32_t payout_delay_sec);
+            uint32_t payout_delay_sec,
+            uint32_t release_task_delay_sec);
 
   [[eosio::action]]
   void mkcampaign(vaccount::vaddress owner,
@@ -145,8 +146,12 @@ public:
   };
 
 private:
-  inline bool past_payout_delay(time_point_sec base_time) {
-    return time_point_sec(now()) > (base_time + _config.get().payout_delay_sec);
+  inline bool past_delay(time_point_sec base_time, std::string type_delay) {
+    auto delay = NULL;
+
+    if (type_delay == "payout") delay = _config.get().payout_delay_sec;
+    else if (type_delay == "release_task") delay = _config.get().release_task_delay_sec;
+    return time_point_sec(now()) > (base_time + delay);
   }
 
   void require_merkle(std::vector<eosio::checksum256> proof,
@@ -286,11 +291,12 @@ private:
     uint64_t batch_id;
     std::string data;
     bool paid;
+    eosio::time_point_sec submitted_on;
 
     uint64_t primary_key() const { return id; }
     checksum256 by_leaf() const { return leaf_hash; }
 
-    EOSLIB_SERIALIZE(submission, (id)(account_id)(content)(leaf_hash)(batch_id)(data)(paid))
+    EOSLIB_SERIALIZE(submission, (id)(account_id)(content)(leaf_hash)(batch_id)(data)(paid)(submitted_on))
   };
 
   inline void require_vaccount(uint32_t acc_id, std::vector<char> msg, vaccount::sig sig) {
@@ -304,6 +310,7 @@ private:
     eosio::name vaccount_contract;
     uint32_t force_vaccount_id;
     uint32_t payout_delay_sec;
+    uint32_t release_task_delay_sec;
   };
 
   typedef singleton<"config"_n, config> config_table;
