@@ -60,7 +60,8 @@ void force::rmcampaign(uint32_t campaign_id, vaccount::vaddress owner, vaccount:
 }
 
 void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
-                    checksum256 task_merkle_root, uint32_t repetitions, eosio::name payer, vaccount::sig sig) {
+                    checksum256 task_merkle_root, uint32_t repetitions,
+                    eosio::name payer, vaccount::sig sig) {
   campaign_table camp_tbl(_self, _self.value);
   auto& camp = camp_tbl.get(campaign_id, "campaign not found");
 
@@ -68,7 +69,7 @@ void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
   std::vector<char> msg_bytes = pack(params);
   vaccount::require_auth(msg_bytes, camp.owner, sig);
 
-  eosio::check(repetitions < force::MAX_REPETITIONS, "Repetitions are too high.");
+  eosio::check(repetitions < force::MAX_REPETITIONS, "too many repetitions");
   batch_table batch_tbl(_self, _self.value);
   batch_tbl.emplace(payer,
                     [&](auto& b)
@@ -232,7 +233,7 @@ void force::payout(uint64_t payment_id, std::optional<eosio::signature> sig) {
   payment_tbl.erase(payment);
 
   action(
-    permission_level{_self, "active"_n},
+    permission_level{_self, "xfer"_n},
     _config.get().vaccount_contract,
     "vtransfer"_n,
     std::make_tuple((uint64_t) _config.get().force_vaccount_id,
