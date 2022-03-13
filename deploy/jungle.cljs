@@ -44,6 +44,10 @@
                        account-acc "xfer"
                        [{:permission {:actor account-acc :permission "eosio.code"} :weight 1}]))
 
+        (<p-may-fail! (eos/update-auth
+                       force-acc "active"
+                       [{:permission {:actor force-acc :permission "eosio.code"} :weight 1}]))
+
         (<p-may-fail! (eos/transact "eosio" "linkauth"
                                     {:account account-acc
                                      :requirement "xfer"
