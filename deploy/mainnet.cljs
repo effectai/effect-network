@@ -70,8 +70,8 @@
       (<p-may-fail! (eos/transact "eosio" "linkauth"
                                   {:account force-acc
                                    :requirement "xfer"
-                                   :code token-acc
-                                   :type "transfer"}
+                                   :code vaccount-acc
+                                   :type "vtransfer"}
                                   [{:actor force-acc :permission "active"}]))
 
       (<p! (eos/transact force-acc "init" {:vaccount_contract vaccount-acc
