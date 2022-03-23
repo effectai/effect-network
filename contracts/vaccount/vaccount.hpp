@@ -49,6 +49,7 @@ public:
   void vtransfer(uint64_t from_id,
                  uint64_t to_id,
                  eosio::extended_asset quantity,
+                 std::string memo,
                  std::optional<eosio::signature> sig,
                  std::optional<eosio::extended_asset> fee);
 
@@ -114,17 +115,17 @@ private:
     ds << address;
     ds.seekp(0);
     ds >> key;
-    // key.print();
+    key.print();
     return key;
   }
 
   struct [[eosio::table]] account {
-    uint64_t id;
+    uint32_t id;
     uint32_t nonce;
     vaddress address;
     extended_asset balance;
 
-    uint64_t primary_key() const { return id; }
+    uint64_t primary_key() const { return (uint64_t) id; }
 
     eosio::checksum256 by_token() const {
       return make_token_index(balance.contract, address);
@@ -137,5 +138,4 @@ private:
     "account"_n, account,
     indexed_by<"token"_n, const_mem_fun<account, eosio::checksum256, &account::by_token>>>
   account_table;
-
 };

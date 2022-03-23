@@ -2,12 +2,10 @@
 
 void vaccount::open(vaddress addr, eosio::extended_symbol symbol, eosio::name payer) {
   account_table acc_tbl(_self, _self.value);
-  uint64_t id = acc_tbl.available_primary_key();
-  eosio::extended_asset asset(0, symbol);
 
   // check user does not already have a balance for this symbol
   auto acc_tbl_idx = acc_tbl.get_index<"token"_n>();
-  auto idx_key = make_token_index(symbol.get_contract(), addr);
+  eosio::checksum256 idx_key = this->make_token_index(symbol.get_contract(), addr);
   auto itr_start = acc_tbl_idx.lower_bound(idx_key);
   auto itr_end = acc_tbl_idx.upper_bound(idx_key);
 
@@ -17,7 +15,15 @@ void vaccount::open(vaddress addr, eosio::extended_symbol symbol, eosio::name pa
     break;
   }
 
+  auto addr_type = addr.index();
+  if (addr_type == 1) {
+    name addr_name = std::get<eosio::name>(addr);
+    eosio::check(is_account(addr_name), "account does not exist");
+  }
+
   if (found == false) {
+    uint64_t id = acc_tbl.available_primary_key();
+    eosio::extended_asset asset(0, symbol);
     acc_tbl.emplace(payer,
                     [&](auto& a)
                     {
@@ -61,17 +67,18 @@ inline void vaccount::require_sig(std::vector<char> msg, account from, signature
 void vaccount::require_auth(std::vector<char> msg, account from, std::optional<signature> sig) {
   auto from_type = from.address.index();
   if (from_type == 1) {
+    eosio::check(!sig.has_value(), "signature not allowed for eos vaccounts");
     name from_name = std::get<name>(from.address);
     eosio::require_auth(from_name);
   } else if (from_type == 0) {
     require_sig(msg, from, sig.value());
   } else {
-    check(false, "unkown account type");
+    check(false, "unknown account type");
   }
 }
 
 void vaccount::vtransfer(uint64_t from_id, uint64_t to_id, extended_asset quantity,
-                         std::optional<signature> sig,
+                         std::string memo, std::optional<signature> sig,
                          std::optional<extended_asset> fee) {
   // TODO: add fee to account
   account_table acc_tbl(_self, _self.value);
@@ -83,6 +90,7 @@ void vaccount::vtransfer(uint64_t from_id, uint64_t to_id, extended_asset quanti
   check(from.balance.get_extended_symbol() == quantity.get_extended_symbol(), "symbol mismatch");
   check(from.id != to->id, "cannot transfer to self");
   check(from.balance >= quantity, "not enough balance");
+  check(memo.size() <= 256, "memo has more than 256 bytes");
 
   transfer_params params = {1, from.nonce, from.id, to_id, quantity};
   std::vector<char> msg_bytes = pack(params);

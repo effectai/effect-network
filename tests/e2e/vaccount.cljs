@@ -16,8 +16,6 @@
    [clojure.string :as string]
    [elliptic :refer [ec]]))
 
-
-
 (def ec (new ec "secp256k1"))
 
 (def owner-acc "eosio")
@@ -158,17 +156,26 @@
 (async-deftest open
   (testing "can open account"
     (doseq [acc accs]
-      (prn "~ Opened account " acc)
       (<p-should-succeed!
        (tx-as owner-acc net-acc "open" {:acc acc
                                         :payer owner-acc
                                         :symbol {:contract token-acc :sym "4,EFX"}}))))
 
-  (testing "can't open same symbol twice"
-    (<p-should-succeed!
-     (tx-as net-acc net-acc "open" {:acc (first accs)
+  (testing "eos account must exist"
+    (<p-should-fail-with!
+     (tx-as net-acc net-acc "open" {:acc ["name" "nonexist"]
                                     :payer net-acc
-                                    :symbol {:contract token-acc :sym "4,EFX"}})))
+                                    :symbol {:contract token-acc :sym "4,EFX"}})
+     "" "account does not exist"))
+
+  (testing "can't open same symbol twice"
+    (let [n-rows (count (<p! (eos/get-table-rows net-acc net-acc "account")))]
+      (<p-should-succeed!
+       (tx-as net-acc net-acc "open" {:acc (first accs)
+                                      :payer net-acc
+                                      :symbol {:contract token-acc :sym "4,EFX"}}))
+      (let [new-n-rows (count (<p! (eos/get-table-rows net-acc net-acc "account")))]
+        (is (= new-n-rows n-rows) "duplicate account entry"))))
 
   (testing "opened balances are empty"
     (doseq [[type acc] accs]
@@ -183,6 +190,14 @@
         (is (= (get-in res ["balance" "quantity"]) "0.0000 EFX") "balance is empty")))))
 
 (async-deftest deposit
+  (<p! (eos/wait-block (js/Promise.resolve 1)) 300)
+  (<p!
+   (tx-as net-acc net-acc "open" {:acc (first accs)
+                                  :payer net-acc
+                                  :symbol {:contract token-acc :sym "4,EFX"}}))
+
+  (<p! (eos/wait-block (js/Promise.resolve 1)) 300)
+
   (testing "can deposit"
     (let [row 2 quant "500.0000 EFX"]
       (<p-should-succeed!
@@ -194,7 +209,17 @@
 
       (let [row (<p! (eos/get-table-row net-acc net-acc "account" row))]
         (is (= (get row "balance") {"quantity" quant "contract" token-acc})
-            "balance should be correct")))))
+            "balance should be correct"))))
+
+  (testing "can't open same symbol twice after transfer"
+    (let [n-rows (count (<p! (eos/get-table-rows net-acc net-acc "account")))]
+      (<p! (eos/wait-block (js/Promise.resolve 1)) 300)
+      (<p-should-succeed!
+       (tx-as net-acc net-acc "open" {:acc (first accs)
+                                      :payer net-acc
+                                      :symbol {:contract token-acc :sym "4,EFX"}}))
+      (let [new-n-rows (count (<p! (eos/get-table-rows net-acc net-acc "account")))]
+        (is (= new-n-rows n-rows) "duplicate account entry")))))
 
 (async-deftest vtransfer
   (testing "can tranfer from pub key hash"
@@ -207,13 +232,44 @@
           eos-sig (.fromElliptic Signature sig 0)]
       (<p!
        (tx-as (get-in accs [2 1]) net-acc
-              "vtransfer" {:from_id 0
-                          :to_id 2
-                          :quantity asset
-                          :sig (.toString eos-sig)
-                          :fee nil})))))
+              "vtransfer" {:from_id from
+                           :to_id to
+                           :quantity asset
+                           :memo ""
+                           :sig (.toString eos-sig)
+                           :fee nil}))))
+
+  (testing "can't open same symbol twice after adding balance"
+    (let [n-rows (count (<p! (eos/get-table-rows net-acc net-acc "account")))]
+      (<p-should-succeed!
+       (tx-as net-acc net-acc "open" {:acc (nth accs 2)
+                                      :payer net-acc
+                                      :symbol {:contract token-acc :sym "4,EFX"}}))
+      (let [new-n-rows (count (<p! (eos/get-table-rows net-acc net-acc "account")))]
+        (is (= new-n-rows n-rows) "duplicate account entry")))))
 
 (async-deftest withdraw
+  (testing "can not withdraw from eos account with a sig"
+    (let [asset {:quantity "50.0000 EFX" :contract token-acc}]
+      (<p-should-fail-with!
+       (tx-as (get-in accs [2 1]) net-acc
+              "withdraw" {:from_id 2
+                          :to_account acc-2
+                          :quantity asset
+                          :memo "memo"
+                          :sig "SIG_K1_KyEZVRFZVAVWPBdmEw7QRfDBSTmMqzZbQvg6iidCNvDRocrd4w5yuo6X2kCPSzCF5em3k9vi2qsaombz1ZNzdTSM2qaLcV"
+                          :fee nil})
+       "" "signature not allowed for eos vaccounts")))
+  (testing "can withdraw from eos account"
+    (let [asset {:quantity "50.0000 EFX" :contract token-acc}]
+      (<p-should-succeed!
+       (tx-as (get-in accs [2 1]) net-acc
+              "withdraw" {:from_id 2
+                          :to_account acc-2
+                          :quantity asset
+                          :memo "memo"
+                          :sig nil
+                          :fee nil}))))
   (testing "can withdraw from pub key hash"
     (let [asset {:quantity "50.0000 EFX" :contract token-acc}
           transfer-params (pack-withdraw-params 1 0 acc-2 asset)

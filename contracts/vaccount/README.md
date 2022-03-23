@@ -32,6 +32,7 @@ Transfer tokens between virtual accounts
 vtransfer(uint64_t from_id,
           uint64_t to_id,
           eosio::extended_asset quantity,
+          std::string memo,
           std::optional<eosio::signature> sig,
           std::optional<eosio::extended_asset> fee)
 ```
