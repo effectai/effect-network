@@ -20,10 +20,7 @@
    {:account "force.efx"
     :file "contracts/force/force"}
    {:account vaccount-acc
-    :file "contracts/vaccount/vaccount"}
-   ])
-
-
+    :file "contracts/vaccount/vaccount"}])
 
 (defn add-contract-hashes [contracts]
   (go

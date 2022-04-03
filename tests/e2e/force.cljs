@@ -67,17 +67,16 @@
                 [{:permission {:actor vacc-acc :permission "eosio.code"}
                   :weight 1}]))
 
-          (<p!
-           (eos/transact "eosio" "linkauth"
-                         {:account vacc-acc
-                          :requirement "xfer"
-                          :code token-acc
-                          :type "transfer"}
-                         [{:actor vacc-acc :permission "active"}]))
+          (<p! (eos/transact "eosio" "linkauth"
+                             {:account vacc-acc
+                              :requirement "xfer"
+                              :code token-acc
+                              :type "transfer"}
+                             [{:actor vacc-acc :permission "active"}]))
 
-          (<p ! (eos/update-auth
-                         force-acc "xfer" "active"
-                         [{:permission {:actor force-acc :permission "eosio.code"} :weight 1}]))
+          (<p! (eos/update-auth
+                force-acc "xfer" "active"
+                [{:permission {:actor force-acc :permission "eosio.code"} :weight 1}]))
 
           (<p! (eos/transact "eosio" "linkauth"
                              {:account force-acc
