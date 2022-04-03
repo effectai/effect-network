@@ -57,14 +57,35 @@
       done
       (go
         (try
-          (<p-may-fail! (eos/create-account owner-acc vacc-acc))
-          (<p-may-fail! (eos/create-account owner-acc force-acc))
+          (<p! (eos/create-account owner-acc force-acc))
+          (<p! (eos/create-account owner-acc vacc-acc))
           (<p! (deploy-file vacc-acc "contracts/vaccount/vaccount"))
           (<p! (deploy-file force-acc "contracts/force/force"))
           (<!  (e2e.token/deploy-token token-acc [owner-acc token-acc]))
-          (<p! (eos/update-auth force-acc "active"
-                  [{:permission {:actor force-acc :permission "eosio.code"}
-                    :weight 1}]))
+
+          (<p! (eos/update-auth vacc-acc "xfer" "active"
+                [{:permission {:actor vacc-acc :permission "eosio.code"}
+                  :weight 1}]))
+
+          (<p!
+           (eos/transact "eosio" "linkauth"
+                         {:account vacc-acc
+                          :requirement "xfer"
+                          :code token-acc
+                          :type "transfer"}
+                         [{:actor vacc-acc :permission "active"}]))
+
+          (<p ! (eos/update-auth
+                         force-acc "xfer" "active"
+                         [{:permission {:actor force-acc :permission "eosio.code"} :weight 1}]))
+
+          (<p! (eos/transact "eosio" "linkauth"
+                             {:account force-acc
+                              :requirement "xfer"
+                              :code vacc-acc
+                              :type "vtransfer"}
+                             [{:actor force-acc :permission "active"}]))
+
           (doseq [[type acc] accs]
             (when (= "name" type)
               (<p! (eos/create-account owner-acc acc)))
