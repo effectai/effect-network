@@ -7,7 +7,7 @@
     "@cityofzion/neon-js": "^4.8.0",
     "andare": "^1.1.587",
     "eos-cljs": "./eos-cljs",
-    "eosjs": "^22.1.0",
+    "eosjs": "^20.0.3",
     "merkletreejs": "^0.2.24",
     "node-fetch": "^2.6.1"
   },
