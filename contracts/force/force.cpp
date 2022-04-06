@@ -343,7 +343,13 @@ void force::reclaimtask(uint64_t task_id, uint32_t account_id,
 
   eosio::check(!sub.account_id.has_value(), "task already reserved");
   eosio::check(sub.data.empty(), "task already submitted");
-  submission_tbl.modify(sub, payer, [&](auto& s) { s.account_id = account_id; });
+  submission_tbl.modify(sub,
+                        payer,
+                        [&](auto& s)
+                        {
+                          s.account_id = account_id;
+                          s.submitted_on = time_point_sec(now());
+                        });
 }
 
 void force::closebatch(uint64_t batch_id, vaccount::vaddress owner, vaccount::sig sig) {
