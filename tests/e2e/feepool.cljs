@@ -42,6 +42,7 @@
           (<! (e2e.stake/deploy-stake stake-acc token-acc "4,EFX" "4,NFX"
                                       [[owner-acc "1056569.0000 EFX" "37276.0000 NFX"]
                                        [prop-acc "309999.0000 EFX" "10002.0000 NFX"]]))
+
           (<! (e2e.dao/deploy-dao dao-acc stake-acc prop-acc token-acc "4,EFX" "4,NFX"
                                   [owner-acc prop-acc]))
           (<p! (deploy-file fee-acc "contracts/feepool/feepool"))
@@ -129,12 +130,12 @@
   (<p! (eos-tx-owner token-acc "transfer"
                      {:from owner-acc :to prop-acc :quantity proposal-cost :memo "proposal"}))
   (<p! (p-all (eos-tx-owner prop-acc "createprop" (assoc base-prop :cycle 2))
-              (eos/transact prop-acc "addcycle" base-cycle)
               (eos/transact prop-acc "addcycle" base-cycle)))
+  (<p! (wait 1000))
   (<p! (eos/transact prop-acc "cycleupdate" {}))
   (<p! (eos/transact prop-acc "update" prop-config))
-  (<p! (p-all (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 0})
-              (eos/transact prop-acc "addvote" {:voter prop-acc :prop_id 0 :vote_type 1})))
+  (<p! (p-all (eos-tx-owner prop-acc "addvote" {:voter owner-acc :prop_id 0 :vote_type 0 :comment_hash nil})
+              (eos/transact prop-acc "addvote" {:voter prop-acc :prop_id 0 :vote_type 1 :comment_hash nil})))
 
   ;; add fees and finalize cycle
   (<p-should-succeed!
@@ -143,6 +144,8 @@
    "can add more feees")
   (<p! (eos/transact prop-acc "update" (assoc prop-config :cycle_duration_sec 2
                                               :cycle_voting_duration_sec 1)))
+
+  (<p! (wait 1000))
   (<p! (eos/transact prop-acc "cycleupdate" {}))
   (<p! (eos-tx-owner prop-acc "processcycle" {:account owner-acc :id 2}))
 
@@ -152,7 +155,7 @@
 
   (<p-should-succeed!
    (tx-as prop-acc fee-acc "claimreward" {:account prop-acc})
-   "can claim")  )
+   "can claim"))
 
 (defn -main [& args]
   (run-tests))
