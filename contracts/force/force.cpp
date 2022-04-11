@@ -204,10 +204,6 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
   }
   eosio::check(rep_count < batch.repetitions, "task already completed");
 
-  if (rep_count + 1 >= batch.repetitions) {
-    batch_tbl.modify(batch, payer, [&](auto& b) { b.tasks_done++; });
-  }
-
   submission_tbl.emplace(payer,
                          [&](auto& s)
                          {
@@ -259,6 +255,8 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
 
   auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
   auto& camp = campaign_tbl.get(batch.campaign_id);
+
+  batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.tasks_done++; });
 
   if (camp.reward.quantity.amount > 0) {
     submittask_params params = {5, submission_id, data};
@@ -345,7 +343,13 @@ void force::reclaimtask(uint64_t task_id, uint32_t account_id,
 
   eosio::check(!sub.account_id.has_value(), "task already reserved");
   eosio::check(sub.data.empty(), "task already submitted");
-  submission_tbl.modify(sub, payer, [&](auto& s) { s.account_id = account_id; });
+  submission_tbl.modify(sub,
+                        payer,
+                        [&](auto& s)
+                        {
+                          s.account_id = account_id;
+                          s.submitted_on = time_point_sec(now());
+                        });
 }
 
 void force::closebatch(uint64_t batch_id, vaccount::vaddress owner, vaccount::sig sig) {

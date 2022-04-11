@@ -67,17 +67,16 @@
                 [{:permission {:actor vacc-acc :permission "eosio.code"}
                   :weight 1}]))
 
-          (<p!
-           (eos/transact "eosio" "linkauth"
-                         {:account vacc-acc
-                          :requirement "xfer"
-                          :code token-acc
-                          :type "transfer"}
-                         [{:actor vacc-acc :permission "active"}]))
+          (<p! (eos/transact "eosio" "linkauth"
+                             {:account vacc-acc
+                              :requirement "xfer"
+                              :code token-acc
+                              :type "transfer"}
+                             [{:actor vacc-acc :permission "active"}]))
 
-          (<p ! (eos/update-auth
-                         force-acc "xfer" "active"
-                         [{:permission {:actor force-acc :permission "eosio.code"} :weight 1}]))
+          (<p! (eos/update-auth
+                force-acc "xfer" "active"
+                [{:permission {:actor force-acc :permission "eosio.code"} :weight 1}]))
 
           (<p! (eos/transact "eosio" "linkauth"
                              {:account force-acc
@@ -625,12 +624,18 @@
                                   :sig nil})
                           "" "campaign not joined"))
 
-  (testing "can reclaim released task with eos account"
-    (<p-should-succeed! (tx-as acc-2 force-acc "reclaimtask"
-                               {:task_id 1
-                                :account_id 2
-                                :payer acc-2
-                                :sig nil})))
+  (let [submitted-first (get (<p! (eos/get-table-row force-acc force-acc "submission" 1))
+                             "submitted_on")]
+    (testing "can reclaim released task with eos account"
+      (<p-should-succeed! (tx-as acc-2 force-acc "reclaimtask"
+                                 {:task_id 1
+                                  :account_id 2
+                                  :payer acc-2
+                                  :sig nil})))
+    (let [submitted-after (get (<p! (eos/get-table-row force-acc force-acc "submission" 1))
+                               "submitted_on")]
+      (is (not (= submitted-first submitted-after))
+          "reclaimtask should reset submitted_on")))
 
   (testing "can reclaim released task with pub key hash"
     (<p-should-succeed! (tx-as acc-3 force-acc "reclaimtask"
