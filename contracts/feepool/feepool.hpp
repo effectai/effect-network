@@ -24,6 +24,10 @@ public:
   [[eosio::action]]
   void claimreward(eosio::name account);
 
+  [[eosio::action]]
+  void setbalance(uint64_t cycle_id,
+                  uint64_t amount);
+
 private:
   struct [[eosio::table]] config {
     eosio::name proposal_contract;

@@ -157,5 +157,20 @@
    (tx-as prop-acc fee-acc "claimreward" {:account prop-acc})
    "can claim"))
 
+(async-deftest setbalance
+  (testing "setbalance"
+    (<p-should-fail-with!
+     (eos-tx-owner fee-acc "setbalance" {:cycle_id 1 :amount 45})
+     "only contract can set balance"
+     (str "missing authority of " fee-acc))
+
+    (<p-should-succeed!
+     (tx-as fee-acc fee-acc "setbalance" {:cycle_id 1 :amount 45})
+     "contract can set balance")
+
+    (let [rows  (<p! (eos/get-table-rows fee-acc fee-acc "balance"))]
+      (is (= (get-in rows [1 "balance" 0 "value"]) 45)
+          "setbalance sets the balance"))))
+
 (defn -main [& args]
   (run-tests))

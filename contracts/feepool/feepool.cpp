@@ -40,6 +40,20 @@ void feepool::transfer_handler(name from, name to, asset quantity, std::string m
   }
 }
 
+void feepool::setbalance(uint64_t cycle_id, uint64_t amount) {
+  require_auth(_self);
+  auto conf = config_table(_self, _self.value).get();
+  auto sym = *conf.allowed_symbols.begin();
+
+  balance_table balance_tbl(_self, _self.value);
+  auto cycle_entry = balance_tbl.find(cycle_id);
+  if (cycle_entry == balance_tbl.end()) {
+    cycle_entry = balance_tbl.emplace(_self, [&](auto& b) { b.cycle_id = cycle_id; });
+  }
+
+  balance_tbl.modify(cycle_entry, _self, [&](auto& b) { b.balance[sym] = amount; });
+}
+
 void feepool::claimreward(eosio::name account) {
   require_auth(account);
   auto conf = config_table(_self, _self.value).get();
@@ -119,7 +133,7 @@ extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
                             &feepool::transfer_handler);
   } else if (code == receiver) {
     switch(action) {
-      EOSIO_DISPATCH_HELPER(feepool, (init)(update)(claimreward));
+      EOSIO_DISPATCH_HELPER(feepool, (init)(update)(claimreward)(setbalance));
     }
   }
 }
