@@ -297,6 +297,7 @@ private:
 
     uint64_t primary_key() const { return id; }
     checksum256 by_leaf() const { return leaf_hash; }
+    uint64_t by_batch() const { return batch_id; }
 
     EOSLIB_SERIALIZE(submission, (id)(account_id)(content)(leaf_hash)(batch_id)(data)(paid)(submitted_on))
   };
@@ -320,9 +321,12 @@ private:
   typedef multi_index<"campaign"_n, campaign> campaign_table;
   typedef multi_index<"batch"_n, batch> batch_table;
   typedef multi_index<"campaignjoin"_n, campaignjoin> campaignjoin_table;
+
   typedef multi_index<"submission"_n, submission,
-                      indexed_by<"leaf"_n, const_mem_fun<submission, checksum256, &submission::by_leaf>>>
+                      indexed_by<"leaf"_n, const_mem_fun<submission, checksum256, &submission::by_leaf>>,
+                      indexed_by<"batch"_n, const_mem_fun<submission, uint64_t, &submission::by_batch>>>
   submission_table;
+
   typedef multi_index<"payment"_n, payment,
                       indexed_by<"accbatch"_n, const_mem_fun<payment, uint128_t, &payment::by_account_batch>>,
                       indexed_by<"acc"_n, const_mem_fun<payment, uint64_t, &payment::by_account>>>
