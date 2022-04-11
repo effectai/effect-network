@@ -39,7 +39,8 @@ void proposals::init(uint32_t cycle_duration_sec,
 void proposals::update(uint32_t cycle_duration_sec,
                        uint32_t cycle_voting_duration_sec,
                        uint32_t quorum,
-                       eosio::extended_asset proposal_cost) {
+                       eosio::extended_asset proposal_cost,
+                       std::optional<uint16_t> current_cycle) {
   require_auth(_self);
 
   eosio::check(cycle_duration_sec > 0, "cycle duration must be positive");
@@ -53,6 +54,9 @@ void proposals::update(uint32_t cycle_duration_sec,
   conf.cycle_voting_duration_sec = cycle_voting_duration_sec;
   conf.quorum = quorum;
   conf.proposal_cost = proposal_cost;
+  if (current_cycle.has_value()) {
+    conf.current_cycle = current_cycle.value();
+  }
   _config.set(conf, _self);
 };
 
@@ -120,7 +124,6 @@ void proposals::updatecycle(uint64_t id,
                             std::vector<eosio::extended_asset> budget) {
   require_auth(_self);
 
-  eosio::check(id > _config.get().current_cycle, "cycle is not in the future");
   cycle_table cycle_tbl(_self, _self.value);
   auto& cycle = cycle_tbl.get(id, "cycle is not defined");
   eosio::check(!cycle.state.has_value() ||

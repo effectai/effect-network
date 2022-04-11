@@ -55,7 +55,8 @@ public:
   void update(uint32_t cycle_duration_sec,
               uint32_t cycle_voting_duration_sec,
               uint32_t quorum,
-              eosio::extended_asset proposal_cost);
+              eosio::extended_asset proposal_cost,
+              std::optional<uint16_t> current_cycle);
 
   [[eosio::action]]
   void createprop(eosio::name author,
