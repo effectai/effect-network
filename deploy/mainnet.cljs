@@ -14,13 +14,20 @@
 (def token-acc "effecttokens")
 (def vaccount-acc "vaccount.efx")
 (def force-acc "force.efx")
+(def feepool-acc "feepool.efx")
+(def proposal-acc "daoproposals")
 
 (def contracts
   [
-   {:account "force.efx"
+   {:account force-acc
     :file "contracts/force/force"}
    {:account vaccount-acc
-    :file "contracts/vaccount/vaccount"}])
+    :file "contracts/vaccount/vaccount"}
+   {:account feepool-acc
+    :file "contracts/feepool/feepool"}
+   {:account proposal-acc
+    :file "contracts/proposals/proposals"}
+   ])
 
 (defn add-contract-hashes [contracts]
   (go
