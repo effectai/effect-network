@@ -14,8 +14,6 @@ inline uint32_t now() {
   return current_time;
 }
 
-
-
 class [[eosio::contract("force")]] force : public eosio::contract {
 private:
   struct account;
@@ -23,8 +21,14 @@ private:
 public:
   const uint8_t MAX_REPETITIONS = 100;
   using contract::contract;
+  using camp_quali_map = std::map<uint32_t, uint8_t>;
 
   typedef std::tuple<uint8_t, std::string> content;
+
+  enum QualiType {
+    Inclusive = 0,
+    Exclusive = 1
+  };
 
   template <typename T>
   void cleanTable(name code, uint64_t account, const uint32_t batchSize){
@@ -50,6 +54,7 @@ public:
   void mkcampaign(vaccount::vaddress owner,
                   content content,
                   eosio::extended_asset reward,
+                  camp_quali_map qualis,
                   eosio::name payer,
                   vaccount::sig sig);
 
@@ -58,13 +63,14 @@ public:
                     vaccount::vaddress owner,
                     content content,
                     eosio::extended_asset reward,
+                    camp_quali_map qualis,
                     eosio::name payer,
                     vaccount::sig sig);
 
   [[eosio::action]]
   void rmcampaign(uint32_t campaign_id,
-                    vaccount::vaddress owner,
-                    vaccount::sig sig);
+                  vaccount::vaddress owner,
+                  vaccount::sig sig);
 
   [[eosio::action]]
   void mkbatch(uint32_t id,
@@ -87,8 +93,8 @@ public:
 
   [[eosio::action]]
   void closebatch(uint64_t batch_id,
-                 vaccount::vaddress owner,
-                 vaccount::sig sig);
+                  vaccount::vaddress owner,
+                  vaccount::sig sig);
 
   [[eosio::action]]
   void joincampaign(uint32_t account_id,
@@ -113,21 +119,34 @@ public:
                   uint64_t batch_id,
                   eosio::name payer,
                   vaccount::sig sig);
+
   [[eosio::action]]
   void payout(uint64_t payment_id,
               std::optional<eosio::signature> sig);
 
-[[eosio::action]]
+  [[eosio::action]]
   void releasetask(uint64_t task_id,
-                  uint32_t account_id,
-                  eosio::name payer,
-                  vaccount::sig sig);
+                   uint32_t account_id,
+                   eosio::name payer,
+                   vaccount::sig sig);
 
-[[eosio::action]]
+  [[eosio::action]]
   void reclaimtask(uint64_t task_id,
-                  uint32_t account_id,
-                  eosio::name payer,
-                  vaccount::sig sig);
+                   uint32_t account_id,
+                   eosio::name payer,
+                   vaccount::sig sig);
+
+  [[eosio::action]]
+  void mkquali(content content,
+               uint32_t account_id,
+               eosio::name payer,
+               vaccount::sig sig);
+
+  [[eosio::action]]
+  void assignquali(uint32_t quali_id,
+                   uint32_t user_id,
+                   eosio::name payer,
+                   vaccount::sig sig);
 
   [[eosio::on_notify("*::vtransfer")]]
   void vtransfer_handler(uint64_t from_id,
@@ -195,6 +214,13 @@ private:
     EOSLIB_SERIALIZE(rmcampaign_params, (mark)(campaign_id));
   };
 
+  struct mkquali_params {
+    uint8_t mark;
+    uint32_t account_id;
+    content content;
+    EOSLIB_SERIALIZE(mkquali_params, (mark)(account_id)(content));
+  };
+
   struct mkbatch_params {
     uint8_t mark;
     uint32_t id;
@@ -247,10 +273,11 @@ private:
     vaccount::vaddress owner;
     content content;
     eosio::extended_asset reward;
+    std::map<uint32_t, uint8_t> qualis;
 
     uint64_t primary_key() const { return (uint64_t) id; }
 
-    EOSLIB_SERIALIZE(campaign, (id)(owner)(content)(reward))
+    EOSLIB_SERIALIZE(campaign, (id)(owner)(content)(reward)(qualis))
   };
 
   struct [[eosio::table]] batch {
@@ -281,7 +308,9 @@ private:
     eosio::time_point_sec last_submission_time;
 
     uint64_t primary_key() const { return id; }
-    uint128_t by_account_batch() const { return (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32); }
+    uint128_t by_account_batch() const {
+      return (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32);
+    }
     uint64_t by_account() const { return (uint64_t) account_id; }
   };
 
@@ -299,7 +328,32 @@ private:
     checksum256 by_leaf() const { return leaf_hash; }
     uint64_t by_batch() const { return batch_id; }
 
-    EOSLIB_SERIALIZE(submission, (id)(account_id)(content)(leaf_hash)(batch_id)(data)(paid)(submitted_on))
+    EOSLIB_SERIALIZE(submission, (id)(account_id)(content)(leaf_hash)(batch_id)
+                     (data)(paid)(submitted_on))
+  };
+
+  struct [[eosio::table]] quali {
+    uint32_t id;
+    content content;
+    uint32_t account_id;
+
+    uint64_t primary_key() const { return uint64_t{id}; }
+    uint32_t by_account() const { return account_id; }
+  };
+
+  struct [[eosio::table]] userquali {
+    uint32_t account_id;
+    uint32_t quali_id;
+
+    uint64_t primary_key() const { return (uint64_t{account_id} << 32) | quali_id; }
+  };
+
+  struct [[eosio::table]] campquali {
+    uint32_t campaign_id;
+    uint32_t quali_id;
+    uint8_t type;
+
+    uint64_t primary_key() const { return (uint64_t{campaign_id} << 32) | quali_id; }
   };
 
   inline void require_vaccount(uint32_t acc_id, std::vector<char> msg, vaccount::sig sig) {
@@ -331,6 +385,10 @@ private:
                       indexed_by<"accbatch"_n, const_mem_fun<payment, uint128_t, &payment::by_account_batch>>,
                       indexed_by<"acc"_n, const_mem_fun<payment, uint64_t, &payment::by_account>>>
   payment_table;
+
+  typedef multi_index<"quali"_n, quali> quali_table;
+  typedef multi_index<"userquali"_n, userquali> user_quali_table;
+  typedef multi_index<"campquali"_n, campquali> camp_quali_table;
 
   config_table _config;
 };
