@@ -25,7 +25,7 @@ void force::mkcampaign(vaccount::vaddress owner, content content, eosio::extende
                      c.content = content;
                      c.owner = owner;
                      c.reward = reward;
-                     c.qualis = qualis;
+                     c.qualis.emplace(qualis);
                    });
 }
 void force::editcampaign(uint32_t campaign_id, vaccount::vaddress owner, content content,
@@ -44,7 +44,7 @@ void force::editcampaign(uint32_t campaign_id, vaccount::vaddress owner, content
                   {
                     c.content = content;
                     c.reward = reward;
-                    c.qualis = qualis;
+                    c.qualis.emplace(qualis);
                   });
 }
 
@@ -161,7 +161,7 @@ void force::joincampaign(uint32_t account_id, uint32_t campaign_id, eosio::name 
   auto camp = camp_tbl.get(campaign_id, "campaign not found");
   user_quali_table user_quali_tbl(_self, _self.value);
 
-  for (auto q : camp.qualis) {
+  for (auto q : camp.qualis.value()) {
     uint32_t quali_id = std::get<0>(q);
     uint8_t quali_type = std::get<1>(q);
     uint64_t user_quali_id = (uint64_t{account_id} << 32) | quali_id;

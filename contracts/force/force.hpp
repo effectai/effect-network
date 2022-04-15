@@ -5,6 +5,7 @@
 #include <eosio/asset.hpp>
 #include <eosio/datastream.hpp>
 #include <eosio/crypto.hpp>
+#include <eosio/binary_extension.hpp>
 #include "../vaccount/vaccount-shared.hpp"
 
 using namespace eosio;
@@ -273,7 +274,7 @@ private:
     vaccount::vaddress owner;
     content content;
     eosio::extended_asset reward;
-    std::map<uint32_t, uint8_t> qualis;
+    eosio::binary_extension<std::map<uint32_t, uint8_t>> qualis;
 
     uint64_t primary_key() const { return (uint64_t) id; }
 
