@@ -162,10 +162,6 @@
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize)) (.push 17) (.pushNumberAsUint64 id))))
 
-(defn pack-joincampaign-params [camp-id]
-  (.asUint8Array
-   (doto (new (.-SerialBuffer Serialize)) (.push 7) (.pushUint32 camp-id))))
-
 (defn pack-payout-params [acc-id]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize)) (.push 13) (.pushUint32 acc-id))))
@@ -480,44 +476,11 @@
              :user_id 0
              :payer acc-2
              :sig (sign-params (pack-assignquali-params 0 0))})
+     "")
+    (<p-should-succeed!
+     (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 1 :payer acc-2
+                                           :sig (sign-params (pack-assignquali-params 0 1))})
      "")))
-
-(async-deftest campaignjoin
-  (testing "needs the right qualfication"
-    (<p-should-fail-with! (tx-as acc-3 force-acc "joincampaign"
-                               {:campaign_id 0
-                                :account_id 1
-                                :payer acc-3
-                                :sig nil})
-                          "" "missing qualification"))
-  (<p! (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 1 :payer acc-2
-                                             :sig (sign-params (pack-assignquali-params 0 1))}))
-  (testing "account can join a campaign"
-
-    (<p-should-succeed! (tx-as acc-3 force-acc "joincampaign"
-                               {:campaign_id 0
-                                :account_id 1
-                                :payer acc-3
-                                :sig nil}))
-
-    (<p-should-succeed! (tx-as acc-2 force-acc "joincampaign"
-                               {:campaign_id 2
-                                :account_id 2
-                                :payer acc-2
-                                :sig nil}))
-
-    (<p-should-succeed! (tx-as acc-2 force-acc "joincampaign"
-                               {:campaign_id 5
-                                :account_id 2
-                                :payer acc-2
-                                :sig nil})))
-  (testing "pub key hash can join a campaign"
-    (<p-should-succeed! (tx-as acc-3 force-acc "joincampaign"
-                               {:campaign_id 0
-                                :account_id 0
-                                :payer acc-3
-                                :sig (sign-params (pack-joincampaign-params 0))}))
-    ))
 
 
 (defn sha256 [data]
@@ -620,13 +583,9 @@
                                               :account_id 2
                                               :payer acc-2
                                               :sig nil})
-        "" "campaign not joined")
+        "" "missing qualification")
       (<p! (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 2 :payer acc-2
-                                                 :sig (sign-params (pack-assignquali-params 0 2))}))
-        (tx-as acc-2 force-acc "joincampaign" {:campaign_id 0
-                                               :account_id 2
-                                               :payer acc-2
-                                               :sig nil}))
+                                                 :sig (sign-params (pack-assignquali-params 0 2))})))
     (testing "cant exceed repetitions"
       (<p-should-fail-with!
         (tx-as acc-3 force-acc "reservetask" {:proof hex-proof-1
@@ -683,13 +642,13 @@
                                 :sig (sign-params (pack-task-params 14 1 0))}))))
 
 (async-deftest reclaimtask
-  (testing "can not reclaim task from not joined campaign"
+  (testing "can not reclaim task when not qualified"
     (<p-should-fail-with! (tx-as acc-2 force-acc "reclaimtask"
                                  {:task_id 1
                                   :account_id 3
                                   :payer acc-2
                                   :sig nil})
-                          "" "campaign not joined"))
+                        "" "missing qualification"))
 
   (let [submitted-first (get (<p! (eos/get-table-row force-acc force-acc "submission" 1))
                              "submitted_on")]
@@ -712,21 +671,31 @@
                                 :sig (sign-params (pack-task-params 15 0 0))}))))
 
 (async-deftest submit-task
-  (<p-should-succeed!
-    (tx-as acc-2 force-acc "submittask" {:data "testdata"
-                                         :batch_id 0
-                                         :task_id 1
-                                         :account_id 2
-                                         :sig nil
-                                         :payer acc-2}))
-  (let [data "testdata 2"]
+  (testing "can submit task"
     (<p-should-succeed!
-      (tx-as acc-3 force-acc "submittask" {:data data
-                                           :batch_id 0
-                                           :task_id 0
-                                           :account_id 0
-                                           :sig (sign-params (pack-submittask-params 0 data))
-                                           :payer acc-3}))))
+     (tx-as acc-2 force-acc "submittask" {:data "testdata"
+                                          :batch_id 0
+                                          :task_id 1
+                                          :account_id 2
+                                          :sig nil
+                                          :payer acc-2}))
+    (let [data "testdata 2"]
+      (<p-should-succeed!
+       (tx-as acc-3 force-acc "submittask" {:data data
+                                            :batch_id 0
+                                            :task_id 0
+                                            :account_id 0
+                                            :sig (sign-params (pack-submittask-params 0 data))
+                                            :payer acc-3}))))
+  (testing "can not double submit"
+    (<p-should-fail-with!
+     (tx-as acc-2 force-acc "submittask" {:data "testdata 3"
+                                          :batch_id 0
+                                          :task_id 1
+                                          :account_id 2
+                                          :sig nil
+                                          :payer acc-2})
+     "" "already submitted")))
 
 
 

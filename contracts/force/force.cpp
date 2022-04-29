@@ -152,29 +152,45 @@ void force::assignquali(uint32_t quali_id, uint32_t user_id, eosio::name payer, 
                          });
 }
 
-void force::joincampaign(uint32_t account_id, uint32_t campaign_id, eosio::name payer,
-                         vaccount::sig sig) {
-  joincampaign_params params = {7, campaign_id};
-  require_vaccount(account_id, pack(params), sig);
 
-  campaign_table camp_tbl(_self, _self.value);
-  auto camp = camp_tbl.get(campaign_id, "campaign not found");
-  user_quali_table user_quali_tbl(_self, _self.value);
+void force::require_batchjoin(uint32_t account_id, uint64_t batch_id, bool try_to_join, name payer) {
+  batchjoin_table join_tbl(_self, _self.value);
+  uint128_t pk = (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32);
+  auto by_accbatch = join_tbl.get_index<"accbatch"_n>();
+  auto entry = by_accbatch.find(pk);
+  bool has_joined = entry != by_accbatch.end();
+  if (!has_joined) {
+    eosio::check(try_to_join, "batch not joined");
 
-  for (auto q : camp.qualis.value()) {
-    uint32_t quali_id = std::get<0>(q);
-    uint8_t quali_type = std::get<1>(q);
-    uint64_t user_quali_id = (uint64_t{account_id} << 32) | quali_id;
-    auto user_quali = user_quali_tbl.find(user_quali_id);
-    bool has_quali = (user_quali != user_quali_tbl.end());
-    if (has_quali)
-      eosio::check(quali_type == force::Inclusive, "qualification excluded");
-    else
-      eosio::check(quali_type == force::Exclusive, "missing qualification");
+    batch_table batch_tbl(_self, _self.value);
+    auto batch = batch_tbl.get(batch_id, "batch not found");
+    campaign_table camp_tbl(_self, _self.value);
+    auto camp = camp_tbl.get(batch.campaign_id, "campaign not found");
+    user_quali_table user_quali_tbl(_self, _self.value);
+
+    if (camp.qualis.has_value()) {
+      for (auto q : camp.qualis.value()) {
+        uint32_t quali_id = std::get<0>(q);
+        uint8_t quali_type = std::get<1>(q);
+        uint64_t user_quali_id = (uint64_t{account_id} << 32) | quali_id;
+        auto user_quali = user_quali_tbl.find(user_quali_id);
+        bool has_quali = (user_quali != user_quali_tbl.end());
+        if (has_quali)
+          eosio::check(quali_type == force::Inclusive, "qualification excluded");
+        else
+          eosio::check(quali_type == force::Exclusive, "missing qualification");
+      }
+
+      uint32_t join_id = join_tbl.available_primary_key();
+      join_tbl.emplace(payer,
+                       [&](auto& j)
+                       {
+                         j.account_id = account_id;
+                         j.batch_id = batch_id;
+                         j.id = join_id;
+                       });
+    }
   }
-
-  campaignjoin_table join_tbl(_self, _self.value);
-  join_tbl.emplace(payer, [&](auto& j) { j.account_id = account_id; j.campaign_id = campaign_id; });
 }
 
 void force::require_merkle(std::vector<eosio::checksum256> proof, std::vector<uint8_t> position,
@@ -208,12 +224,10 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
   submission_table submission_tbl(_self, _self.value);
   batch_table batch_tbl(_self, _self.value);
   campaign_table campaign_tbl(_self, _self.value);
-  campaignjoin_table campaignjoin_tbl(_self, _self.value);
-
-  uint64_t campaignjoin_pk = (uint64_t{campaign_id} << 32) | account_id;
-  auto campaignjoin = campaignjoin_tbl.require_find(campaignjoin_pk, "campaign not joined");
 
   uint64_t batch_pk = (uint64_t{campaign_id} << 32) | batch_id;
+  require_batchjoin(account_id, batch_pk, true, payer);
+
   auto& batch = batch_tbl.get(batch_pk, "batch not found");
   auto& campaign = campaign_tbl.get(campaign_id, "campaign not found");
 
@@ -375,7 +389,6 @@ void force::reclaimtask(uint64_t task_id, uint32_t account_id,
                         eosio::name payer, vaccount::sig sig) {
   submission_table submission_tbl(_self, _self.value);
   batch_table batch_tbl(_self, _self.value);
-  campaignjoin_table campaignjoin_tbl(_self, _self.value);
 
   auto& sub = submission_tbl.get(task_id, "reservation not found");
   auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
@@ -383,8 +396,7 @@ void force::reclaimtask(uint64_t task_id, uint32_t account_id,
   eosio::check(batch.tasks_done >= 0 && batch.num_tasks > 0,
                "cannot reclaim task on paused batch.");
 
-  uint64_t campaignjoin_pk = (uint64_t{batch.campaign_id} << 32) | account_id;
-  auto campaignjoin = campaignjoin_tbl.require_find(campaignjoin_pk, "campaign not joined");
+  require_batchjoin(account_id, sub.batch_id, true, payer);
 
   task_params params = {15, task_id, account_id};
   require_vaccount(account_id, pack(params), sig);

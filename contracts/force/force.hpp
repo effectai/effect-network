@@ -98,12 +98,6 @@ public:
                   vaccount::sig sig);
 
   [[eosio::action]]
-  void joincampaign(uint32_t account_id,
-                    uint32_t campaign_id,
-                    eosio::name payer,
-                    vaccount::sig sig);
-
-  [[eosio::action]]
   void reservetask(std::vector<eosio::checksum256> proof,
                    std::vector<uint8_t> position,
                    std::vector<char> data,
@@ -164,7 +158,7 @@ public:
     cleanTable<batch_table>(_self, _self.value, 100);
     cleanTable<campaign_table>(_self, _self.value, 100);
     cleanTable<payment_table>(_self, _self.value, 100);
-    cleanTable<campaignjoin_table>(_self, _self.value, 100);
+    cleanTable<batchjoin_table>(_self, _self.value, 100);
   };
 
 private:
@@ -175,6 +169,12 @@ private:
     else if (type_delay == "release_task") delay = _config.get().release_task_delay_sec;
     return time_point_sec(now()) > (base_time + delay);
   }
+
+  // Helper. Assumes we already did require_vaccount on account_id
+  void require_batchjoin(uint32_t account_id,
+                         uint64_t batch_id,
+                         bool try_to_join,
+                         eosio::name payer);
 
   void require_merkle(std::vector<eosio::checksum256> proof,
                       std::vector<uint8_t> position,
@@ -250,10 +250,10 @@ private:
     EOSLIB_SERIALIZE(rmbatch_params, (mark)(id)(campaign_id));
   };
 
-  struct joincampaign_params {
+  struct joinbatch_params {
     uint8_t mark;
-    uint32_t campaign_id;
-    EOSLIB_SERIALIZE(joincampaign_params, (mark)(campaign_id));
+    uint64_t batch_id;
+    EOSLIB_SERIALIZE(joinbatch_params, (mark)(batch_id));
   };
 
   struct payout_params {
@@ -295,10 +295,14 @@ private:
     uint32_t by_campaign() const { return campaign_id; }
   };
 
-  struct [[eosio::table]] campaignjoin {
+  struct [[eosio::table]] batchjoin {
+    // This id is only necessary for uniqueness of primary key
+    uint32_t id;
     uint32_t account_id;
-    uint32_t campaign_id;
-    uint64_t primary_key() const { return (uint64_t{campaign_id} << 32) | account_id; }
+    uint64_t batch_id;
+    // The order enables us to use the primary as a by_account index
+    uint64_t primary_key() const { return (uint64_t{account_id} << 32) | id; }
+    uint128_t by_account_batch() const { return (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32); }
   };
 
   struct [[eosio::table]] payment {
@@ -375,7 +379,8 @@ private:
 
   typedef multi_index<"campaign"_n, campaign> campaign_table;
   typedef multi_index<"batch"_n, batch> batch_table;
-  typedef multi_index<"campaignjoin"_n, campaignjoin> campaignjoin_table;
+  typedef multi_index<"batchjoin"_n, batchjoin,
+                      indexed_by<"accbatch"_n, const_mem_fun<batchjoin, uint128_t, &batchjoin::by_account_batch>>> batchjoin_table;
 
   typedef multi_index<"submission"_n, submission,
                       indexed_by<"leaf"_n, const_mem_fun<submission, checksum256, &submission::by_leaf>>,
