@@ -324,7 +324,7 @@ private:
     std::optional<content> content;
     checksum256 leaf_hash;
     uint64_t batch_id;
-    std::string data;
+    std::optional<std::string> data;
     bool paid;
     eosio::time_point_sec submitted_on;
 
