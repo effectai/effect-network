@@ -153,17 +153,18 @@ void force::assignquali(uint32_t quali_id, uint32_t user_id, eosio::name payer, 
 }
 
 
-void force::require_batchjoin(uint32_t account_id, uint64_t batch_id, bool try_to_join, name payer) {
+void force::require_batchjoin(uint32_t account_id, uint64_t batch_pk, bool try_to_join, name payer) {
   batchjoin_table join_tbl(_self, _self.value);
-  uint128_t pk = (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32);
+  uint128_t pk = (uint128_t{batch_pk} << 64) | (uint64_t{account_id} << 32);
+
   auto by_accbatch = join_tbl.get_index<"accbatch"_n>();
   auto entry = by_accbatch.find(pk);
-  bool has_joined = entry != by_accbatch.end();
+  bool has_joined = (entry != by_accbatch.end());
   if (!has_joined) {
     eosio::check(try_to_join, "batch not joined");
 
     batch_table batch_tbl(_self, _self.value);
-    auto batch = batch_tbl.get(batch_id, "batch not found");
+    auto batch = batch_tbl.get(batch_pk, "batch not found");
     campaign_table camp_tbl(_self, _self.value);
     auto camp = camp_tbl.get(batch.campaign_id, "campaign not found");
     user_quali_table user_quali_tbl(_self, _self.value);
@@ -181,12 +182,12 @@ void force::require_batchjoin(uint32_t account_id, uint64_t batch_id, bool try_t
           eosio::check(quali_type == force::Exclusive, "missing qualification");
       }
 
-      uint32_t join_id = join_tbl.available_primary_key();
+      uint64_t join_id = join_tbl.available_primary_key();
       join_tbl.emplace(payer,
                        [&](auto& j)
                        {
                          j.account_id = account_id;
-                         j.batch_id = batch_id;
+                         j.batch_id = batch_pk;
                          j.id = join_id;
                        });
     }
@@ -245,13 +246,13 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
   std::copy(data.cbegin(), data.cend(), &buff[0] + sizeof batch_pk);
 
   checksum256 data_hash = sha256(&buff[0], datasize);
+  reservetask_params params = {6, data_hash, campaign_id, batch_id};
+  require_vaccount(account_id, pack(params), sig);
+
   // printhex(&data_hash.extract_as_byte_array()[0], 32);
   require_merkle(proof, position, batch.task_merkle_root, data_hash);
 
   uint32_t submission_id = submission_tbl.available_primary_key();
-
-  reservetask_params params = {6, data_hash, campaign_id, batch_id};
-  require_vaccount(account_id, pack(params), sig);
 
   // check if repetitions are not done
   auto by_leaf = submission_tbl.get_index<"leaf"_n>();
@@ -313,7 +314,8 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
   auto& sub = submission_tbl.get(submission_id, "submission not found");
   eosio::check(sub.account_id.has_value(), "task not reserved");
   eosio::check(sub.account_id == account_id, "different account");
-  submission_tbl.modify(sub, payer, [&](auto& s) { s.data = data; });
+  eosio::check(!sub.data.has_value(), "already submitted");
+  submission_tbl.modify(sub, payer, [&](auto& s) { s.data.emplace(data); });
 
   auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
   auto& camp = campaign_tbl.get(batch.campaign_id);
@@ -368,7 +370,7 @@ void force::releasetask(uint64_t task_id, uint32_t account_id,
   auto& camp = campaign_tbl.get(batch.campaign_id, "campaign not found");
 
   eosio::check(sub.account_id.has_value(), "cannot release already released task.");
-  eosio::check(sub.data == std::string(""), "cannot release task with data.");
+  eosio::check(!sub.data.has_value(), "cannot release task with data.");
 
   task_params params = {14, task_id, account_id};
   std::vector<char> msg_bytes = pack(params);
@@ -402,7 +404,7 @@ void force::reclaimtask(uint64_t task_id, uint32_t account_id,
   require_vaccount(account_id, pack(params), sig);
 
   eosio::check(!sub.account_id.has_value(), "task already reserved");
-  eosio::check(sub.data.empty(), "task already submitted");
+  eosio::check(!sub.data.has_value(), "task already submitted");
   submission_tbl.modify(sub,
                         payer,
                         [&](auto& s)

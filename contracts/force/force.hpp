@@ -36,7 +36,7 @@ public:
     T db(code, account);
     uint32_t counter = 0;
     auto itr = db.begin();
-    while(itr != db.end() && counter++ < batchSize) {
+    while (itr != db.end() && counter++ < batchSize) {
       itr = db.erase(itr);
     }
   }
@@ -297,11 +297,10 @@ private:
 
   struct [[eosio::table]] batchjoin {
     // This id is only necessary for uniqueness of primary key
-    uint32_t id;
+    uint64_t id;
     uint32_t account_id;
     uint64_t batch_id;
-    // The order enables us to use the primary as a by_account index
-    uint64_t primary_key() const { return (uint64_t{account_id} << 32) | id; }
+    uint64_t primary_key() const { return id; }
     uint128_t by_account_batch() const { return (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32); }
   };
 

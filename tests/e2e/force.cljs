@@ -28,6 +28,9 @@
 (println "force-acc" force-acc)
 (println "vacc-acc" vacc-acc)
 
+(defn buf->hex [buf]
+  (.toString buf "hex"))
+
 (defn tx-as [acc contr action args]
   (eos/transact contr action args [{:actor acc :permission "active"}]))
 
@@ -106,6 +109,12 @@
                                                                  :force_vaccount_id 4
                                                                  :payout_delay_sec 1
                                                                  :release_task_delay_sec 5}))))
+(defn get-composite-key-hex [id-1 id-2]
+  (vacc/bytes->hex
+   (.getUint8Array
+    (doto (new (.-SerialBuffer Serialize))
+      (.reserve 64) (.pushUint32 id-1) (.pushUint32 id-2)) 8)))
+
 (defn get-composite-key [id-1 id-2]
   (js/parseInt
     (.binaryToDecimal Numeric
@@ -286,6 +295,7 @@
 
 ;; NOTE: this root must match the merkle trees generated in `reserve-task`
 (def merkle-root "9b15f697ff7f53e58d1873c9091a91ef83017171449499e9796c84cfdc5dd886")
+(def merkle-root-xx "b82825d5062e3292d47c55c5588f7076aee7c7908dd3f51f3b317f6f7496ed9f")
 
 (async-deftest mkbatch
   (testing "cannot create batch with high repetitions"
@@ -319,7 +329,7 @@
                                {:id 0
                                 :campaign_id 2
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
-                                :task_merkle_root merkle-root
+                                :task_merkle_root merkle-root-xx
                                 :repetitions 1
                                 :payer acc-4
                                 :sig nil}))))
@@ -486,8 +496,7 @@
 (defn sha256 [data]
   (vacc/bytes->hex (.digest (.update (.hash ec) data))))
 
-(defn buf->hex [buf]
-  (.toString buf "hex"))
+
 
 (async-deftest closebatch
   (let [params (pack-closebatch-params (get-composite-key 0 5))]
@@ -543,7 +552,18 @@
         pos-2 (map #(if (= (.-position %) "left") 0 1) proof-2)
 
         params-1 (pack-reservetask-params (first leaves) 0 0)
-        params-2 (pack-reservetask-params (second leaves) 0 0)]
+        params-2 (pack-reservetask-params (second leaves) 0 0)
+
+        batch-pk-xx "0000000002000000"
+        task-data-prep-xx (map #(str batch-pk-xx %) task-data)
+        leaves-xx (map #(sha256 (vacc/hex->bytes %)) task-data-prep-xx)
+        tree-xx (MerkleTree. (clj->js leaves-xx) sha256)
+        root-xx (.toString (.getRoot tree-xx) "hex")
+        proof-1-xx  (.getProof tree-xx (first leaves-xx))
+        hex-proof-1-xx (map #(buf->hex (.-data %)) proof-1-xx)
+        pos-1-xx (map #(if (= (.-position %) "left") 0 1) proof-1-xx)
+        _ (prn "merkle root camp 2 " root-xx)
+        ]
     (testing "can make reservation"
       (<p-should-succeed!
         (tx-as acc-3 force-acc "reservetask" {:proof hex-proof-1
@@ -571,7 +591,16 @@
                                               :batch_id 0
                                               :account_id 0
                                               :payer acc-3
-                                              :sig (sign-params params-2)})))
+                                              :sig (sign-params params-2)}))
+      (<p-should-succeed!
+       (tx-as acc-3 force-acc "reservetask" {:proof hex-proof-1-xx
+                                             :position pos-1-xx
+                                             :data (first task-data)
+                                             :campaign_id 2
+                                             :batch_id 0
+                                             :account_id 1
+                                             :payer acc-3
+                                             :sig nil})))
     (<p! (eos/wait-block (js/Promise.resolve 1)) 300)
     (testing "must join campaign"
       (<p-should-fail-with!
