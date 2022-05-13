@@ -10,12 +10,12 @@ void force::init(eosio::name vaccount_contract, uint32_t force_vaccount_id,
 }
 
 void force::mkcampaign(vaccount::vaddress owner, content content, eosio::extended_asset reward,
-                       eosio::name payer, vaccount::sig sig) {
+                       camp_quali_map qualis, eosio::name payer, vaccount::sig sig) {
   campaign_table camp_tbl(_self, _self.value);
   uint32_t camp_id = camp_tbl.available_primary_key();
+  // TODO: add owner, reward, and qualis to the params
   mkcampaign_params params = {9, content};
   std::vector<char> msg_bytes = pack(params);
-  printhex(&msg_bytes[0], msg_bytes.size());
   vaccount::require_auth(msg_bytes, owner, sig);
 
   camp_tbl.emplace(payer,
@@ -25,16 +25,17 @@ void force::mkcampaign(vaccount::vaddress owner, content content, eosio::extende
                      c.content = content;
                      c.owner = owner;
                      c.reward = reward;
+                     c.qualis.emplace(qualis);
                    });
 }
 void force::editcampaign(uint32_t campaign_id, vaccount::vaddress owner, content content,
-                         eosio::extended_asset reward, eosio::name payer, vaccount::sig sig) {
+                         eosio::extended_asset reward, camp_quali_map qualis,
+                         eosio::name payer, vaccount::sig sig) {
   campaign_table camp_tbl(_self, _self.value);
   auto& camp = camp_tbl.get(campaign_id, "campaign does not exist");
 
   editcampaign_params params = {10, campaign_id, content};
   std::vector<char> msg_bytes = pack(params);
-  printhex(&msg_bytes[0], msg_bytes.size());
   vaccount::require_auth(msg_bytes, owner, sig);
 
   camp_tbl.modify(camp,
@@ -43,6 +44,7 @@ void force::editcampaign(uint32_t campaign_id, vaccount::vaddress owner, content
                   {
                     c.content = content;
                     c.reward = reward;
+                    c.qualis.emplace(qualis);
                   });
 }
 
@@ -53,7 +55,6 @@ void force::rmcampaign(uint32_t campaign_id, vaccount::vaddress owner, vaccount:
 
   rmcampaign_params params = {11, campaign_id};
   std::vector<char> msg_bytes = pack(params);
-  printhex(&msg_bytes[0], msg_bytes.size());
   vaccount::require_auth(msg_bytes, owner, sig);
 
   camp_tbl.erase(camp_itr);
@@ -120,10 +121,57 @@ void force::publishbatch(uint64_t batch_id, uint32_t num_tasks, vaccount::sig si
   batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.num_tasks = num_tasks; });
 }
 
+void force::mkquali(content content, uint32_t account_id, eosio::name payer, vaccount::sig sig) {
+  mkquali_params params = {18, account_id, content};
+  require_vaccount(account_id, pack(params), sig);
+
+  quali_table quali_tbl(_self, _self.value);
+  uint32_t quali_id = quali_tbl.available_primary_key();
+  quali_tbl.emplace(payer,
+                    [&](auto& q)
+                    {
+                      q.id = quali_id;
+                      q.content = content;
+                      q.account_id = account_id;
+                    });
+}
+
+void force::assignquali(uint32_t quali_id, uint32_t user_id, eosio::name payer, vaccount::sig sig) {
+  quali_table quali_tbl(_self, _self.value);
+  auto quali = quali_tbl.get(quali_id, "qualification not found");
+  rmbatch_params params = {19, quali_id, user_id};
+  require_vaccount(quali.account_id, pack(params), sig);
+
+  // uint64_t user_quali_key = (uint64_t{user_id} << 32) | quali_id;
+  user_quali_table user_quali_tbl(_self, _self.value);
+  user_quali_tbl.emplace(payer,
+                         [&](auto& q)
+                         {
+                           q.account_id = user_id;
+                           q.quali_id = quali_id;
+                         });
+}
+
 void force::joincampaign(uint32_t account_id, uint32_t campaign_id, eosio::name payer,
                          vaccount::sig sig) {
   joincampaign_params params = {7, campaign_id};
   require_vaccount(account_id, pack(params), sig);
+
+  campaign_table camp_tbl(_self, _self.value);
+  auto camp = camp_tbl.get(campaign_id, "campaign not found");
+  user_quali_table user_quali_tbl(_self, _self.value);
+
+  for (auto q : camp.qualis.value()) {
+    uint32_t quali_id = std::get<0>(q);
+    uint8_t quali_type = std::get<1>(q);
+    uint64_t user_quali_id = (uint64_t{account_id} << 32) | quali_id;
+    auto user_quali = user_quali_tbl.find(user_quali_id);
+    bool has_quali = (user_quali != user_quali_tbl.end());
+    if (has_quali)
+      eosio::check(quali_type == force::Inclusive, "qualification excluded");
+    else
+      eosio::check(quali_type == force::Exclusive, "missing qualification");
+  }
 
   campaignjoin_table join_tbl(_self, _self.value);
   join_tbl.emplace(payer, [&](auto& j) { j.account_id = account_id; j.campaign_id = campaign_id; });

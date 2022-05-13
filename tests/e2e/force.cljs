@@ -139,6 +139,16 @@
      (.push 8) (.pushUint32 id) (.pushUint32 camp-id) (.push 0) (.pushString content)
      (.pushUint8ArrayChecked (vacc/hex->bytes root) 32))))
 
+(defn pack-mkquali-params [acc-id content]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize))
+     (.push 18)  (.pushUint32 acc-id) (.push 0) (.pushString content))))
+
+(defn pack-assignquali-params [id user-id]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize))
+     (.push 19) (.pushUint32 id) (.pushUint32 user-id))))
+
 (defn pack-rmbatch-params [id camp-id]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize))
@@ -186,18 +196,21 @@
                                {:owner ["name" acc-2]
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :reward {:quantity "1.0000 EFX" :contract token-acc}
+                                :qualis []
                                 :payer acc-2
                                 :sig nil}))
     (<p-should-succeed! (tx-as acc-2 force-acc "mkcampaign"
                                {:owner ["name" acc-2]
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :reward {:quantity "11.0000 EFX" :contract token-acc}
+                                :qualis []
                                 :payer acc-2
                                 :sig nil}))
     (<p-should-succeed! (tx-as acc-4 force-acc "mkcampaign"
                                {:owner ["name" acc-4]
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :reward {:quantity "2.0000 EFX" :contract token-acc}
+                                :qualis []
                                 :payer acc-4
                                 :sig nil})))
 
@@ -208,18 +221,21 @@
                                  {:owner (first accs)
                                   :content {:field_0 0 :field_1 ipfs-hash}
                                   :reward {:quantity "115.0000 EFX" :contract token-acc}
+                                  :qualis []
                                   :payer acc-2
                                   :sig (sign-params params)}))
       (<p-should-succeed! (tx-as acc-2 force-acc "mkcampaign"
                                  {:owner (first accs)
                                   :content {:field_0 0 :field_1 ipfs-hash}
                                   :reward {:quantity "110.0000 EFX" :contract token-acc}
+                                  :qualis []
                                   :payer acc-2
                                   :sig (sign-params params)}))
       (<p-should-succeed! (tx-as acc-4 force-acc "mkcampaign"
                                  {:owner (first accs)
                                   :content {:field_0 0 :field_1 ipfs-hash}
                                   :reward {:quantity "11.0000 EFX" :contract token-acc}
+                                  :qualis []
                                   :payer acc-4
                                   :sig (sign-params params)})))))
 
@@ -230,6 +246,7 @@
                                 :owner ["name" acc-2]
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :reward {:quantity "3.0000 EFX" :contract token-acc}
+                                :qualis [{"key" 0 "value" 0}]
                                 :payer acc-2
                                 :sig nil})))
 
@@ -241,6 +258,7 @@
                                   :owner (first accs)
                                   :content {:field_0 0 :field_1 ipfs-hash}
                                   :reward {:quantity "115.0000 EFX" :contract token-acc}
+                                  :qualis []
                                   :payer acc-2
                                   :sig (sign-params params)})))))
 
@@ -430,18 +448,64 @@
                  :num_tasks 3
                  :sig (sign-params (pack-reopenbatch-params (get-composite-key 0 5)))}))))
 
+(async-deftest mkquali
+  (let [r (<p! (eos/get-table-rows force-acc force-acc "quali"))]
+    (is (zero? (count r))))
+  (testing "can make qualification"
+    (<p-should-succeed! (tx-as acc-2 force-acc "mkquali"
+                               {:content {:field_0 0 :field_1 vacc/hash160-1}
+                                :account_id 0
+                                :payer acc-2
+                                :sig (sign-params (pack-mkquali-params 0 vacc/hash160-1))}))
+    (<p-should-succeed! (tx-as acc-2 force-acc "mkquali"
+                               {:content {:field_0 0 :field_1 vacc/hash160-2}
+                                :account_id 0
+                                :payer acc-2
+                                :sig (sign-params (pack-mkquali-params 0 vacc/hash160-2))})))
+  (let [r (<p! (eos/get-table-rows force-acc force-acc "quali"))]
+    (is (= 2 (count r)))))
+
+(async-deftest assignquali
+  (testing "owner can assign quali"
+    (<p-should-fail-with!
+     (tx-as acc-2 force-acc "assignquali"
+            {:quali_id 0
+             :user_id 0
+             :payer acc-2
+             :sig nil})
+     "only owner" "abort() called")
+    (<p-should-succeed!
+     (tx-as acc-2 force-acc "assignquali"
+            {:quali_id 0
+             :user_id 0
+             :payer acc-2
+             :sig (sign-params (pack-assignquali-params 0 0))})
+     "")))
+
 (async-deftest campaignjoin
+  (testing "needs the right qualfication"
+    (<p-should-fail-with! (tx-as acc-3 force-acc "joincampaign"
+                               {:campaign_id 0
+                                :account_id 1
+                                :payer acc-3
+                                :sig nil})
+                          "" "missing qualification"))
+  (<p! (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 1 :payer acc-2
+                                             :sig (sign-params (pack-assignquali-params 0 1))}))
   (testing "account can join a campaign"
+
     (<p-should-succeed! (tx-as acc-3 force-acc "joincampaign"
                                {:campaign_id 0
                                 :account_id 1
                                 :payer acc-3
                                 :sig nil}))
+
     (<p-should-succeed! (tx-as acc-2 force-acc "joincampaign"
                                {:campaign_id 2
                                 :account_id 2
                                 :payer acc-2
                                 :sig nil}))
+
     (<p-should-succeed! (tx-as acc-2 force-acc "joincampaign"
                                {:campaign_id 5
                                 :account_id 2
@@ -452,7 +516,8 @@
                                {:campaign_id 0
                                 :account_id 0
                                 :payer acc-3
-                                :sig (sign-params (pack-joincampaign-params 0))}))))
+                                :sig (sign-params (pack-joincampaign-params 0))}))
+    ))
 
 
 (defn sha256 [data]
@@ -556,6 +621,8 @@
                                               :payer acc-2
                                               :sig nil})
         "" "campaign not joined")
+      (<p! (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 2 :payer acc-2
+                                                 :sig (sign-params (pack-assignquali-params 0 2))}))
         (tx-as acc-2 force-acc "joincampaign" {:campaign_id 0
                                                :account_id 2
                                                :payer acc-2
