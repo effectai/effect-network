@@ -352,14 +352,6 @@ private:
     uint64_t primary_key() const { return (uint64_t{account_id} << 32) | quali_id; }
   };
 
-  struct [[eosio::table]] campquali {
-    uint32_t campaign_id;
-    uint32_t quali_id;
-    uint8_t type;
-
-    uint64_t primary_key() const { return (uint64_t{campaign_id} << 32) | quali_id; }
-  };
-
   inline void require_vaccount(uint32_t acc_id, std::vector<char> msg, vaccount::sig sig) {
     eosio::name vacc_contract = _config.get().vaccount_contract;
     vaccount::account_table acc_tbl(vacc_contract, vacc_contract.value);
@@ -393,7 +385,6 @@ private:
 
   typedef multi_index<"quali"_n, quali> quali_table;
   typedef multi_index<"userquali"_n, userquali> user_quali_table;
-  typedef multi_index<"campquali"_n, campquali> camp_quali_table;
 
   config_table _config;
 };
