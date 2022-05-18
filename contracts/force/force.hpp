@@ -79,6 +79,7 @@ public:
                content content,
                checksum256 task_merkle_root,
                uint32_t repetitions,
+               std::optional<camp_quali_map> qualis,
                eosio::name payer,
                vaccount::sig sig);
 
@@ -290,6 +291,7 @@ private:
     uint32_t repetitions;
     uint32_t tasks_done;
     uint32_t num_tasks;
+    eosio::binary_extension<std::map<uint32_t, uint8_t>> qualis;
 
     uint64_t primary_key() const { return (uint64_t{campaign_id} << 32) | id; }
     uint32_t by_campaign() const { return campaign_id; }

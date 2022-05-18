@@ -62,7 +62,7 @@ void force::rmcampaign(uint32_t campaign_id, vaccount::vaddress owner, vaccount:
 
 void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
                     checksum256 task_merkle_root, uint32_t repetitions,
-                    eosio::name payer, vaccount::sig sig) {
+                    std::optional<camp_quali_map> qualis, eosio::name payer, vaccount::sig sig) {
   campaign_table camp_tbl(_self, _self.value);
   auto& camp = camp_tbl.get(campaign_id, "campaign not found");
 
@@ -82,6 +82,8 @@ void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
                       b.balance = {0, camp.reward.get_extended_symbol()};
                       b.repetitions = repetitions;
                       b.num_tasks = 0;
+                      if (qualis.has_value())
+                        b.qualis.emplace(qualis.value());
                     });
 }
 
@@ -169,28 +171,37 @@ void force::require_batchjoin(uint32_t account_id, uint64_t batch_pk, bool try_t
     auto camp = camp_tbl.get(batch.campaign_id, "campaign not found");
     user_quali_table user_quali_tbl(_self, _self.value);
 
-    if (camp.qualis.has_value()) {
-      for (auto q : camp.qualis.value()) {
-        uint32_t quali_id = std::get<0>(q);
-        uint8_t quali_type = std::get<1>(q);
-        uint64_t user_quali_id = (uint64_t{account_id} << 32) | quali_id;
-        auto user_quali = user_quali_tbl.find(user_quali_id);
-        bool has_quali = (user_quali != user_quali_tbl.end());
-        if (has_quali)
-          eosio::check(quali_type == force::Inclusive, "qualification excluded");
-        else
-          eosio::check(quali_type == force::Exclusive, "missing qualification");
-      }
+    std::map<uint32_t, uint8_t> qualis;
 
-      uint64_t join_id = join_tbl.available_primary_key();
-      join_tbl.emplace(payer,
-                       [&](auto& j)
-                       {
-                         j.account_id = account_id;
-                         j.batch_id = batch_pk;
-                         j.id = join_id;
-                       });
+    if (!camp.qualis.has_value() && batch.qualis.has_value()) {
+      qualis = batch.qualis.value();
+    } else {
+      qualis = camp.qualis.value();
+      if (batch.qualis.has_value()) {
+        qualis.insert(batch.qualis.value().begin(), batch.qualis.value().end());
+      }
     }
+
+    for (auto q : qualis) {
+      uint32_t quali_id = std::get<0>(q);
+      uint8_t quali_type = std::get<1>(q);
+      uint64_t user_quali_id = (uint64_t{account_id} << 32) | quali_id;
+      auto user_quali = user_quali_tbl.find(user_quali_id);
+      bool has_quali = (user_quali != user_quali_tbl.end());
+      if (has_quali)
+        eosio::check(quali_type == force::Inclusive, "qualification excluded");
+      else
+        eosio::check(quali_type == force::Exclusive, "missing qualification");
+    }
+
+    uint64_t join_id = join_tbl.available_primary_key();
+    join_tbl.emplace(payer,
+                     [&](auto& j)
+                     {
+                       j.account_id = account_id;
+                       j.batch_id = batch_pk;
+                       j.id = join_id;
+                     });
   }
 }
 

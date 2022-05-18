@@ -22,6 +22,7 @@
 (def acc-2 (eos/random-account "acc"))
 (def acc-3 (eos/random-account "acc"))
 (def acc-4 (eos/random-account "acc"))
+(def acc-5 (eos/random-account "acc"))
 (def vacc-acc (eos/random-account "vacc"))
 (def token-acc (eos/random-account "tkn"))
 (def force-acc (eos/random-account "force"))
@@ -46,12 +47,17 @@
          #(get-in % vec)))
 
 (println "acc-4 " acc-4)
+(println "acc-5 " acc-5)
 (println "acc-3 " acc-3)
 (println "acc-2 " acc-2)
+
 (def accs [["address" (vacc/pub->addr vacc/keypair-pub)]
            ["name" acc-3]
            ["name" acc-2]
-           ["name" acc-4]])
+           ["name" acc-4]
+           ["name" acc-5]])
+
+(def force-vacc-id 5)
 
 (use-fixtures :once
   {:before
@@ -67,8 +73,8 @@
           (<!  (e2e.token/deploy-token token-acc [owner-acc token-acc]))
 
           (<p! (eos/update-auth vacc-acc "xfer" "active"
-                [{:permission {:actor vacc-acc :permission "eosio.code"}
-                  :weight 1}]))
+                                [{:permission {:actor vacc-acc :permission "eosio.code"}
+                                  :weight 1}]))
 
           (<p! (eos/transact "eosio" "linkauth"
                              {:account vacc-acc
@@ -101,12 +107,12 @@
 (async-deftest init
   (testing "other accounts cant init"
     (<p-should-fail! (tx-as owner-acc force-acc "init" {:vaccount_contract vacc-acc
-                                                        :force_vaccount_id 4
+                                                        :force_vaccount_id force-vacc-id
                                                         :payout_delay_sec 1
                                                         :release_task_delay_sec 5})))
   (testing "owner can init"
     (<p-should-succeed! (tx-as-owner force-acc force-acc "init" {:vaccount_contract vacc-acc
-                                                                 :force_vaccount_id 4
+                                                                 :force_vaccount_id force-vacc-id
                                                                  :payout_delay_sec 1
                                                                  :release_task_delay_sec 5}))))
 (defn get-composite-key-hex [id-1 id-2]
@@ -117,10 +123,10 @@
 
 (defn get-composite-key [id-1 id-2]
   (js/parseInt
-    (.binaryToDecimal Numeric
-      (.getUint8Array
-        (doto (new (.-SerialBuffer Serialize))
-          (.reserve 64) (.pushUint32 id-1) (.pushUint32 id-2)) 8))))
+   (.binaryToDecimal Numeric
+                     (.getUint8Array
+                      (doto (new (.-SerialBuffer Serialize))
+                        (.reserve 64) (.pushUint32 id-1) (.pushUint32 id-2)) 8))))
 
 (defn pack-mkcampaign-params [content]
   (.asUint8Array
@@ -300,17 +306,19 @@
 (async-deftest mkbatch
   (testing "cannot create batch with high repetitions"
     (<p-should-fail! (tx-as acc-2 force-acc "mkbatch"
-                               {:id 0
-                                :campaign_id 0
-                                :content {:field_0 0 :field_1 vacc/hash160-1}
-                                :task_merkle_root merkle-root
-                                :repetitions 100
-                                :payer acc-2
-                                :sig nil})))
+                            {:id 0
+                             :campaign_id 0
+                             :content {:field_0 0 :field_1 vacc/hash160-1}
+                             :task_merkle_root merkle-root
+                             :repetitions 100
+                             :payer acc-2
+                             :qualis nil
+                             :sig nil})))
 
   (testing "campaign owner can create batch"
     (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
                                {:id 0
+                                :qualis nil
                                 :campaign_id 0
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :task_merkle_root merkle-root
@@ -324,15 +332,26 @@
                                 :task_merkle_root merkle-root
                                 :repetitions 1
                                 :payer acc-2
-                                :sig nil})
+                                :qualis [{"key" 1 "value" 0}]
+                                :sig nil}))
+    (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
+                               {:id 2
+                                :campaign_id 0
+                                :content {:field_0 0 :field_1 vacc/hash160-1}
+                                :task_merkle_root "2cf909c4cfffcdc13f2eb7cb5ed16c51da0424aaaccaa4597f7117ee7cd492b8"
+                                :repetitions 1
+                                :payer acc-2
+                                :qualis [{"key" 1 "value" 0}]
+                                :sig nil}))
     (<p-should-succeed! (tx-as acc-4 force-acc "mkbatch"
                                {:id 0
+                                :qualis nil
                                 :campaign_id 2
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :task_merkle_root merkle-root-xx
                                 :repetitions 1
                                 :payer acc-4
-                                :sig nil}))))
+                                :sig nil})))
 
   (testing "pub key hash can create batch"
     (let [merkle-root merkle-root
@@ -342,6 +361,7 @@
       (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
                                  {:id 0
                                   :campaign_id 3
+                                  :qualis nil
                                   :content {:field_0 0 :field_1 vacc/hash160-1}
                                   :task_merkle_root merkle-root
                                   :repetitions 1
@@ -350,6 +370,7 @@
       (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
                                  {:id 1
                                   :campaign_id 3
+                                  :qualis nil
                                   :content {:field_0 0 :field_1 vacc/hash160-1}
                                   :task_merkle_root merkle-root
                                   :repetitions 1
@@ -358,6 +379,7 @@
       (<p-should-succeed! (tx-as acc-4 force-acc "mkbatch"
                                  {:id 0
                                   :campaign_id 5
+                                  :qualis nil
                                   :content {:field_0 0 :field_1 vacc/hash160-1}
                                   :task_merkle_root merkle-root
                                   :payer acc-4
@@ -367,7 +389,7 @@
 (async-deftest rmbatch
   (testing "only campaign owner can erase batch"
     (<p-should-fail! (tx-as acc-3 force-acc "rmbatch"
-                            {:id 1
+                            {:id 2
                              :campaign_id 0
                              :sig nil})))
 
@@ -385,16 +407,16 @@
 
   (testing "can erase batch from eos account"
     (<p-should-succeed! (tx-as acc-2 force-acc "rmbatch"
-                            {:id 1
-                             :campaign_id 0
-                             :sig nil})))
+                               {:id 1
+                                :campaign_id 0
+                                :sig nil})))
 
   (testing "can erase batch from pub key hash"
     (let [params (pack-rmbatch-params 1 3)]
       (<p-should-succeed! (tx-as acc-2 force-acc "rmbatch"
-                            {:id 1
-                             :campaign_id 3
-                             :sig (sign-params params)})))))
+                                 {:id 1
+                                  :campaign_id 3
+                                  :sig (sign-params params)})))))
 
 (async-deftest deposit
   ;; open an account for force, deposit some funds to acc-2
@@ -418,21 +440,28 @@
   (testing "vaccount can transfer efx to batch"
     (<p! (tx-as acc-2 vacc-acc "vtransfer"
                 {:from_id 2
-                 :to_id 4
+                 :to_id force-vacc-id
                  :quantity {:quantity "100.0000 EFX" :contract token-acc}
                  :memo "0"
                  :sig nil
                  :fee nil}))
     (<p! (tx-as acc-4 vacc-acc "vtransfer"
                 {:from_id 3
-                 :to_id 4
+                 :to_id force-vacc-id
                  :quantity {:quantity "50.0000 EFX" :contract token-acc}
                  :memo (str (get-composite-key 0 2))
                  :sig nil
                  :fee nil}))
     (<p! (tx-as acc-4 vacc-acc "vtransfer"
                 {:from_id 3
-                 :to_id 4
+                 :to_id force-vacc-id
+                 :quantity {:quantity "50.0000 EFX" :contract token-acc}
+                 :memo (str (get-composite-key 2 0))
+                 :sig nil
+                 :fee nil}))
+    (<p! (tx-as acc-4 vacc-acc "vtransfer"
+                {:from_id 3
+                 :to_id force-vacc-id
                  :quantity {:quantity "50.0000 EFX" :contract token-acc}
                  :memo (str (get-composite-key 0 5))
                  :sig nil
@@ -447,6 +476,11 @@
                 {:account_id 3
                  :batch_id (get-composite-key 0 2)
                  :num_tasks 11
+                 :sig nil}))
+    (<p! (tx-as acc-2 force-acc "publishbatch"
+                {:account_id 2
+                 :batch_id (get-composite-key 2 0)
+                 :num_tasks 10
                  :sig nil}))
     (<p! (tx-as acc-4 force-acc "publishbatch"
                 {:account_id 3
@@ -485,167 +519,155 @@
             {:quali_id 0
              :user_id 0
              :payer acc-2
-             :sig (sign-params (pack-assignquali-params 0 0))})
-     "")
+             :sig (sign-params (pack-assignquali-params 0 0))}))
     (<p-should-succeed!
      (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 1 :payer acc-2
-                                           :sig (sign-params (pack-assignquali-params 0 1))})
-     "")))
+                                           :sig (sign-params (pack-assignquali-params 0 1))}))
+    (<p-should-succeed!
+     (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 4 :payer acc-2
+                                           :sig (sign-params (pack-assignquali-params 0 4))}))))
 
 
 (defn sha256 [data]
   (vacc/bytes->hex (.digest (.update (.hash ec) data))))
 
-
-
 (async-deftest closebatch
   (let [params (pack-closebatch-params (get-composite-key 0 5))]
-    (testing "campaign owner can pause batch"
-      (is (= (<p! (get-in-rows force-acc "batch" [1 "num_tasks"])) 11))
-      (is (= (<p! (get-in-rows force-acc "batch" [3 "num_tasks"])) 3))
+    (testing "campaign owner can pause batch"x
+             (is (= (<p! (get-in-rows force-acc "batch" [2 "num_tasks"])) 11))
+             (is (= (<p! (get-in-rows force-acc "batch" [4 "num_tasks"])) 3))
 
-      (<p-should-succeed! (tx-as acc-4 force-acc "closebatch"
-                                {:batch_id (get-composite-key 0 2)
-                                 :owner ["name" acc-4]
-                                 :sig nil}))
-      (is (= (<p! (get-in-rows force-acc "batch" [1 "num_tasks"])) 0))
-      (<p-should-succeed! (tx-as acc-2 force-acc "closebatch"
-                                {:batch_id (get-composite-key 0 5)
-                                 :owner (first accs)
-                                 :sig (sign-params params)}))
-      (is (= (<p! (get-in-rows force-acc "batch" [3 "num_tasks"])) 0)))))
+             (<p-should-succeed! (tx-as acc-4 force-acc "closebatch"
+                                        {:batch_id (get-composite-key 0 2)
+                                         :owner ["name" acc-4]
+                                         :sig nil}))
+             (is (= (<p! (get-in-rows force-acc "batch" [2 "num_tasks"])) 0))
+             (<p-should-succeed! (tx-as acc-2 force-acc "closebatch"
+                                        {:batch_id (get-composite-key 0 5)
+                                         :owner (first accs)
+                                         :sig (sign-params params)}))
+             (is (= (<p! (get-in-rows force-acc "batch" [4 "num_tasks"])) 0)))))
 
 (async-deftest reopenbatch
   (let [params (pack-reopenbatch-params (get-composite-key 0 5))]
     (testing "campaign owner can pause batch"
-      (is (= (<p! (get-in-rows force-acc "batch" [1 "num_tasks"])) 0))
-      (is (= (<p! (get-in-rows force-acc "batch" [3 "num_tasks"])) 0))
+      (is (= (<p! (get-in-rows force-acc "batch" [2 "num_tasks"])) 0))
+      (is (= (<p! (get-in-rows force-acc "batch" [4 "num_tasks"])) 0))
       (<p-should-succeed! (tx-as acc-4 force-acc "publishbatch"
-                                {:batch_id (get-composite-key 0 2)
+                                 {:batch_id (get-composite-key 0 2)
                                   :num_tasks 10
                                   :sig nil}))
-      (is (= (<p! (get-in-rows force-acc "batch" [1 "num_tasks"])) 10))
+      (is (= (<p! (get-in-rows force-acc "batch" [2 "num_tasks"])) 10))
       (<p-should-succeed! (tx-as acc-2 force-acc "publishbatch"
-                                {:batch_id (get-composite-key 0 5)
+                                 {:batch_id (get-composite-key 0 5)
                                   :num_tasks 3
                                   :sig (sign-params params)}))
-      (is (= (<p! (get-in-rows force-acc "batch" [3 "num_tasks"])) 3)))))
+      (is (= (<p! (get-in-rows force-acc "batch" [4 "num_tasks"])) 3)))))
 
-(async-deftest reservetask
-  (let [camp-id 0
-        batch-id 0
-        batch-pk "0000000000000000"
+(def task-data ["aaeebb" "bb1234" "cc" "dd"])
 
-        task-data ["aaeebb" "bb1234" "cc" "dd"]
-        task-data-prep (map #(str batch-pk %) task-data)
+(defn make-proof [batch-pk]
+  (let [task-data-prep (map #(str batch-pk %) task-data)
         leaves (map #(sha256 (vacc/hex->bytes %)) task-data-prep)
         tree (MerkleTree. (clj->js leaves) sha256)
         root (.toString (.getRoot tree) "hex")
-        _ (prn "merkle root: " root)
-
-        proof-1  (.getProof tree (first leaves))
-        hex-proof-1 (map #(buf->hex (.-data %)) proof-1)
-        pos-1 (map #(if (= (.-position %) "left") 0 1) proof-1)
-
-        proof-2  (.getProof tree (second leaves))
-        hex-proof-2 (map #(buf->hex (.-data %)) proof-2)
-        pos-2 (map #(if (= (.-position %) "left") 0 1) proof-2)
-
+        _ (prn "merkle root for " batch-pk root)
         params-1 (pack-reservetask-params (first leaves) 0 0)
-        params-2 (pack-reservetask-params (second leaves) 0 0)
+        params-2 (pack-reservetask-params (second leaves) 0 0)]
+    (for [i (range 2)]
+      (let [proof (.getProof tree (nth leaves i))]
+        [(map #(buf->hex (.-data %)) proof)
+         (map #(if (= (.-position %) "left") 0 1) proof)
+         (nth leaves i)]))))
 
-        batch-pk-xx "0000000002000000"
-        task-data-prep-xx (map #(str batch-pk-xx %) task-data)
-        leaves-xx (map #(sha256 (vacc/hex->bytes %)) task-data-prep-xx)
-        tree-xx (MerkleTree. (clj->js leaves-xx) sha256)
-        root-xx (.toString (.getRoot tree-xx) "hex")
-        proof-1-xx  (.getProof tree-xx (first leaves-xx))
-        hex-proof-1-xx (map #(buf->hex (.-data %)) proof-1-xx)
-        pos-1-xx (map #(if (= (.-position %) "left") 0 1) proof-1-xx)
-        _ (prn "merkle root camp 2 " root-xx)
-        ]
+(async-deftest reservetask
+  (let [[proof-000 proof-001 & _] (make-proof "0000000000000000")
+        [proof-200 & _] (make-proof "0200000000000000")
+        [proof-020 & _] (make-proof "0000000002000000")]
     (testing "can make reservation"
       (<p-should-succeed!
-        (tx-as acc-3 force-acc "reservetask" {:proof hex-proof-1
-                                              :position pos-1
-                                              :data (first task-data)
-                                              :campaign_id 0
-                                              :batch_id 0
-                                              :account_id 1
-                                              :payer acc-3
-                                              :sig nil}))
+       (tx-as acc-3 force-acc "reservetask" {:proof (first proof-000)
+                                             :position (second proof-000)
+                                             :data (first task-data)
+                                             :campaign_id 0
+                                             :batch_id 0
+                                             :account_id 1
+                                             :payer acc-3
+                                             :sig nil}))
+
+      (<p-should-fail-with!
+       (tx-as acc-3 force-acc "reservetask" {:proof (first proof-200)
+                                             :position (second proof-200)
+                                             :data (first task-data)
+                                             :campaign_id 0
+                                             :batch_id 2
+                                             :account_id 1
+                                             :payer acc-3
+                                             :sig nil})
+       "" "missing qualification")
+
       (<p-should-succeed!
-        (tx-as acc-3 force-acc "reservetask" {:proof hex-proof-1
-                                              :position pos-1
-                                              :data (first task-data)
-                                              :campaign_id 0
-                                              :batch_id 0
-                                              :account_id 0
-                                              :payer acc-3
-                                              :sig (sign-params params-1)}))
+       (tx-as acc-3 force-acc "reservetask" {:proof (first proof-001)
+                                             :position (second proof-001)
+                                             :data (second task-data)
+                                             :campaign_id 0
+                                             :batch_id 0
+                                             :account_id 0
+                                             :payer acc-3
+                                             :sig (sign-params (pack-reservetask-params (nth proof-001 2) 0 0))}))
+
       (<p-should-succeed!
-        (tx-as acc-3 force-acc "reservetask" {:proof hex-proof-2
-                                              :position pos-2
-                                              :data (second task-data)
-                                              :campaign_id 0
-                                              :batch_id 0
-                                              :account_id 0
-                                              :payer acc-3
-                                              :sig (sign-params params-2)}))
-      (<p-should-succeed!
-       (tx-as acc-3 force-acc "reservetask" {:proof hex-proof-1-xx
-                                             :position pos-1-xx
+       (tx-as acc-3 force-acc "reservetask" {:proof (first proof-020)
+                                             :position (second proof-020)
                                              :data (first task-data)
                                              :campaign_id 2
                                              :batch_id 0
                                              :account_id 1
                                              :payer acc-3
                                              :sig nil})))
+
     (<p! (eos/wait-block (js/Promise.resolve 1)) 300)
     (testing "must join campaign"
       (<p-should-fail-with!
-        (tx-as acc-2 force-acc "reservetask" {:proof hex-proof-1
-                                              :position pos-1
-                                              :data (first task-data)
-                                              :campaign_id 0
-                                              :batch_id 0
-                                              :account_id 2
-                                              :payer acc-2
-                                              :sig nil})
-        "" "missing qualification")
+       (tx-as acc-2 force-acc "reservetask" {:proof (first proof-000)
+                                             :position (second proof-000)
+                                             :data (first task-data)
+                                             :campaign_id 0
+                                             :batch_id 0
+                                             :account_id 2
+                                             :payer acc-2
+                                             :sig nil})
+       "" "missing qualification")
       (<p! (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 2 :payer acc-2
                                                  :sig (sign-params (pack-assignquali-params 0 2))})))
-    (testing "cant exceed repetitions"
-      (<p-should-fail-with!
-        (tx-as acc-3 force-acc "reservetask" {:proof hex-proof-1
-                                              :position pos-1
-                                              :data (first task-data)
-                                              :campaign_id 0
-                                              :batch_id 0
-                                              :account_id 1
-                                              :payer acc-3
-                                              :sig nil})
-        "" "account already did task")
 
-      (<p-should-fail-with!
-        (tx-as acc-2 force-acc "reservetask" {:proof hex-proof-1
-                                              :position pos-1
-                                              :data (first task-data)
-                                              :campaign_id 0
-                                              :batch_id 0
-                                              :account_id 2
-                                              :payer acc-2
-                                              :sig nil})
-        "" "task already completed"))))
+    (testing "cant exceed repetitions"
+      (let [reserve-data  {:proof (first proof-000)
+                           :position (second proof-000)
+                           :data (first task-data)
+                           :campaign_id 0
+                           :batch_id 0
+                           :account_id 1
+                           :payer acc-3
+                           :sig nil}]
+        (<p-should-fail-with!
+         (tx-as acc-3 force-acc "reservetask" reserve-data) "" "account already did task")
+
+        (<p-should-succeed!
+         (tx-as acc-2 force-acc "reservetask" (assoc reserve-data :account_id 2 :payer acc-2)))
+
+        (<p-should-fail-with!
+         (tx-as acc-5 force-acc "reservetask" (assoc reserve-data :account_id 4 :payer acc-5))
+         "" "task already completed")))))
 
 (async-deftest releasetask
   (testing "other workers cannot release reserved task before delay."
     (<p-should-fail! (tx-as acc-4 force-acc "releasetask"
-                               {:task_id 1
-                                :account_id 3
-                                :payer acc-4
-                                :sig nil
-                                })))
+                            {:task_id 1
+                             :account_id 3
+                             :payer acc-4
+                             :sig nil
+                             })))
   (<p! (util/wait 6000))
   (testing "campaign owner can release reserved task with eos account"
     (<p-should-succeed! (tx-as acc-2 force-acc "releasetask"
@@ -657,11 +679,11 @@
 
   (testing "worker cannot release already released task"
     (<p-should-fail! (tx-as acc-3 force-acc "releasetask"
-                               {:task_id 0
-                                :account_id 1
-                                :payer acc-3
-                                :sig nil
-                                })))
+                            {:task_id 0
+                             :account_id 1
+                             :payer acc-3
+                             :sig nil
+                             })))
 
   (testing "can release reserved task with pub key hash"
     (<p-should-succeed! (tx-as acc-4 force-acc "releasetask"
@@ -677,7 +699,7 @@
                                   :account_id 3
                                   :payer acc-2
                                   :sig nil})
-                        "" "missing qualification"))
+                          "" "missing qualification"))
 
   (let [submitted-first (get (<p! (eos/get-table-row force-acc force-acc "submission" 1))
                              "submitted_on")]
