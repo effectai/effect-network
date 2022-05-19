@@ -28,6 +28,7 @@ void force::mkcampaign(vaccount::vaddress owner, content content, eosio::extende
                      c.qualis.emplace(qualis);
                    });
 }
+
 void force::editcampaign(uint32_t campaign_id, vaccount::vaddress owner, content content,
                          eosio::extended_asset reward, camp_quali_map qualis,
                          eosio::name payer, vaccount::sig sig) {
@@ -81,6 +82,7 @@ void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
                       b.task_merkle_root = task_merkle_root;
                       b.balance = {0, camp.reward.get_extended_symbol()};
                       b.repetitions = repetitions;
+                      b.reward.emplace(camp.reward);
                       b.num_tasks = 0;
                       if (qualis.has_value())
                         b.qualis.emplace(qualis.value());
@@ -117,7 +119,7 @@ void force::publishbatch(uint64_t batch_id, uint32_t num_tasks, vaccount::sig si
   reopenbatch_params params = {17, batch_id};
   vaccount::require_auth(pack(params), camp.owner, sig);
 
-  eosio::asset quantity_needed = camp.reward.quantity * num_tasks * batch.repetitions;
+  eosio::asset quantity_needed = batch.reward.value().quantity * num_tasks * batch.repetitions;
   eosio::check(batch.balance.quantity >= quantity_needed, "batch is underfunded");
 
   batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.num_tasks = num_tasks; });
@@ -333,7 +335,7 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
 
   batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.tasks_done++; });
 
-  if (camp.reward.quantity.amount > 0) {
+  if (batch.reward.value().quantity.amount > 0) {
     submittask_params params = {5, submission_id, data};
     require_vaccount(account_id, pack(params), sig);
 
@@ -350,7 +352,7 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
                             p.id = payment_id;
                             p.account_id = account_id;
                             p.batch_id = batch_id;
-                            p.pending = camp.reward;
+                            p.pending = batch.reward.value();
                             p.last_submission_time = time_point_sec(now());
                           });
     } else {
@@ -358,7 +360,7 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
                          payer,
                          [&](auto& p)
                          {
-                           p.pending += camp.reward;
+                           p.pending += batch.reward.value();
                            p.last_submission_time = time_point_sec(now());
                          });
     }

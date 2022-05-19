@@ -292,6 +292,7 @@ private:
     uint32_t tasks_done;
     uint32_t num_tasks;
     eosio::binary_extension<std::map<uint32_t, uint8_t>> qualis;
+    eosio::binary_extension<eosio::extended_asset> reward;
 
     uint64_t primary_key() const { return (uint64_t{campaign_id} << 32) | id; }
     uint32_t by_campaign() const { return campaign_id; }
