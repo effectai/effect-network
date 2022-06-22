@@ -144,6 +144,12 @@ public:
                    eosio::name payer,
                    vaccount::sig sig);
 
+  [[eosio::action]]
+  void uassignquali(uint32_t quali_id,
+                    uint32_t user_id,
+                    eosio::name payer,
+                    vaccount::sig sig);
+
   [[eosio::on_notify("*::vtransfer")]]
   void vtransfer_handler(uint64_t from_id,
                          uint64_t to_id,

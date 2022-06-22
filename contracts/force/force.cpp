@@ -146,7 +146,6 @@ void force::assignquali(uint32_t quali_id, uint32_t user_id, eosio::name payer, 
   rmbatch_params params = {19, quali_id, user_id};
   require_vaccount(quali.account_id, pack(params), sig);
 
-  // uint64_t user_quali_key = (uint64_t{user_id} << 32) | quali_id;
   user_quali_table user_quali_tbl(_self, _self.value);
   user_quali_tbl.emplace(payer,
                          [&](auto& q)
@@ -156,6 +155,18 @@ void force::assignquali(uint32_t quali_id, uint32_t user_id, eosio::name payer, 
                          });
 }
 
+void force::uassignquali(uint32_t quali_id, uint32_t user_id, eosio::name payer, vaccount::sig sig) {
+  quali_table quali_tbl(_self, _self.value);
+  auto quali = quali_tbl.get(quali_id, "qualification not found");
+  rmbatch_params params = {20, quali_id, user_id};
+  require_vaccount(quali.account_id, pack(params), sig);
+
+  uint64_t user_quali_key = (uint64_t{user_id} << 32) | quali_id;
+  user_quali_table user_quali_tbl(_self, _self.value);
+  auto user_quali = user_quali_tbl.find(user_quali_key);
+  eosio::check(user_quali != user_quali_tbl.end(), "user does not have quali");
+  user_quali_tbl.erase(user_quali);
+}
 
 void force::require_batchjoin(uint32_t account_id, uint64_t batch_pk, bool try_to_join, name payer) {
   batchjoin_table join_tbl(_self, _self.value);
@@ -245,8 +256,7 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
   auto& batch = batch_tbl.get(batch_pk, "batch not found");
   auto& campaign = campaign_tbl.get(campaign_id, "campaign not found");
 
-  eosio::check(batch.tasks_done >= 0 && batch.num_tasks > 0,
-               "cannot reserve task on paused batch.");
+  eosio::check(batch.tasks_done >= 0 && batch.num_tasks > 0, "batch paused");
   // TODO: verify depth of tree so cant be spoofed with partial proof
 
   // we prepend the batch_pk to the data so that each data point has a unique

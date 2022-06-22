@@ -164,6 +164,11 @@
    (doto (new (.-SerialBuffer Serialize))
      (.push 19) (.pushUint32 id) (.pushUint32 user-id))))
 
+(defn pack-uassignquali-params [id user-id]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize))
+     (.push 20) (.pushUint32 id) (.pushUint32 user-id))))
+
 (defn pack-rmbatch-params [id camp-id]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize))
@@ -526,6 +531,17 @@
     (<p-should-succeed!
      (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 4 :payer acc-2
                                            :sig (sign-params (pack-assignquali-params 0 4))}))))
+
+(async-deftest uassignquali
+  (testing "owner can unassign quali"
+    (<p-should-succeed!
+     (tx-as acc-2 force-acc "uassignquali"
+            {:quali_id 0
+             :user_id 0
+             :payer acc-2
+             :sig (sign-params (pack-uassignquali-params 0 0))}))
+    (<p! (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 0 :payer acc-2
+                                               :sig (sign-params (pack-assignquali-params 0 0))}))))
 
 
 (defn sha256 [data]
