@@ -139,6 +139,15 @@ public:
                vaccount::sig sig);
 
   [[eosio::action]]
+  void editquali(uint32_t qual_id, 
+                  vaccount::vaddress owner, 
+                  content content, 
+                  uint32_t account_id, 
+                  eosio::name payer, 
+                  vaccount::sig sig);
+
+
+  [[eosio::action]]
   void assignquali(uint32_t quali_id,
                    uint32_t user_id,
                    eosio::name payer,
@@ -221,6 +230,13 @@ private:
     uint32_t account_id;
     content content;
     EOSLIB_SERIALIZE(mkquali_params, (mark)(account_id)(content));
+  };
+
+  struct editquali_params {
+    uint8_t mark;
+    uint32_t quali_id;
+    content content;
+    EOSLIB_SERIALIZE(editquali_params, (mark)(quali_id)(content));
   };
 
   struct mkbatch_params {
