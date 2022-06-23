@@ -140,6 +140,32 @@ void force::mkquali(content content, uint32_t account_id, eosio::name payer, vac
                     });
 }
 
+// Use editcampaign as an example for editquali, all commented code is editcampaign.
+void force::editquali(uint32_t qual_id, content content, uint32_t account_id, eosio::name payer, vaccount::sig sig) {
+  // campaign_table camp_tbl(_self, _self.value);
+  // auto& camp = camp_tbl.get(campaign_id, "campaign does not exist");
+  qual_table qual_table(_self, _self.value);
+  auto& qual = qual_table.get(qual_id, "qualificaitons does not exist");
+
+  // editcampaign_params params = {10, campaign_id, content};
+  // std::vector<char> msg_bytes = pack(params);
+  // vaccount::require_auth(msg_bytes, owner, sig);
+  editqual_params params = {10, qual_id, content};
+  std::vector<char> msg_bytes = pack(params);
+  vaccount::require_auth(msg_bytes, owner, sig);
+
+  // camp_tbl.modify(camp,
+  //                 payer,
+  //                 [&](auto& c)
+  //                 {
+  //                   c.content = content;
+  //                   c.reward = reward;
+  //                   c.qualis.emplace(qualis);
+  //                 });
+
+  qual_table.modify(qual, payer, [&] (auto& q) { q.content = cotent; });
+}
+
 void force::assignquali(uint32_t quali_id, uint32_t user_id, eosio::name payer, vaccount::sig sig) {
   quali_table quali_tbl(_self, _self.value);
   auto quali = quali_tbl.get(quali_id, "qualification not found");
