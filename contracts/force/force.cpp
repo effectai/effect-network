@@ -28,6 +28,7 @@ void force::mkcampaign(vaccount::vaddress owner, content content, eosio::extende
                      c.qualis.emplace(qualis);
                    });
 }
+
 void force::editcampaign(uint32_t campaign_id, vaccount::vaddress owner, content content,
                          eosio::extended_asset reward, camp_quali_map qualis,
                          eosio::name payer, vaccount::sig sig) {
@@ -62,7 +63,7 @@ void force::rmcampaign(uint32_t campaign_id, vaccount::vaddress owner, vaccount:
 
 void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
                     checksum256 task_merkle_root, uint32_t repetitions,
-                    eosio::name payer, vaccount::sig sig) {
+                    std::optional<camp_quali_map> qualis, eosio::name payer, vaccount::sig sig) {
   campaign_table camp_tbl(_self, _self.value);
   auto& camp = camp_tbl.get(campaign_id, "campaign not found");
 
@@ -81,7 +82,10 @@ void force::mkbatch(uint32_t id, uint32_t campaign_id, content content,
                       b.task_merkle_root = task_merkle_root;
                       b.balance = {0, camp.reward.get_extended_symbol()};
                       b.repetitions = repetitions;
+                      b.reward.emplace(camp.reward);
                       b.num_tasks = 0;
+                      if (qualis.has_value())
+                        b.qualis.emplace(qualis.value());
                     });
 }
 
@@ -115,7 +119,7 @@ void force::publishbatch(uint64_t batch_id, uint32_t num_tasks, vaccount::sig si
   reopenbatch_params params = {17, batch_id};
   vaccount::require_auth(pack(params), camp.owner, sig);
 
-  eosio::asset quantity_needed = camp.reward.quantity * num_tasks * batch.repetitions;
+  eosio::asset quantity_needed = batch.reward.value().quantity * num_tasks * batch.repetitions;
   eosio::check(batch.balance.quantity >= quantity_needed, "batch is underfunded");
 
   batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.num_tasks = num_tasks; });
@@ -142,7 +146,6 @@ void force::assignquali(uint32_t quali_id, uint32_t user_id, eosio::name payer, 
   rmbatch_params params = {19, quali_id, user_id};
   require_vaccount(quali.account_id, pack(params), sig);
 
-  // uint64_t user_quali_key = (uint64_t{user_id} << 32) | quali_id;
   user_quali_table user_quali_tbl(_self, _self.value);
   user_quali_tbl.emplace(payer,
                          [&](auto& q)
@@ -152,29 +155,67 @@ void force::assignquali(uint32_t quali_id, uint32_t user_id, eosio::name payer, 
                          });
 }
 
-void force::joincampaign(uint32_t account_id, uint32_t campaign_id, eosio::name payer,
-                         vaccount::sig sig) {
-  joincampaign_params params = {7, campaign_id};
-  require_vaccount(account_id, pack(params), sig);
+void force::uassignquali(uint32_t quali_id, uint32_t user_id, eosio::name payer, vaccount::sig sig) {
+  quali_table quali_tbl(_self, _self.value);
+  auto quali = quali_tbl.get(quali_id, "qualification not found");
+  rmbatch_params params = {20, quali_id, user_id};
+  require_vaccount(quali.account_id, pack(params), sig);
 
-  campaign_table camp_tbl(_self, _self.value);
-  auto camp = camp_tbl.get(campaign_id, "campaign not found");
+  uint64_t user_quali_key = (uint64_t{user_id} << 32) | quali_id;
   user_quali_table user_quali_tbl(_self, _self.value);
+  auto user_quali = user_quali_tbl.find(user_quali_key);
+  eosio::check(user_quali != user_quali_tbl.end(), "user does not have quali");
+  user_quali_tbl.erase(user_quali);
+}
 
-  for (auto q : camp.qualis.value()) {
-    uint32_t quali_id = std::get<0>(q);
-    uint8_t quali_type = std::get<1>(q);
-    uint64_t user_quali_id = (uint64_t{account_id} << 32) | quali_id;
-    auto user_quali = user_quali_tbl.find(user_quali_id);
-    bool has_quali = (user_quali != user_quali_tbl.end());
-    if (has_quali)
-      eosio::check(quali_type == force::Inclusive, "qualification excluded");
-    else
-      eosio::check(quali_type == force::Exclusive, "missing qualification");
+void force::require_batchjoin(uint32_t account_id, uint64_t batch_pk, bool try_to_join, name payer) {
+  batchjoin_table join_tbl(_self, _self.value);
+  uint128_t pk = (uint128_t{batch_pk} << 64) | (uint64_t{account_id} << 32);
+
+  auto by_accbatch = join_tbl.get_index<"accbatch"_n>();
+  auto entry = by_accbatch.find(pk);
+  bool has_joined = (entry != by_accbatch.end());
+  if (!has_joined) {
+    eosio::check(try_to_join, "batch not joined");
+
+    batch_table batch_tbl(_self, _self.value);
+    auto batch = batch_tbl.get(batch_pk, "batch not found");
+    campaign_table camp_tbl(_self, _self.value);
+    auto camp = camp_tbl.get(batch.campaign_id, "campaign not found");
+    user_quali_table user_quali_tbl(_self, _self.value);
+
+    std::map<uint32_t, uint8_t> qualis;
+
+    if (!camp.qualis.has_value() && batch.qualis.has_value()) {
+      qualis = batch.qualis.value();
+    } else {
+      qualis = camp.qualis.value();
+      if (batch.qualis.has_value()) {
+        qualis.insert(batch.qualis.value().begin(), batch.qualis.value().end());
+      }
+    }
+
+    for (auto q : qualis) {
+      uint32_t quali_id = std::get<0>(q);
+      uint8_t quali_type = std::get<1>(q);
+      uint64_t user_quali_id = (uint64_t{account_id} << 32) | quali_id;
+      auto user_quali = user_quali_tbl.find(user_quali_id);
+      bool has_quali = (user_quali != user_quali_tbl.end());
+      if (has_quali)
+        eosio::check(quali_type == force::Inclusive, "qualification excluded");
+      else
+        eosio::check(quali_type == force::Exclusive, "missing qualification");
+    }
+
+    uint64_t join_id = join_tbl.available_primary_key();
+    join_tbl.emplace(payer,
+                     [&](auto& j)
+                     {
+                       j.account_id = account_id;
+                       j.batch_id = batch_pk;
+                       j.id = join_id;
+                     });
   }
-
-  campaignjoin_table join_tbl(_self, _self.value);
-  join_tbl.emplace(payer, [&](auto& j) { j.account_id = account_id; j.campaign_id = campaign_id; });
 }
 
 void force::require_merkle(std::vector<eosio::checksum256> proof, std::vector<uint8_t> position,
@@ -208,17 +249,14 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
   submission_table submission_tbl(_self, _self.value);
   batch_table batch_tbl(_self, _self.value);
   campaign_table campaign_tbl(_self, _self.value);
-  campaignjoin_table campaignjoin_tbl(_self, _self.value);
-
-  uint64_t campaignjoin_pk = (uint64_t{campaign_id} << 32) | account_id;
-  auto campaignjoin = campaignjoin_tbl.require_find(campaignjoin_pk, "campaign not joined");
 
   uint64_t batch_pk = (uint64_t{campaign_id} << 32) | batch_id;
+  require_batchjoin(account_id, batch_pk, true, payer);
+
   auto& batch = batch_tbl.get(batch_pk, "batch not found");
   auto& campaign = campaign_tbl.get(campaign_id, "campaign not found");
 
-  eosio::check(batch.tasks_done >= 0 && batch.num_tasks > 0,
-               "cannot reserve task on paused batch.");
+  eosio::check(batch.tasks_done >= 0 && batch.num_tasks > 0, "batch paused");
   // TODO: verify depth of tree so cant be spoofed with partial proof
 
   // we prepend the batch_pk to the data so that each data point has a unique
@@ -231,13 +269,13 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
   std::copy(data.cbegin(), data.cend(), &buff[0] + sizeof batch_pk);
 
   checksum256 data_hash = sha256(&buff[0], datasize);
+  reservetask_params params = {6, data_hash, campaign_id, batch_id};
+  require_vaccount(account_id, pack(params), sig);
+
   // printhex(&data_hash.extract_as_byte_array()[0], 32);
   require_merkle(proof, position, batch.task_merkle_root, data_hash);
 
   uint32_t submission_id = submission_tbl.available_primary_key();
-
-  reservetask_params params = {6, data_hash, campaign_id, batch_id};
-  require_vaccount(account_id, pack(params), sig);
 
   // check if repetitions are not done
   auto by_leaf = submission_tbl.get_index<"leaf"_n>();
@@ -299,14 +337,15 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
   auto& sub = submission_tbl.get(submission_id, "submission not found");
   eosio::check(sub.account_id.has_value(), "task not reserved");
   eosio::check(sub.account_id == account_id, "different account");
-  submission_tbl.modify(sub, payer, [&](auto& s) { s.data = data; });
+  eosio::check(!sub.data.has_value(), "already submitted");
+  submission_tbl.modify(sub, payer, [&](auto& s) { s.data.emplace(data); });
 
   auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
   auto& camp = campaign_tbl.get(batch.campaign_id);
 
   batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.tasks_done++; });
 
-  if (camp.reward.quantity.amount > 0) {
+  if (batch.reward.value().quantity.amount > 0) {
     submittask_params params = {5, submission_id, data};
     require_vaccount(account_id, pack(params), sig);
 
@@ -323,7 +362,7 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
                             p.id = payment_id;
                             p.account_id = account_id;
                             p.batch_id = batch_id;
-                            p.pending = camp.reward;
+                            p.pending = batch.reward.value();
                             p.last_submission_time = time_point_sec(now());
                           });
     } else {
@@ -331,7 +370,7 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
                          payer,
                          [&](auto& p)
                          {
-                           p.pending += camp.reward;
+                           p.pending += batch.reward.value();
                            p.last_submission_time = time_point_sec(now());
                          });
     }
@@ -354,7 +393,7 @@ void force::releasetask(uint64_t task_id, uint32_t account_id,
   auto& camp = campaign_tbl.get(batch.campaign_id, "campaign not found");
 
   eosio::check(sub.account_id.has_value(), "cannot release already released task.");
-  eosio::check(sub.data == std::string(""), "cannot release task with data.");
+  eosio::check(!sub.data.has_value(), "cannot release task with data.");
 
   task_params params = {14, task_id, account_id};
   std::vector<char> msg_bytes = pack(params);
@@ -375,7 +414,6 @@ void force::reclaimtask(uint64_t task_id, uint32_t account_id,
                         eosio::name payer, vaccount::sig sig) {
   submission_table submission_tbl(_self, _self.value);
   batch_table batch_tbl(_self, _self.value);
-  campaignjoin_table campaignjoin_tbl(_self, _self.value);
 
   auto& sub = submission_tbl.get(task_id, "reservation not found");
   auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
@@ -383,14 +421,13 @@ void force::reclaimtask(uint64_t task_id, uint32_t account_id,
   eosio::check(batch.tasks_done >= 0 && batch.num_tasks > 0,
                "cannot reclaim task on paused batch.");
 
-  uint64_t campaignjoin_pk = (uint64_t{batch.campaign_id} << 32) | account_id;
-  auto campaignjoin = campaignjoin_tbl.require_find(campaignjoin_pk, "campaign not joined");
+  require_batchjoin(account_id, sub.batch_id, true, payer);
 
   task_params params = {15, task_id, account_id};
   require_vaccount(account_id, pack(params), sig);
 
   eosio::check(!sub.account_id.has_value(), "task already reserved");
-  eosio::check(sub.data.empty(), "task already submitted");
+  eosio::check(!sub.data.has_value(), "task already submitted");
   submission_tbl.modify(sub,
                         payer,
                         [&](auto& s)
