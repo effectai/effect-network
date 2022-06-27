@@ -159,6 +159,16 @@
    (doto (new (.-SerialBuffer Serialize))
      (.push 18)  (.pushUint32 acc-id) (.push 0) (.pushString content))))
 
+(defn pack-editquali-params [acc-id content]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize))
+     (.push 20)  (.pushUint32 acc-id) (.push 0) (.pushString content))))
+
+(defn pack-mkquali-params [acc-id content]
+  (.asUint8Array
+   (doto (new (.-SerialBuffer Serialize))
+     (.push 18)  (.pushUint32 acc-id) (.push 0) (.pushString content))))
+
 (defn pack-assignquali-params [id user-id]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize))
@@ -509,6 +519,27 @@
                                 :sig (sign-params (pack-mkquali-params 0 vacc/hash160-2))})))
   (let [r (<p! (eos/get-table-rows force-acc force-acc "quali"))]
     (is (= 2 (count r)))))
+
+(async-deftest editquali
+  (testing "only owner can edit"
+    (<p-should-fail-with! (tx-as acc-2 force-acc "editquali"
+                                 {:content {:field_0 0 :field_1 vacc/hash160-2}
+                                  :account_id 1
+                                  :quali_id 0
+                                  :payer acc-2
+                                  :sig nil})
+                          "" (str "missing authority of " acc-3)))
+  (testing "can edit qualfication"
+    (let [r (<p! (eos/get-table-rows force-acc force-acc "quali"))]
+      (is (get-in r [0 "content" "field_1"]  vacc/hash160-1)))
+    (<p-should-succeed! (tx-as acc-2 force-acc "editquali"
+                               {:content {:field_0 0 :field_1 vacc/hash160-2}
+                                :account_id 0
+                                :quali_id 0
+                                :payer acc-2
+                                :sig (sign-params (pack-editquali-params 0 vacc/hash160-2))}))
+    (let [r (<p! (eos/get-table-rows force-acc force-acc "quali"))]
+      (is (get-in r [0 "content" "field_1"]  vacc/hash160-2)))))
 
 (async-deftest assignquali
   (testing "owner can assign quali"
