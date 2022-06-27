@@ -139,12 +139,11 @@ public:
                vaccount::sig sig);
 
   [[eosio::action]]
-  void editquali(uint32_t qual_id, 
-                  vaccount::vaddress owner, 
-                  content content, 
-                  uint32_t account_id, 
-                  eosio::name payer, 
-                  vaccount::sig sig);
+  void editquali(uint32_t quali_id,
+                 content content,
+                 uint32_t account_id,
+                 eosio::name payer,
+                 vaccount::sig sig);
 
 
   [[eosio::action]]

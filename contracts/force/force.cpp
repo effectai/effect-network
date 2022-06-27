@@ -141,13 +141,14 @@ void force::mkquali(content content, uint32_t account_id, eosio::name payer, vac
 }
 
 
-void force::editquali(uint32_t quali_id, vaccount::vaddress owner, content content, uint32_t account_id, eosio::name payer, vaccount::sig sig) {
+void force::editquali(uint32_t quali_id, content content, uint32_t account_id,
+                      eosio::name payer, vaccount::sig sig) {
   quali_table quali_table(_self, _self.value);
   auto& quali = quali_table.get(quali_id, "qualification does not exist");
 
-  editquali_params params = {10, quali_id, content};
+  editquali_params params = {20, quali_id, content};
   std::vector<char> msg_bytes = pack(params);
-  vaccount::require_auth(msg_bytes, owner, sig);
+  require_vaccount(account_id, pack(params), sig);
 
   quali_table.modify(quali, payer, [&] (auto& q) { q.content = content; });
 }
