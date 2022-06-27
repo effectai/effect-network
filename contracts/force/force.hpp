@@ -366,7 +366,7 @@ private:
     uint32_t account_id;
 
     uint64_t primary_key() const { return uint64_t{id}; }
-    uint32_t by_account() const { return account_id; }
+    uint64_t by_account() const { return (uint64_t) account_id; }
   };
 
   struct [[eosio::table]] userquali {
@@ -407,7 +407,8 @@ private:
                       indexed_by<"acc"_n, const_mem_fun<payment, uint64_t, &payment::by_account>>>
   payment_table;
 
-  typedef multi_index<"quali"_n, quali> quali_table;
+  typedef multi_index<"quali"_n, quali,
+                      indexed_by<"acc"_n, const_mem_fun<quali, uint64_t, &quali::by_account>>> quali_table;
   typedef multi_index<"userquali"_n, userquali> user_quali_table;
 
   config_table _config;
