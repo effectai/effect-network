@@ -1,38 +1,49 @@
 ---
-id: dao
-title: EffectDAO
+id: about
+title: Effect Network
 layout: default
 has_children: true
 has_toc: false
-last_modified_date: 2020-11-21 23:10:00
-gh_edit_source: docs
+last_modified_date: 2022-08-26 19:10:35
 ---
 
-# EffectDAO
+# About Effect Network
 
-The EffectDAO is a decentralized organization with the goal to create an open
-and democratic environment for AI development. Anyone in the world can join the
-effort and get rewarded for their participation.
-{: .fs-6 .fw-300 }
+## Earn Crypto
 
-[Open the Effect dashboard](https://dashboard.effect.ai){: .btn .fs-5 .mb-4 .mb-md-0 }
+### Complete tasks and earn crypto
 
----
+Effect Network is the platform for the Future-of-Work.
+You can work from anywhere, at any time, from any device.
+Simply create an Effect Account and start completing tasks while collecting $EFX directly to your wallet.
+Read more about this in Create an Account.
 
-## Getting started
+## Create Tasks
 
-The EffectDAO is a Decentralized Autonomous Organization (DAO) that is open for
-anyone to join. The rules and regulations that govern the DAO as well as its
-financials are controlled by smart contracts on the blockchain - this makes the
-organization completely transparent for anyone to explore.
+### Access a global, on-demand, 24x7 scalable workforce
 
-### Stake your tokens
+Tap into a diverse workforce of over 10,000 people who complete tasks for you.
+Choose one of the default task templates to get started with text analysis, document transcription, image annotations, sentiment analysis, and many more!
+Read more about this in Start Posting Tasks.
 
-[Staking EFX and NFX](staking.html) tokens is the first step in becoming a member of
-the DAO. Locking up tokens signals that you will act in best interest of the
-project.
+## Utilize the dApp Ecosystem
 
-### Become a member
+### Shop for services and get popular tasks completed with decentralized applications
 
-To [become a member](ranks.html) you will have to sign the consitution. This is a
-relatively easy thing to do [on the dashboard](https://dashboard.effect.ai).
+The dApp ecosystem at Effect Network is home to dApps that provide popular services for almost any type of task.
+
+## Web3 Connections
+
+### Connect with others in the web3 world
+
+Looking to connect with others who are part of the Effect Network community?
+Look no further than our dedicated Discord server!
+Here you can connect with others who work, post tasks, and help run the Effect Network.
+Join the server now!
+
+## The EFX Utility Token
+
+### The cryptographic utility token that fuels the Effect Network
+
+$EFX is a utility token that workers and requesters utilize for tasks on the Effect Network.
+You can read more about this crypto token in this guide.
