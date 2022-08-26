@@ -9,12 +9,12 @@ last_modified_date: 2020-11-22 22:31:00
 
 # Create Your Effect Network Account
 
-![Create account](/assets/images/create-account.png){: .d-block .mx-auto }
-
 To post tasks, create qualifications, or complete tasks and get paid on Effect Network, you’ll first need to create an account.
 This process is free, and in most cases nearly instant to complete.
 
 ## Step One: Start with your blockchain wallet
+
+![Create account](/assets/images/create-account.png){: .d-block .mx-auto }
 
 Currently, you can connect to Effect Network by using an EOS or BSC wallet address.
 For EOS-based accounts, we recommend Anchor for desktop/mobile and TokenPocket for mobile.
