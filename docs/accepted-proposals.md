@@ -1,7 +1,7 @@
 ---
 title: Accepted proposals
 parent: Proposals
-grand_parent: EffectDAO
+grand_parent: Govern
 layout: default
 ---
 
