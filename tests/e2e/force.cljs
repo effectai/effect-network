@@ -26,6 +26,8 @@
 (def vacc-acc (eos/random-account "vacc"))
 (def token-acc (eos/random-account "tkn"))
 (def force-acc (eos/random-account "force"))
+(def proxy-acc (eos/random-account "proxy")
+  )
 (println "force-acc" force-acc)
 (println "vacc-acc" vacc-acc)
 
@@ -66,10 +68,12 @@
       done
       (go
         (try
-          (<p! (eos/create-account owner-acc force-acc))
+          (<p-may-fail! (eos/create-account owner-acc force-acc))
           (<p! (eos/create-account owner-acc vacc-acc))
+          (<p! (eos/create-account owner-acc proxy-acc))
           (<p! (deploy-file vacc-acc "contracts/vaccount/vaccount"))
-          (<p! (deploy-file force-acc "contracts/force/force"))
+          (<p-may-fail! (deploy-file force-acc "contracts/force/force"))
+          (<p! (deploy-file proxy-acc "contracts/taskproxy/taskproxy"))
           (<!  (e2e.token/deploy-token token-acc [owner-acc token-acc]))
 
           (<p! (eos/update-auth vacc-acc "xfer" "active"
@@ -532,11 +536,11 @@
   (testing "can edit qualfication"
     (let [r (<p! (eos/get-table-rows force-acc force-acc "quali"))]
       (is (get-in r [0 "content" "field_1"]  vacc/hash160-1)))
-    (<p-should-succeed! (tx-as acc-2 force-acc "editquali"
+    (<p-should-succeed! (tx-as acc-3 force-acc "editquali"
                                {:content {:field_0 0 :field_1 vacc/hash160-2}
                                 :account_id 0
                                 :quali_id 0
-                                :payer acc-2
+                                :payer acc-3
                                 :sig (sign-params (pack-editquali-params 0 vacc/hash160-2))}))
     (let [r (<p! (eos/get-table-rows force-acc force-acc "quali"))]
       (is (get-in r [0 "content" "field_1"]  vacc/hash160-2)))))
@@ -829,6 +833,17 @@
       (<p-should-succeed! (tx-as acc-2 force-acc "payout"
                                  {:payment_id 1
                                   :sig (sign-params params-1)})))))
+
+(async-deftest proxy
+  (testing "proxy can create campaign"
+    (<p-should-succeed!
+     (tx-as proxy-acc force-acc "mkcampaign"
+            {:owner ["name" proxy-acc]
+             :content {:field_0 0 :field_1 vacc/hash160-1}
+             :reward {:quantity "0.0000 EFX" :contract token-acc}
+             :qualis []
+             :payer proxy-acc
+             :sig nil}))))
 
 (defn -main [& args]
   (run-tests))
