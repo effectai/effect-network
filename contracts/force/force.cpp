@@ -116,13 +116,36 @@ void force::publishbatch(uint64_t batch_id, uint32_t num_tasks, vaccount::sig si
   campaign_table camp_tbl(_self, _self.value);
   auto& camp = camp_tbl.get(batch.campaign_id, "campaign not found");
 
+  settings settings = get_settings();
+
   reopenbatch_params params = {17, batch_id};
   vaccount::require_auth(pack(params), camp.owner, sig);
 
-  eosio::asset quantity_needed = batch.reward.value().quantity * num_tasks * batch.repetitions;
+  eosio::extended_asset task_reward = batch.reward.value();
+  eosio::extended_asset batch_fee(task_reward.quantity.amount * settings.fee_percentage *
+                                  num_tasks * batch.repetitions,
+                                  task_reward.get_extended_symbol());
+
+  auto quantity_needed = task_reward.quantity * num_tasks * batch.repetitions + batch_fee.quantity;
   eosio::check(batch.balance.quantity >= quantity_needed, "batch is underfunded");
 
-  batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.num_tasks = num_tasks; });
+  batch_tbl.modify(batch,
+                   eosio::same_payer,
+                   [&](auto& b) {
+                     b.num_tasks = num_tasks;
+                     b.balance -= batch_fee;
+                   });
+
+  action(permission_level{_self, "xfer"_n},
+         settings.vaccount_contract,
+         "withdraw"_n,
+         std::make_tuple((uint64_t) settings.force_vaccount_id,
+                         settings.fee_contract,
+                         batch_fee,
+                         std::string("batch " + std::to_string(batch_id)),
+                         NULL,
+                         NULL))
+    .send();
 }
 
 void force::mkquali(content content, uint32_t account_id, eosio::name payer, vaccount::sig sig) {
@@ -295,7 +318,7 @@ void force::reservetask(std::vector<checksum256> proof, std::vector<uint8_t> pos
   auto itr_start = by_leaf.lower_bound(data_hash);
   auto itr_end = by_leaf.upper_bound(data_hash);
   uint32_t rep_count = 0;
-  // TODO: can this loop get too big?
+
   for (; itr_start != itr_end; itr_start++) {
     rep_count++;
     auto& subm = *itr_start;
@@ -326,12 +349,13 @@ void force::payout(uint64_t payment_id, std::optional<eosio::signature> sig) {
   eosio::check(payment.pending.quantity.amount > 0, "nothing to payout");
 
   payment_tbl.erase(payment);
+  settings settings = get_settings();
 
   action(
     permission_level{_self, "xfer"_n},
-    _config.get().vaccount_contract,
+    settings.vaccount_contract,
     "vtransfer"_n,
-    std::make_tuple((uint64_t) _config.get().force_vaccount_id,
+    std::make_tuple((uint64_t) settings.force_vaccount_id,
                     (uint64_t) payment.account_id,
                     payment.pending,
                     std::string(""),
@@ -395,7 +419,7 @@ void force::releasetask(uint64_t task_id, uint32_t account_id,
   submission_table submission_tbl(_self, _self.value);
   batch_table batch_tbl(_self, _self.value);
   campaign_table campaign_tbl(_self, _self.value);
-  auto vacc_contract = _config.get().vaccount_contract;
+  auto vacc_contract = get_settings().vaccount_contract;
 
   vaccount::account_table acc_tbl(vacc_contract, vacc_contract.value);
   vaccount::account acc = acc_tbl.get((uint64_t) account_id, "account row not found");

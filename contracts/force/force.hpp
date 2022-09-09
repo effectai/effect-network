@@ -4,6 +4,7 @@
 #include <eosio/singleton.hpp>
 #include <eosio/asset.hpp>
 #include <eosio/datastream.hpp>
+#include <eosio/datastream.hpp>
 #include <eosio/crypto.hpp>
 #include <eosio/binary_extension.hpp>
 #include "../vaccount/vaccount-shared.hpp"
@@ -42,7 +43,7 @@ public:
   }
 
   force(eosio::name receiver, eosio::name code, eosio::datastream<const char*> ds) :
-    eosio::contract(receiver, code, ds), _config(_self, _self.value)
+    eosio::contract(receiver, code, ds), _config(_self, _self.value), _settings(_self, _self.value)
   {};
 
   [[eosio::action]]
@@ -175,6 +176,26 @@ public:
     cleanTable<payment_table>(_self, _self.value, 100);
     cleanTable<batchjoin_table>(_self, _self.value, 100);
   };
+
+  [[eosio::action]]
+  void migrate(eosio::name payer, eosio::name fee_contract, float fee_percentage) {
+    require_auth(_self);
+    auto c = _config.get();
+    auto itr = _settings.find(settings_pk.value);
+
+    eosio::check(itr == _settings.end(), "already migrated");
+
+    _settings.emplace(payer,
+                      [&](auto& s)
+                      {
+                        s.vaccount_contract = c.vaccount_contract;
+                        s.force_vaccount_id = c.force_vaccount_id;
+                        s.payout_delay_sec = c.payout_delay_sec;
+                        s.release_task_delay_sec = c.release_task_delay_sec;
+                        s.fee_contract = fee_contract;
+                        s.fee_percentage = fee_percentage;
+                      });
+  }
 
 private:
   inline bool past_delay(time_point_sec base_time, std::string type_delay) {
@@ -411,5 +432,28 @@ private:
                       indexed_by<"acc"_n, const_mem_fun<quali, uint64_t, &quali::by_account>>> quali_table;
   typedef multi_index<"userquali"_n, userquali> user_quali_table;
 
+
+  const eosio::name settings_pk = "settings"_n;
+
+  struct [[eosio::table]] settings {
+    eosio::name vaccount_contract;
+    uint32_t force_vaccount_id;
+    uint32_t payout_delay_sec;
+    uint32_t release_task_delay_sec;
+    eosio::name fee_contract;
+    float fee_percentage;
+    uint64_t primary_key() const { return eosio::name{"settings"}.value; }
+  };
+
+  typedef multi_index<"settings"_n, settings> settings_table;
+  settings_table _settings;
   config_table _config;
+
+  settings get_settings() {
+    auto itr = _settings.find(settings_pk.value);
+
+    eosio::check(itr != _settings.end(), "Effect Network is receiving maintenance, please try again in 5 minutes" );
+
+    return *itr;
+  }
 };
