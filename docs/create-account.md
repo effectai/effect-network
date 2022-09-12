@@ -16,7 +16,7 @@ This process is free, and in most cases nearly instant to complete.
 
 ![Create account](/assets/images/create-account.png){: .d-block .mx-auto }
 
-Currently, you can connect to Effect Network by using an EOS or BSC wallet address.
+You can connect to Effect Network by using an EOS or BSC wallet address.
 For EOS-based accounts, we recommend Anchor for desktop/mobile and TokenPocket for mobile.
 For BSC-based accounts, we recommend using MetaMask.
 
@@ -28,4 +28,4 @@ If you need help/support with creating a wallet address or using any of these se
 
 Alternately, for those so inclined, you can create a keypair yourself. This is not advised for those who are brand new to blockchain.
 
-## Step Two:
+
