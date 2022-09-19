@@ -485,7 +485,8 @@ void force::closebatch(uint64_t batch_id, vaccount::vaddress owner, vaccount::si
 
   eosio::check(camp.owner == owner, "Only campaign owner can pause batch.");
   vaccount::require_auth(pack(params), owner, sig);
-  eosio::check(batch.tasks_done >= 0 && batch.num_tasks > 0 && batch.tasks_done < batch.num_tasks,
+  eosio::check(batch.tasks_done >= 0 && batch.num_tasks > 0 &&
+               batch.tasks_done < batch.num_tasks * batch.repetitions,
                "can only pause batches with active tasks.");
 
   batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.num_tasks = 0; });
