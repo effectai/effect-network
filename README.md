@@ -23,7 +23,7 @@ and infrastructure that will propel the digital working class forward.
 
 How can you help us build? There are various things you can do to help,
 depending on your skill set. The best way to get started is to reach out and
-join our [Discord community](https://discord.gg/7JJrUE8b). You can also join
+join our [Discord community](https://discord.gg/effectnetwork). You can also join
 [our DAO](https://dao.effect.network) and be rewarded for your
 contributions. Examine the [DAO Proposal
 Tracker](https://effect-dao-docs.gitbook.io/proposal-tracker/) to see if you can
