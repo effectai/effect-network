@@ -101,10 +101,10 @@
 
 (def keypair (.genKeyPair ec))
 (def keypair-pub (hex->bytes (.encodeCompressed (.getPublic keypair) "hex")))
-(prn "KeyPair Public 1 = " (.getPublic keypair "hex"))
-(prn "KeyPair Private 1 = " (.getPrivate keypair "hex"))
+;; (prn "KeyPair Public 1 = " (.getPublic keypair "hex"))
+;; (prn "KeyPair Private 1 = " (.getPrivate keypair "hex"))
 
-(prn "KeyPair Compressed 1 = " (.encodeCompressed (.getPublic keypair) "hex"))
+;; (prn "KeyPair Compressed 1 = " (.encodeCompressed (.getPublic keypair) "hex"))
 
 ;; To check the Hex value of account names
 ;; (prn "DEBUG hex: " (bytes->hex (name->bytes owner-acc)))
