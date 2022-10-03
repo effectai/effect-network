@@ -1,5 +1,5 @@
 ---
-id:nxf-token
+id: nxf-token
 title: NFX Token
 parent: Effect Network
 nav_order: 1
