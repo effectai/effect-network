@@ -22,3 +22,5 @@ scripts/vaccount-relayer
 
 _site
 docs/.jekyll-cache
+.jekyll-cache
+docs/Gemfile.lock

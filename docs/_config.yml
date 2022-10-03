@@ -1,12 +1,12 @@
 title: Effect Network
 description: >-
   Documentation for The Effect Network.
-baseurl: "/effect-network"
-url: ""
+baseurl: ""
+# baseurl: "/effect-network"
 
 markdown: kramdown
+# remote_theme: just-the-docs/just-the-docs@v0.4.0.rc2
 theme: "just-the-docs"
-remote_theme: just-the-docs/just-the-docs
 
 color_scheme: effect
 
