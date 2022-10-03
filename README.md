@@ -23,7 +23,7 @@ and infrastructure that will propel the digital working class forward.
 
 How can you help us build? There are various things you can do to help,
 depending on your skill set. The best way to get started is to reach out and
-join our [Discord community](https://discord.gg/7JJrUE8b). You can also join
+join our [Discord community](https://discord.gg/effectnetwork). You can also join
 [our DAO](https://dao.effect.network) and be rewarded for your
 contributions. Examine the [DAO Proposal
 Tracker](https://effect-dao-docs.gitbook.io/proposal-tracker/) to see if you can
@@ -47,7 +47,7 @@ contribute to any existing proposals or start a new one.
 - 👩🏿‍🏭 **Testers**- Here be dragons, and we need to make sure that they can't
   harm us. Help us find bugs and report them when you find them! The workforce
   platform is under active development and can be found at
-  [worker.effect.ai](https://worker.effect.ai).
+  [Effect Force](https://app.effect.network).
 
 - 👩🏾‍🚀 **Marketing**- Tell it on the mountain, over the hills, and everywhere!
   We are always looking for content writers and marketers to help us spread the
@@ -57,7 +57,7 @@ contribute to any existing proposals or start a new one.
 
 By joining Effect Force, you will be able to begin earning tokens by performing
 quick digital tasks. Get started at
-[worker.effect.ai](https://worker.effect.ai).
+[Effect Force](https://app.effect.network).
 
 ## Become a Requester
 
