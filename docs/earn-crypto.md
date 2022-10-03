@@ -1,6 +1,7 @@
 ---
 id: earn-crypto
 title: Earn Crypto
+layout: default
 has_children: true
 has_toc: true
 ---

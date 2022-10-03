@@ -2,7 +2,7 @@
 title: Become a member
 parent: Govern
 nav_order: 2
-
+layout: default
 last_modified_date: 2020-11-22 22:31:00
 ---
 

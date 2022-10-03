@@ -1,6 +1,7 @@
 ---
 id: index
 title: Effect Network
+layout: default
 has_children: true
 has_toc: true
 ---

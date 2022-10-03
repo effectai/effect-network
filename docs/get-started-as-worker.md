@@ -2,6 +2,7 @@
 id: get-started-as-worker
 title: Get Started as a Worker
 parent: Earn Crypto
+layout: default
 has_children: false
 last_modified_date: 2020-11-21 23:10:00
 ---

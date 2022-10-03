@@ -1,6 +1,7 @@
 ---
 id: create-tasks
 title: Create Tasks
+layout: default
 has_children: true
 ---
 

@@ -2,6 +2,7 @@
 id: worker-faq
 title: Worker FAQ
 parent: Earn Crypto
+layout: default
 has_children: false
 last_modified_date: 2020-11-21 23:10:00
 ---

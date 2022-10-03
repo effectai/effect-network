@@ -1,7 +1,8 @@
 ---
 id: start-posting-tasks
 title: Start Posting Tasks
-parent: Earn Crypto
+layout: default
+parent: Create Tasks
 has_children: false
 ---
 
