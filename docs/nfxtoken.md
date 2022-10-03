@@ -1,3 +1,12 @@
+---
+id:nxf-token
+title: NFX Token
+parent: Effect Network
+nav_order: 1
+has_children: false
+last_modified_date: 2020-11-22 22:31:00
+---
+
 # The NFX Governance Token
 
 ## What is a governance token?
@@ -11,6 +20,7 @@ Governance tokens represent an alternative method of governing organizations. Th
 Proponents of systems that use governance tokens say that they allow for user control, which is consistent with the original cryptocurrency objectives of decentralization and democratization. In most cases, organizations that allow users to control the evolution of their systems are referred to as decentralized autonomous organizations (DAOs).
 
 ## How NFX is used within the Effect Network
+
 ![NFX Token](/assets/images/nfx_logo_400x400.png)
 
 NFX is an integral part of the Effect Network, especially the EffectDAO. NFX is required in order to vote on proposals in the DAO. It is also a determining factor in how many network fees a voting DAO member can receive. The combination of staked EFX, staked NFX, and EffectPOWER determines the vote weight for a DAO member. For more information about this, please see the article titled Stake EFX and NFX.

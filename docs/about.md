@@ -1,3 +1,12 @@
+---
+id: about
+title: About
+parent: Effect Network
+nav_order: 1
+has_children: false
+last_modified_date: 2020-11-22 22:31:00
+---
+
 # About Effect Network
 
 # Earn Crypto

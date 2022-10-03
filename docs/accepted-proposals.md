@@ -2,7 +2,6 @@
 title: Accepted proposals
 parent: Proposals
 grand_parent: Govern
-layout: default
 ---
 
 ## Governance proposals

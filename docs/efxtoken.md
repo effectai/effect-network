@@ -1,3 +1,12 @@
+---
+id: efx-token
+title: EFX Token
+parent: Effect Network
+nav_order: 1
+has_children: false
+last_modified_date: 2020-11-22 22:31:00
+---
+
 # The $EFX Utility Token
 
 $EFX is the cryptographic token that fuels the Effect Network. It offers developers and organizations a reliable option to build, monetize, and power AI solutions. EFX can be earned or bought and can be used in a decentralized ecosystem of AI-related services.

@@ -1,7 +1,6 @@
 ---
 id: dao
 title: Govern
-layout: default
 has_children: true
 has_toc: false
 last_modified_date: 2020-11-21 23:10:00
