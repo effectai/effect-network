@@ -1,7 +1,7 @@
 title: Effect Network
 description: >-
   Documentation for The Effect Network.
-baseurl: "/effect-network"
+baseurl: "/"
 
 markdown: kramdown
 remote_theme: just-the-docs/just-the-docs
