@@ -150,6 +150,7 @@ public:
   [[eosio::action]]
   void assignquali(uint32_t quali_id,
                    uint32_t user_id,
+                   std::string value,
                    eosio::name payer,
                    vaccount::sig sig);
 
@@ -293,6 +294,14 @@ private:
     EOSLIB_SERIALIZE(rmbatch_params, (mark)(id)(campaign_id));
   };
 
+  struct assignquali_params {
+    uint8_t mark;
+    uint32_t id;
+    uint32_t campaign_id;
+    std::string value;
+    EOSLIB_SERIALIZE(assignquali_params, (mark)(id)(campaign_id)(value));
+  };
+
   struct joinbatch_params {
     uint8_t mark;
     uint64_t batch_id;
@@ -393,6 +402,7 @@ private:
   struct [[eosio::table]] userquali {
     uint32_t account_id;
     uint32_t quali_id;
+    eosio::binary_extension<std::string> value;
 
     uint64_t primary_key() const { return (uint64_t{account_id} << 32) | quali_id; }
   };

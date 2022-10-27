@@ -200,10 +200,10 @@
    (doto (new (.-SerialBuffer Serialize))
      (.push 18)  (.pushUint32 acc-id) (.push 0) (.pushString content))))
 
-(defn pack-assignquali-params [id user-id]
+(defn pack-assignquali-params [id user-id value]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize))
-     (.push 19) (.pushUint32 id) (.pushUint32 user-id))))
+     (.push 19) (.pushUint32 id) (.pushUint32 user-id) (.pushString value))))
 
 (defn pack-uassignquali-params [id user-id]
   (.asUint8Array
@@ -571,6 +571,7 @@
      (tx-as acc-2 force-acc "assignquali"
             {:quali_id 0
              :user_id 0
+             :value ""
              :payer acc-2
              :sig nil})
      "only owner" "abort() called")
@@ -578,14 +579,19 @@
      (tx-as acc-2 force-acc "assignquali"
             {:quali_id 0
              :user_id 0
+             :value "testvalue"
              :payer acc-2
-             :sig (sign-params (pack-assignquali-params 0 0))}))
+             :sig (sign-params (pack-assignquali-params 0 0 "testvalue"))}))
+    (let [res (<p! (eos/get-table-rows force-acc force-acc "userquali"))]
+      (is (get-in r [0 "value"] "testvalue")))
     (<p-should-succeed!
      (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 1 :payer acc-2
-                                           :sig (sign-params (pack-assignquali-params 0 1))}))
+                                           :value ""
+                                           :sig (sign-params (pack-assignquali-params 0 1 ""))}))
     (<p-should-succeed!
      (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 4 :payer acc-2
-                                           :sig (sign-params (pack-assignquali-params 0 4))}))))
+                                           :value ""
+                                           :sig (sign-params (pack-assignquali-params 0 4 ""))}))))
 
 (async-deftest uassignquali
   (testing "owner can unassign quali"
@@ -596,7 +602,8 @@
              :payer acc-2
              :sig (sign-params (pack-uassignquali-params 0 0))}))
     (<p! (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 0 :payer acc-2
-                                               :sig (sign-params (pack-assignquali-params 0 0))}))))
+                                               :value ""
+                                               :sig (sign-params (pack-assignquali-params 0 0 ""))}))))
 
 
 (defn sha256 [data]
@@ -710,7 +717,8 @@
                                              :sig nil})
        "" "missing qualification")
       (<p! (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 2 :payer acc-2
-                                                 :sig (sign-params (pack-assignquali-params 0 2))})))
+                                                 :value ""
+                                                 :sig (sign-params (pack-assignquali-params 0 2 ""))})))
 
     (testing "cant exceed repetitions"
       (let [reserve-data  {:proof (first proof-000)
