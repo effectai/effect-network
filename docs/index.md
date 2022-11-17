@@ -16,7 +16,7 @@ last_modified_date: 2022-08-26 19:10:35
 Effect Network is the platform for the Future-of-Work.
 You can work from anywhere, at any time, from any device.
 Simply create an Effect Account and start completing tasks while collecting $EFX directly to your wallet.
-Read more about this in Create an Account.
+Read more about this in [Create an Account.](docs/create-account.md)
 
 ## Create Tasks
 
@@ -24,7 +24,7 @@ Read more about this in Create an Account.
 
 Tap into a diverse workforce of over 10,000 people who complete tasks for you.
 Choose one of the default task templates to get started with text analysis, document transcription, image annotations, sentiment analysis, and many more!
-Read more about this in Start Posting Tasks.
+Read more about this in *Start Posting Tasks*.
 
 ## Utilize the dApp Ecosystem
 
@@ -39,7 +39,7 @@ The dApp ecosystem at Effect Network is home to dApps that provide popular servi
 Looking to connect with others who are part of the Effect Network community?
 Look no further than our dedicated Discord server!
 Here you can connect with others who work, post tasks, and help run the Effect Network.
-Join the server now!
+[Join the server now!](https://discord.gg/effectnetwork)
 
 ## The EFX Utility Token
 
