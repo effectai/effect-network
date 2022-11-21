@@ -1,9 +1,9 @@
 ---
 id: dao
 title: Govern
-layout: default
 has_children: true
-has_toc: false
+has_toc: true
+layout: default
 last_modified_date: 2020-11-21 23:10:00
 gh_edit_source: docs
 ---
@@ -11,7 +11,7 @@ gh_edit_source: docs
 # EffectDAO
 
 The EffectDAO is a decentralized organization with the goal to create an open
-and democratic environment for AI development. Anyone in the world can join the
+and democratic environment for managing the microtasking platform: [Effect Force](https:app.effect.network/){:target="_blank"}. Anyone in the world can join the
 effort and get rewarded for their participation.
 {: .fs-6 .fw-300 }
 

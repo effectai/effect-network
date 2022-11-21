@@ -4,6 +4,7 @@ title: Create an Account
 parent: Effect Network
 layout: default
 nav_order: 1
+has_children: false
 last_modified_date: 2020-11-22 22:31:00
 ---
 
@@ -16,7 +17,7 @@ This process is free, and in most cases nearly instant to complete.
 
 ![Create account](/assets/images/create-account.png){: .d-block .mx-auto }
 
-Currently, you can connect to Effect Network by using an EOS or BSC wallet address.
+You can connect to Effect Network by using an EOS or BSC wallet address.
 For EOS-based accounts, we recommend Anchor for desktop/mobile and TokenPocket for mobile.
 For BSC-based accounts, we recommend using MetaMask.
 

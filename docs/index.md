@@ -1,13 +1,15 @@
 ---
-id: about
+id: index
 title: Effect Network
 layout: default
+nav_order: 1
 has_children: true
-has_toc: false
-last_modified_date: 2022-08-26 19:10:35
+has_toc: true
 ---
 
-# About Effect Network
+# Effect Network
+
+Welcome to the documentation for Effect Network! Here you can find guides on how to use the Effect Network platform, as well as guides on how to use the Effect Network dApp ecosystem.
 
 ## Earn Crypto
 
