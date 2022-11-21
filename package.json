@@ -4,7 +4,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@cityofzion/neon-js": "^4.8.0",
+    "@cityofzion/neon-js": "^5.2.2",
     "andare": "^1.1.587",
     "eos-cljs": "./eos-cljs",
     "eosjs": "^20.0.3",
