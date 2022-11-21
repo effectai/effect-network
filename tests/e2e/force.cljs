@@ -26,7 +26,7 @@
 (def vacc-acc (eos/random-account "vacc"))
 (def token-acc (eos/random-account "tkn"))
 (def force-acc (eos/random-account "force"))
-(def proxy-acc (eos/random-account "proxy"))
+;; (def proxy-acc (eos/random-account "proxy"))
 (def fee-acc (eos/random-account "fee"))
 
 (println "force-acc" force-acc)
@@ -72,10 +72,9 @@
           (<p-may-fail! (eos/create-account owner-acc force-acc))
           (<p-may-fail! (eos/create-account owner-acc fee-acc))
           (<p! (eos/create-account owner-acc vacc-acc))
-          (<p! (eos/create-account owner-acc proxy-acc))
           (<p! (deploy-file vacc-acc "contracts/vaccount/vaccount"))
           (<p-may-fail! (deploy-file force-acc "contracts/force/force"))
-          (<p! (deploy-file proxy-acc "contracts/taskproxy/taskproxy"))
+          ;; (<p! (deploy-file proxy-acc "contracts/taskproxy/taskproxy"))
           (<!  (e2e.token/deploy-token token-acc [owner-acc token-acc]))
 
           (<p! (eos/update-auth vacc-acc "xfer" "active"
@@ -201,10 +200,10 @@
    (doto (new (.-SerialBuffer Serialize))
      (.push 18)  (.pushUint32 acc-id) (.push 0) (.pushString content))))
 
-(defn pack-assignquali-params [id user-id]
+(defn pack-assignquali-params [id user-id value]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize))
-     (.push 19) (.pushUint32 id) (.pushUint32 user-id))))
+     (.push 19) (.pushUint32 id) (.pushUint32 user-id) (.pushString value))))
 
 (defn pack-uassignquali-params [id user-id]
   (.asUint8Array
@@ -572,6 +571,7 @@
      (tx-as acc-2 force-acc "assignquali"
             {:quali_id 0
              :user_id 0
+             :value ""
              :payer acc-2
              :sig nil})
      "only owner" "abort() called")
@@ -579,14 +579,19 @@
      (tx-as acc-2 force-acc "assignquali"
             {:quali_id 0
              :user_id 0
+             :value "testvalue"
              :payer acc-2
-             :sig (sign-params (pack-assignquali-params 0 0))}))
+             :sig (sign-params (pack-assignquali-params 0 0 "testvalue"))}))
+    (let [res (<p! (eos/get-table-rows force-acc force-acc "userquali"))]
+      (is (get-in r [0 "value"] "testvalue")))
     (<p-should-succeed!
      (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 1 :payer acc-2
-                                           :sig (sign-params (pack-assignquali-params 0 1))}))
+                                           :value ""
+                                           :sig (sign-params (pack-assignquali-params 0 1 ""))}))
     (<p-should-succeed!
      (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 4 :payer acc-2
-                                           :sig (sign-params (pack-assignquali-params 0 4))}))))
+                                           :value ""
+                                           :sig (sign-params (pack-assignquali-params 0 4 ""))}))))
 
 (async-deftest uassignquali
   (testing "owner can unassign quali"
@@ -597,7 +602,8 @@
              :payer acc-2
              :sig (sign-params (pack-uassignquali-params 0 0))}))
     (<p! (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 0 :payer acc-2
-                                               :sig (sign-params (pack-assignquali-params 0 0))}))))
+                                               :value ""
+                                               :sig (sign-params (pack-assignquali-params 0 0 ""))}))))
 
 
 (defn sha256 [data]
@@ -711,7 +717,8 @@
                                              :sig nil})
        "" "missing qualification")
       (<p! (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 2 :payer acc-2
-                                                 :sig (sign-params (pack-assignquali-params 0 2))})))
+                                                 :value ""
+                                                 :sig (sign-params (pack-assignquali-params 0 2 ""))})))
 
     (testing "cant exceed repetitions"
       (let [reserve-data  {:proof (first proof-000)
@@ -855,16 +862,16 @@
                                  {:payment_id 1
                                   :sig (sign-params params-1)})))))
 
-(async-deftest proxy
-  (testing "proxy can create campaign"
-    (<p-should-succeed!
-     (tx-as proxy-acc force-acc "mkcampaign"
-            {:owner ["name" proxy-acc]
-             :content {:field_0 0 :field_1 vacc/hash160-1}
-             :reward {:quantity "0.0000 EFX" :contract token-acc}
-             :qualis []
-             :payer proxy-acc
-             :sig nil}))))
+;; (async-deftest proxy
+;;   (testing "proxy can create campaign"
+;;     (<p-should-succeed!
+;;      (tx-as proxy-acc force-acc "mkcampaign"
+;;             {:owner ["name" proxy-acc]
+;;              :content {:field_0 0 :field_1 vacc/hash160-1}
+;;              :reward {:quantity "0.0000 EFX" :contract token-acc}
+;;              :qualis []
+;;              :payer proxy-acc
+;;              :sig nil}))))
 
 (defn -main [& args]
   (run-tests))

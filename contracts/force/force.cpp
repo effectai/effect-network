@@ -176,10 +176,11 @@ void force::editquali(uint32_t quali_id, content content, uint32_t account_id,
   quali_table.modify(quali, payer, [&] (auto& q) { q.content = content; });
 }
 
-void force::assignquali(uint32_t quali_id, uint32_t user_id, eosio::name payer, vaccount::sig sig) {
+void force::assignquali(uint32_t quali_id, uint32_t user_id, std::string value,
+                        eosio::name payer, vaccount::sig sig) {
   quali_table quali_tbl(_self, _self.value);
   auto quali = quali_tbl.get(quali_id, "qualification not found");
-  rmbatch_params params = {19, quali_id, user_id};
+  assignquali_params params = {19, quali_id, user_id, value};
   require_vaccount(quali.account_id, pack(params), sig);
 
   user_quali_table user_quali_tbl(_self, _self.value);
@@ -188,6 +189,7 @@ void force::assignquali(uint32_t quali_id, uint32_t user_id, eosio::name payer, 
                          {
                            q.account_id = user_id;
                            q.quali_id = quali_id;
+                           q.value.emplace(value);
                          });
 }
 
