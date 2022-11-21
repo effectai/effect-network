@@ -36,8 +36,8 @@
        (cljs.test/is true ~msg)
        res#)
      (catch js/Error e#
-       (prn "test failed with " e#)
-       (cljs.test/is nil ~msg))))
+       (let [err# (.-message (.-cause e#))]
+         (cljs.test/is (= "succeeded" err#) ~msg)))))
 
 (defmacro async-deftest [name & body]
   `(~'deftest ~name

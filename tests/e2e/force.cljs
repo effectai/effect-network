@@ -26,8 +26,9 @@
 (def vacc-acc (eos/random-account "vacc"))
 (def token-acc (eos/random-account "tkn"))
 (def force-acc (eos/random-account "force"))
-(def proxy-acc (eos/random-account "proxy")
-  )
+(def proxy-acc (eos/random-account "proxy"))
+(def fee-acc (eos/random-account "fee"))
+
 (println "force-acc" force-acc)
 (println "vacc-acc" vacc-acc)
 
@@ -69,6 +70,7 @@
       (go
         (try
           (<p-may-fail! (eos/create-account owner-acc force-acc))
+          (<p-may-fail! (eos/create-account owner-acc fee-acc))
           (<p! (eos/create-account owner-acc vacc-acc))
           (<p! (eos/create-account owner-acc proxy-acc))
           (<p! (deploy-file vacc-acc "contracts/vaccount/vaccount"))
@@ -98,6 +100,13 @@
                               :type "vtransfer"}
                              [{:actor force-acc :permission "active"}]))
 
+          (<p! (eos/transact "eosio" "linkauth"
+                             {:account force-acc
+                              :requirement "xfer"
+                              :code vacc-acc
+                              :type "withdraw"}
+                             [{:actor force-acc :permission "active"}]))
+
           (doseq [[type acc] accs]
             (when (= "name" type)
               (<p! (eos/create-account owner-acc acc)))
@@ -108,17 +117,36 @@
           (catch js/Error e (prn "Error " e))))))
    :after (fn [])})
 
-(async-deftest init
-  (testing "other accounts cant init"
-    (<p-should-fail! (tx-as owner-acc force-acc "init" {:vaccount_contract vacc-acc
-                                                        :force_vaccount_id force-vacc-id
-                                                        :payout_delay_sec 1
-                                                        :release_task_delay_sec 5})))
-  (testing "owner can init"
-    (<p-should-succeed! (tx-as-owner force-acc force-acc "init" {:vaccount_contract vacc-acc
-                                                                 :force_vaccount_id force-vacc-id
-                                                                 :payout_delay_sec 1
-                                                                 :release_task_delay_sec 5}))))
+(async-deftest
+ init
+ (testing "other accounts cant init"
+   (<p-should-fail! (tx-as owner-acc force-acc "init" {:vaccount_contract vacc-acc
+                                                       :force_vaccount_id force-vacc-id
+                                                       :payout_delay_sec 1
+                                                       :release_task_delay_sec 5})))
+ (testing "owner can init"
+   (<p-should-succeed! (tx-as-owner force-acc force-acc "init" {:vaccount_contract vacc-acc
+                                                                :force_vaccount_id force-vacc-id
+                                                                :payout_delay_sec 1
+                                                                :release_task_delay_sec 5})))
+
+ (testing "can migrate"
+   (<p-should-succeed!
+    (tx-as force-acc force-acc "migrate" {:payer force-acc :fee_contract fee-acc
+                                          :fee_percentage 0.1})))
+
+ (testing "can migrate as other account"
+   (<p-should-fail-with!
+    (tx-as owner-acc force-acc "migrate" {:payer force-acc :fee_contract fee-acc
+                                          :fee_percentage 0.2})
+    "" (str "missing authority of " force-acc)))
+
+ (testing "can not migrate twice"
+   (<p-should-fail-with!
+    (tx-as force-acc force-acc "migrate" {:payer force-acc :fee_contract fee-acc
+                                          :fee_percentage 0.2})
+    "" "already migrated")))
+
 (defn get-composite-key-hex [id-1 id-2]
   (vacc/bytes->hex
    (.getUint8Array
@@ -437,6 +465,28 @@
                                   :campaign_id 3
                                   :sig (sign-params params)})))))
 
+(defn efx-quant [n]
+  {:quantity (str n ".0000 EFX") :contract token-acc})
+
+(defn v-transfer [from from-id amount memo]
+  (tx-as from vacc-acc "vtransfer"
+         {:from_id from-id
+          :to_id force-vacc-id
+          :quantity (efx-quant amount)
+          :memo memo
+          :sig nil
+          :fee nil}))
+
+(defn publish-batch
+  ([acc acc-id batch-id num-tasks ]
+   (publish-batch acc acc-id batch-id num-tasks nil))
+  ([acc acc-id batch-id num-tasks sig]
+   (tx-as acc force-acc "publishbatch"
+          {:account_id acc-id
+           :batch_id batch-id
+           :num_tasks num-tasks
+           :sig sig})))
+
 (async-deftest deposit
   ;; open an account for force, deposit some funds to acc-2
   (<p! (eos/transact
@@ -448,7 +498,7 @@
          {:account token-acc :name "transfer"
           :authorization [{:actor owner-acc :permission "active"}]
           :data {:from owner-acc :to vacc-acc :memo "2"
-                 :quantity "500.0000 EFX"}}
+                 :quantity "1500.0000 EFX"}}
          {:account token-acc :name "transfer"
           :authorization [{:actor owner-acc :permission "active"}]
           :data {:from owner-acc :to vacc-acc :memo "3"
@@ -456,56 +506,27 @@
 
   (<p! (eos/wait-block (js/Promise.resolve 1)) 300)
 
-  (testing "vaccount can transfer efx to batch"
-    (<p! (tx-as acc-2 vacc-acc "vtransfer"
-                {:from_id 2
-                 :to_id force-vacc-id
-                 :quantity {:quantity "100.0000 EFX" :contract token-acc}
-                 :memo "0"
-                 :sig nil
-                 :fee nil}))
-    (<p! (tx-as acc-4 vacc-acc "vtransfer"
-                {:from_id 3
-                 :to_id force-vacc-id
-                 :quantity {:quantity "50.0000 EFX" :contract token-acc}
-                 :memo (str (get-composite-key 0 2))
-                 :sig nil
-                 :fee nil}))
-    (<p! (tx-as acc-4 vacc-acc "vtransfer"
-                {:from_id 3
-                 :to_id force-vacc-id
-                 :quantity {:quantity "50.0000 EFX" :contract token-acc}
-                 :memo (str (get-composite-key 2 0))
-                 :sig nil
-                 :fee nil}))
-    (<p! (tx-as acc-4 vacc-acc "vtransfer"
-                {:from_id 3
-                 :to_id force-vacc-id
-                 :quantity {:quantity "50.0000 EFX" :contract token-acc}
-                 :memo (str (get-composite-key 0 5))
-                 :sig nil
-                 :fee nil})))
-  (testing "can publish batch"
-    (<p! (tx-as acc-2 force-acc "publishbatch"
-                {:account_id 2
-                 :batch_id 0
-                 :num_tasks 10
-                 :sig nil}))
-    (<p! (tx-as acc-4 force-acc "publishbatch"
-                {:account_id 3
-                 :batch_id (get-composite-key 0 2)
-                 :num_tasks 11
-                 :sig nil}))
-    (<p! (tx-as acc-2 force-acc "publishbatch"
-                {:account_id 2
-                 :batch_id (get-composite-key 2 0)
-                 :num_tasks 10
-                 :sig nil}))
-    (<p! (tx-as acc-4 force-acc "publishbatch"
-                {:account_id 3
-                 :batch_id (get-composite-key 0 5)
-                 :num_tasks 3
-                 :sig (sign-params (pack-reopenbatch-params (get-composite-key 0 5)))}))))
+  (let [batch-0-cost (* 3 10 2)
+        batch-0-fee (* batch-0-cost 0.1)]
+
+    (testing "can not publish batch underfunded"
+      (<p-should-succeed! (v-transfer acc-2 2 (+ batch-0-cost batch-0-fee -1) "0"))
+      (<p-should-fail-with! (publish-batch acc-2 2 0 10) "" "batch is underfunded"))
+
+    (testing "can publish funded batch"
+      (<p! (eos/wait-block (js/Promise.resolve 1)) 500)
+      (<p! (v-transfer acc-2 2 1 "0"))
+      (<p-should-succeed! (publish-batch acc-2 2 0 10)))
+
+    (testing "can fund and publish other batches"
+      (<p-should-succeed! (v-transfer acc-4 3 50 (str (get-composite-key 0 2))))
+      (<p-should-succeed! (v-transfer acc-4 3 50 (str (get-composite-key 2 0))))
+      (<p-should-succeed! (v-transfer acc-4 3 50 (str (get-composite-key 0 5))))
+      (<p-should-succeed! (publish-batch acc-4 3 (get-composite-key 0 2) 11))
+      (<p-should-succeed! (publish-batch acc-2 2 (get-composite-key 2 0) 10))
+      (<p-should-succeed!
+       (publish-batch acc-4 3 (get-composite-key 0 5) 3
+                      (sign-params (pack-reopenbatch-params (get-composite-key 0 5))))))))
 
 (async-deftest mkquali
   (let [r (<p! (eos/get-table-rows force-acc force-acc "quali"))]
@@ -622,7 +643,7 @@
         leaves (map #(sha256 (vacc/hex->bytes %)) task-data-prep)
         tree (MerkleTree. (clj->js leaves) sha256)
         root (.toString (.getRoot tree) "hex")
-        _ (prn "merkle root for " batch-pk root)
+        ;; _ (prn "merkle root for " batch-pk root)
         params-1 (pack-reservetask-params (first leaves) 0 0)
         params-2 (pack-reservetask-params (second leaves) 0 0)]
     (for [i (range 2)]
@@ -822,12 +843,12 @@
     (testing "can payout from eos account"
       ;; test that account balance increases after payment
       (is (= (<p! (get-in-rows force-acc "payment" [1 "pending" "quantity"])) "3.0000 EFX"))
-      (is (= (<p! (get-in-rows vacc-acc "account" [2 "balance" "quantity"])) "400.0000 EFX"))
+      (is (= (<p! (get-in-rows vacc-acc "account" [2 "balance" "quantity"])) "1434.0000 EFX"))
 
       (<p-should-succeed! (tx-as acc-2 force-acc "payout"
                                  {:payment_id 0
                                   :sig nil}))
-      (is (= (<p! (get-in-rows vacc-acc "account" [2 "balance" "quantity"])) "403.0000 EFX")))
+      (is (= (<p! (get-in-rows vacc-acc "account" [2 "balance" "quantity"])) "1437.0000 EFX")))
 
     (testing "can payout from pub key hash."
       (<p-should-succeed! (tx-as acc-2 force-acc "payout"

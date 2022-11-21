@@ -78,7 +78,14 @@
                                    :type "vtransfer"}
                                   [{:actor force-acc :permission "active"}]))
 
-      (<p! (eos/transact force-acc "init" {:vaccount_contract vaccount-acc
-                                           :force_vaccount_id 0
-                                           :payout_delay_sec 1800
-                                           :release_task_delay_sec 1800})))))
+      (<p-may-fail! (eos/transact "eosio" "linkauth"
+                                  {:account force-acc
+                                   :requirement "xfer"
+                                   :code vaccount-acc
+                                   :type "withdraw"}
+                                  [{:actor force-acc :permission "active"}]))
+
+      (<p! (eos/transact force-acc "migrate" {:payer force-acc
+                                              :fee_percentage 0.1
+                                              :fee_contract "feepool.efx"
+                                              :release_task_delay_sec 1800})))))
