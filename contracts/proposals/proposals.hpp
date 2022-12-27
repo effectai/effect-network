@@ -5,6 +5,7 @@
 #include <eosio/time.hpp>
 #include <eosio/crypto.hpp>
 #include <eosio/system.hpp>
+#include <eosio/transaction.hpp>
 #include <eosio/singleton.hpp>
 #include <eosio/binary_extension.hpp>
 
@@ -59,12 +60,18 @@ public:
               std::optional<uint16_t> current_cycle);
 
   [[eosio::action]]
+  void createmsig(ignore<eosio::name> proposer,
+                  ignore<eosio::name> proposal_name,
+                  ignore<std::vector<eosio::permission_level>> requested,
+                  ignore<eosio::transaction> tx);
+
+  [[eosio::action]]
   void createprop(eosio::name author,
                   std::vector<pay_entry> pay,
                   std::string content_hash,
                   uint8_t category,
                   uint16_t cycle,
-                  std::optional<eosio::checksum256> transaction_hash);
+                  std::optional<eosio::name> msig_name);
 
   [[eosio::action]]
   void updateprop(uint64_t id,
@@ -72,7 +79,7 @@ public:
                   std::string content_hash,
                   uint8_t category,
                   uint16_t cycle,
-                  std::optional<eosio::checksum256> transaction_hash);
+                  std::optional<eosio::name> msig_name);
 
   [[eosio::action]]
   void hgrejectprop(uint64_t id);
@@ -108,7 +115,6 @@ public:
                         std::string memo);
 
 private:
-
   struct [[eosio::table]] reservation {
     eosio::name owner;
     uint64_t primary_key() const { return owner.value; }

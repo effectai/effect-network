@@ -60,12 +60,44 @@ void proposals::update(uint32_t cycle_duration_sec,
   _config.set(conf, _self);
 };
 
+void proposals::createmsig(ignore<eosio::name> proposer,
+                           ignore<eosio::name> proposal_name,
+                           ignore<std::vector<eosio::permission_level>> requested,
+                           ignore<eosio::transaction> tx) {
+  name _proposer;
+  name _proposal_name;
+  std::vector<permission_level> _requested;
+  transaction_header _trx_header;
+
+  _ds >> _proposer >> _proposal_name >> _requested;
+
+  const char* trx_pos = _ds.pos();
+  size_t size = _ds.remaining();
+  _ds >> _trx_header;
+
+  auto cur_time_sec = time_point_sec(now());
+  auto conf = _config.get();
+  check(_trx_header.expiration >= (cur_time_sec + conf.cycle_duration_sec),
+        "transaction expires before cycle duration");
+
+
+  std::vector<char> pkd_trans;
+  pkd_trans.resize(size);
+  memcpy((char*)pkd_trans.data(), trx_pos, size);
+
+  action(permission_level{_self, "eosio.code"_n},
+         "eosio.msig"_n,
+         "propose"_n,
+         std::make_tuple(_self, _proposal_name, _requested, pkd_trans))
+    .send();
+}
+
 void proposals::createprop(eosio::name author,
                            std::vector<pay_entry> pay,
                            std::string content_hash,
                            uint8_t category,
                            uint16_t cycle,
-                           std::optional<eosio::checksum256> transaction_hash) {
+                           std::optional<eosio::name> msig_name) {
   eosio::require_auth(author);
   dao::require_member(_config.get().dao_contract, author);
 
@@ -98,7 +130,7 @@ void proposals::createprop(eosio::name author,
                          p.cycle = cycle;
                          p.category = category;
                          p.proof_hash = std::nullopt;
-                         p.transaction_hash = transaction_hash;
+                         // p.msig_name = msig_name;
                        });
 }
 
@@ -231,7 +263,7 @@ void proposals::updateprop(uint64_t id,
                            std::string content_hash,
                            uint8_t category,
                            uint16_t cycle,
-                           std::optional<eosio::checksum256> transaction_hash) {
+                           std::optional<eosio::name> msig_name) {
   auto cur_cycle = _config.get().current_cycle;
 
   eosio::check(cycle == 0 || cycle > cur_cycle, "cycle must be in the future");
@@ -261,7 +293,6 @@ void proposals::updateprop(uint64_t id,
                     p.pay = pay;
                     p.content_hash = content_hash;
                     p.category = category;
-                    p.transaction_hash = transaction_hash;
                   });
 }
 
@@ -452,8 +483,9 @@ extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
                               &proposals::transfer_handler);
   } else if (code == receiver) {
     switch(action) {
-      EOSIO_DISPATCH_HELPER(proposals, (init)(update)(addcycle)(updatecycle)(createprop)(updateprop)
-                            (addvote)(cycleupdate)(processcycle)(executeprop)(hgrejectprop));
+      EOSIO_DISPATCH_HELPER(proposals, (init)(update)(addcycle)(updatecycle)(createmsig)(createprop)
+                            (updateprop)(addvote)(cycleupdate)(processcycle)(executeprop)
+                            (hgrejectprop));
     }
   }
 }
