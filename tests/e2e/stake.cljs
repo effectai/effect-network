@@ -78,7 +78,7 @@
                   :claim_symbol (str "4," claim-sym) :age_limit 65
                   :scale_factor (*  1000000 1) :unstake_delay_sec 2
                   :stake_bonus_age 60
-                  :stake_bonus_deadline "2022-05-18T14:37:30"})
+                  :stake_bonus_deadline "2050-05-18T14:37:30"})
 
 (defn deploy-stake
   "Deploy a basic stake account and fill it with data for testing"
