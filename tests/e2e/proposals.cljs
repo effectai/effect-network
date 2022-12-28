@@ -108,7 +108,10 @@
   {:author owner-acc
    :pay [{:field_0 {:quantity "400.0000 EFX" :contract token-acc}
           :field_1 "2010-01-12"}]
-   :content_hash "aa" :category 0 :cycle 0 :transaction_hash nil})
+   :content_hash "aa"
+   :category 0
+   :cycle 0
+   :msig_name nil})
 
 ;;;;;;;;;;
 ;; Proposal payments
