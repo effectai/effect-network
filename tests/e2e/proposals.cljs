@@ -32,7 +32,7 @@
 (defn eos-tx-owner [contr action args]
   (eos/transact contr action args [{:actor owner-acc :permission "active"}]))
 
-(use-fixtures :once                     ;
+(use-fixtures :once
   {:before
    (fn []
      (async
@@ -214,13 +214,6 @@
     (is (= cycle 2))))
 
 (async-deftest update-cycle
-  ;; (<p-should-fail-with! (eos/transact prop-acc "updatecycle"
-  ;;                                     {:id 1
-  ;;                                      :start_time "2021-01-01 12:00:00"
-  ;;                                      :budget [{:quantity (str "326000.0000 EFX")
-  ;;                                                :contract token-acc}]})
-  ;;                       "cycle must be in the future"
-  ;;                       "cycle is not in the future")
   (<p-should-succeed! (eos/transact prop-acc "updatecycle"
                                     {:id 3
                                      :start_time "2021-01-01 12:00:00"
