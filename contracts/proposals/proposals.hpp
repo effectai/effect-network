@@ -60,12 +60,6 @@ public:
               std::optional<uint16_t> current_cycle);
 
   [[eosio::action]]
-  void createmsig(eosio::name proposer,
-                  eosio::name proposal_name,
-                  std::vector<eosio::permission_level> requested,
-                  eosio::transaction trx);
-
-  [[eosio::action]]
   void createprop(eosio::name author,
                   std::vector<pay_entry> pay,
                   std::string content_hash,

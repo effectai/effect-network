@@ -3,11 +3,13 @@
             [eosjs :refer [Api JsonRpc RpcError Serialize]]
             [eos-cljs.node-api :refer [deploy-file]]
             [e2e.util :as util :refer [p-all wait]]
-            [cljs.test :refer-macros [deftest is testing run-tests async use-fixtures]]
+            [cljs.test :refer-macros [deftest is testing run-tests async
+                                      use-fixtures]]
             [cljs.core.async :refer [go <!] ]
             [cljs.core.async.interop :refer [<p!]]
             [e2e.macros :refer-macros [<p-should-fail! <p-should-succeed!
-                                       <p-should-fail-with! <p-may-fail! async-deftest]]
+                                       <p-should-fail-with! <p-may-fail!
+                                       async-deftest]]
             e2e.token
             e2e.dao
             e2e.stake))
@@ -378,10 +380,11 @@
 
 (defn <make-msig-tx
   "Create the transaction object that can be passed to the `trx`
-  argument of `eosio.msig` `propose` action."
-  [actions]
+  argument of `eosio.msig` `propose` action.
+  Good value for `expire` is `(make-time-string-after 300)`"
+  [actions expire]
   (go
-    {:expiration             (make-time-string-after 300)
+    {:expiration             expire
      :ref_block_num          0
      :ref_block_prefix       0
      :max_net_usage_words    0
@@ -390,6 +393,18 @@
      :context_free_actions   []
      :actions                (<p! (.serializeActions @eos/api (clj->js actions)))
      :transaction_extensions []}))
+
+(defn propose-msig [proposer name actions expire]
+  (go
+    (eos/transact
+     [{:account       "eosio.msig"
+       :name          "propose"
+       :authorization [{:actor proposer :permission "active"}]
+       :data
+       {:proposer      proposer
+        :proposal_name name
+        :requested     [{:actor prop-acc :permission "dao"}]
+        :trx           (<! (<make-msig-tx actions expire))}}])))
 
 ;; line below is just an example to turn the transaction into serialized hex string:
 ;; serialized-tx (.toString (js/Buffer.from (.-serializedTransaction raw-tx)) "hex")
@@ -402,47 +417,29 @@
       (->> rows (filter #(= (% "id") id)) first))))
 
 (async-deftest msig
-  (let [tx (<! (<make-msig-tx
-                [{:account       token-acc
-                  :name          "transfer"
-                  :authorization [{:actor      prop-acc
-                                   :permission "dao"}]
-                  :data          {:from     prop-acc
-                                  :to       acc-2
-                                  :quantity "1.0000 EFX"
-                                  :memo     ""}}]))
-
-        msig-name "msigname"]
-    (testing "msig should outlast cycle duration"
-      #_(<p! (change-voting-duration (inc 1e8) 1e8))
-      #_(<p-should-fail-with!
-       (eos/transact prop-acc "createmsig"
-                     {:proposer      acc-2
-                      :proposal_name "msigname2"
-                      :requested     [{:actor prop-acc :permission "active"}]
-                      :trx           tx})
-       "" "transaction expires before cycle duration")
-      (<p! (change-voting-duration 2 1))
-      (<p-should-succeed!
-       (eos/transact
-        [{:account       prop-acc
-          :name          "createmsig"
-          :authorization [{:actor acc-2 :permission "active"}]
-          :data
-          {:proposer      acc-2
-           :proposal_name msig-name
-           :requested     [{:actor prop-acc :permission "dao"}]
-           :trx           tx}}])))
+  (let [actions   [{:account       token-acc
+                    :name          "transfer"
+                    :authorization [{:actor      prop-acc
+                                     :permission "dao"}]
+                    :data          {:from     prop-acc
+                                    :to       acc-2
+                                    :quantity "1.0000 EFX"
+                                    :memo     ""}}]
+        expire    (make-time-string-after 300)
+        msig-name "msigname"
+        msig-tx   (<! (propose-msig acc-2 msig-name actions expire))]
+    (testing "can create an eosio.msig transaction"
+      (<p-should-succeed! msig-tx))
 
     (testing "can not execute msig before proposal"
       (<p-should-fail-with!
-       (eos/transact "eosio.msig" "exec" {:proposer      prop-acc
+       (eos/transact "eosio.msig" "exec" {:proposer      acc-2
                                           :proposal_name msig-name
                                           :executer      acc-2}
                      [{:actor acc-2 :permission "active"}])
        "" "transaction authorization failed")
       (<p-should-fail-with!
-       (eos/transact "eosio.msig" "exec" {:proposer      prop-acc
+       (eos/transact "eosio.msig" "exec" {:proposer      acc-2
                                           :proposal_name msig-name
                                           :executer      prop-acc}
                      [{:actor prop-acc :permission "active"}])
@@ -471,10 +468,33 @@
     (<p! (eos/transact prop-acc "cycleupdate" {}))
     (<p! (eos-tx-owner prop-acc "processcycle" {:account owner-acc :id 5}))
 
-    (testing "can execute the msig proposal"
-      (<p-should-succeed!
-       (eos/transact prop-acc "executeprop" {:id 3})))))
+    ;; replace the msig with a different transaction
+    (<p! (eos/transact "eosio.msig" "cancel" {:proposer      acc-2
+                                              :proposal_name msig-name
+                                              :canceler      acc-2}
+                       [{:actor acc-2 :permission "active"}]))
 
+    (testing "can not execute replaced transaction"
+      (<p-should-succeed!
+       (<! (propose-msig acc-2
+                         msig-name
+                         (assoc-in actions [0 :data :to] acc-3)
+                         expire)))
+      (<p-should-fail-with!
+       (eos/transact prop-acc "executeprop" {:id 3}) "" "hash mismatch"))
+
+    ;; put back the original transaction
+    (<p! (wait 750))
+    (<p! (eos/transact "eosio.msig" "cancel" {:proposer      acc-2
+                                              :proposal_name msig-name
+                                              :canceler      acc-2}
+                       [{:actor acc-2 :permission "active"}]))
+    (<p! (<! (propose-msig acc-2 msig-name actions expire)))
+
+    (testing "can execute the msig proposal"
+      ;; below fails because eosio.msig is not a privileged account in our test environment
+      #_(<p-should-succeed!
+       (eos/transact prop-acc "executeprop" {:id 3})))))
 
 (defn -main [& args]
   (run-tests))
