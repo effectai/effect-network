@@ -21,8 +21,9 @@
 (defmacro <p-should-fail-with!
   [body msg chk]
   `(try
-     (cljs.core.async.interop/<p! ~body)
-     (cljs.test/is nil ~msg)
+     (let [res (cljs.core.async.interop/<p! ~body)]
+       (cljs.test/is nil ~msg)
+       res)
      (catch js/Error e#
        (let [err# (.-message (.-cause e#))
              pass? (clojure.string/ends-with? err# ~chk)]
@@ -39,7 +40,8 @@
        (let [err# (.-message (.-cause e#))]
          (cljs.test/is (= "succeeded" err#) ~msg)))))
 
-(defmacro async-deftest [name & body]
+(defmacro async-deftest
+  [name & body]
   `(~'deftest ~name
     (~'async
      done#

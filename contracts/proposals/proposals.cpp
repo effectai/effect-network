@@ -60,35 +60,17 @@ void proposals::update(uint32_t cycle_duration_sec,
   _config.set(conf, _self);
 };
 
-void proposals::createmsig(ignore<eosio::name> proposer,
-                           ignore<eosio::name> proposal_name,
-                           ignore<std::vector<eosio::permission_level>> requested,
-                           ignore<eosio::transaction> tx) {
-  name _proposer;
-  name _proposal_name;
-  std::vector<permission_level> _requested;
-  transaction_header _trx_header;
-
-  _ds >> _proposer >> _proposal_name >> _requested;
-
-  const char* trx_pos = _ds.pos();
-  size_t size = _ds.remaining();
-  _ds >> _trx_header;
-
-  auto cur_time_sec = time_point_sec(now());
-  auto conf = _config.get();
-  check(_trx_header.expiration >= (cur_time_sec + conf.cycle_duration_sec),
-        "transaction expires before cycle duration");
-
-
-  std::vector<char> pkd_trans;
-  pkd_trans.resize(size);
-  memcpy((char*)pkd_trans.data(), trx_pos, size);
-
-  action(permission_level{_self, "eosio.code"_n},
+void proposals::createmsig(eosio::name proposer,
+                           eosio::name proposal_name,
+                           std::vector<eosio::permission_level> requested,
+                           eosio::transaction trx) {
+  auto packed = pack(trx);
+  void* ptr = static_cast<void*>(packed.data());
+  checksum256 hash = sha256((char*)ptr, sizeof(packed));
+  action(permission_level{_self, "dao"_n},
          "eosio.msig"_n,
          "propose"_n,
-         std::make_tuple(_self, _proposal_name, _requested, pkd_trans))
+         std::make_tuple(_self, proposal_name, requested, trx))
     .send();
 }
 
@@ -97,7 +79,7 @@ void proposals::createprop(eosio::name author,
                            std::string content_hash,
                            uint8_t category,
                            uint16_t cycle,
-                           std::optional<eosio::name> msig_name) {
+                           std::optional<eosio::name> msig) {
   eosio::require_auth(author);
   dao::require_member(_config.get().dao_contract, author);
 
@@ -118,6 +100,15 @@ void proposals::createprop(eosio::name author,
   auto id = proposal_tbl.available_primary_key();
   std::map<uint8_t, uint32_t> vote_counts = {{Abstain, 0}, {No, 0}, {Yes, 0}};
 
+  // if this is an ATP we will store it's hash to avoid tempering
+  checksum256 msig_transaction_hash;
+  if (msig.has_value()) {
+    eosiomsig::proposals props("eosio.msig"_n, _self.value);
+    auto& msig_prop = props.get(msig.value().value, "eosio.msig not found");
+    auto packed_tx = msig_prop.packed_transaction;
+    msig_transaction_hash = sha256(packed_tx.data(), packed_tx.size());
+  }
+
   proposal_tbl.emplace(author,
                        [&](auto& p)
                        {
@@ -130,7 +121,11 @@ void proposals::createprop(eosio::name author,
                          p.cycle = cycle;
                          p.category = category;
                          p.proof_hash = std::nullopt;
-                         // p.msig_name = msig_name;
+                         p.msig.reset();
+                         if (msig.has_value()) {
+                           p.transaction_hash.emplace(msig_transaction_hash);
+                           p.msig.emplace(msig.value());
+                         }
                        });
 }
 
@@ -263,7 +258,7 @@ void proposals::updateprop(uint64_t id,
                            std::string content_hash,
                            uint8_t category,
                            uint16_t cycle,
-                           std::optional<eosio::name> msig_name) {
+                           std::optional<eosio::name> msig) {
   auto cur_cycle = _config.get().current_cycle;
 
   eosio::check(cycle == 0 || cycle > cur_cycle, "cycle must be in the future");
@@ -293,6 +288,11 @@ void proposals::updateprop(uint64_t id,
                     p.pay = pay;
                     p.content_hash = content_hash;
                     p.category = category;
+                    // if (msig.has_value()) {
+                    //   p.msig.emplace(msig.value());
+                    // } else {
+                    //   p.msig.reset();
+                    // }
                   });
 }
 
@@ -336,13 +336,23 @@ void proposals::executeprop(uint64_t id) {
 
   prop_tbl.modify(prop, eosio::same_payer, [&](auto& p) { p.state = proposals::Executed; });
 
+  // if the is an ATP then approve the eosio.msig
+  if (prop.msig.value()) {
+    eosio::permission_level dao_perm{_self, "dao"_n};
+    action(dao_perm,
+           "eosio.msig"_n,
+           "approve"_n,
+           std::make_tuple(_self, "msigname"_n, dao_perm, prop.transaction_hash.value()))
+      .send();
+  }
+
   for (auto pay : prop.pay) {
     eosio::extended_asset asset = std::get<0>(pay);
     eosio::time_point_sec lock = std::get<1>(pay);
 
     eosio::check(lock <= time_point_sec(now()), "payment is still locked");
 
-    action(permission_level{_self, "xfer"_n},
+    action(permission_level{_self, "dao"_n},
            asset.contract,
            "transfer"_n,
            std::make_tuple(_self, prop.author, asset.quantity,
@@ -350,7 +360,6 @@ void proposals::executeprop(uint64_t id) {
       .send();
   }
 }
-
 
 void proposals::addvote(eosio::name voter, uint64_t prop_id, uint8_t vote_type,
                         std::optional<std::string> comment_hash) {

@@ -60,10 +60,10 @@ public:
               std::optional<uint16_t> current_cycle);
 
   [[eosio::action]]
-  void createmsig(ignore<eosio::name> proposer,
-                  ignore<eosio::name> proposal_name,
-                  ignore<std::vector<eosio::permission_level>> requested,
-                  ignore<eosio::transaction> tx);
+  void createmsig(eosio::name proposer,
+                  eosio::name proposal_name,
+                  std::vector<eosio::permission_level> requested,
+                  eosio::transaction trx);
 
   [[eosio::action]]
   void createprop(eosio::name author,
@@ -71,7 +71,7 @@ public:
                   std::string content_hash,
                   uint8_t category,
                   uint16_t cycle,
-                  std::optional<eosio::name> msig_name);
+                  std::optional<eosio::name> msig);
 
   [[eosio::action]]
   void updateprop(uint64_t id,
@@ -79,7 +79,7 @@ public:
                   std::string content_hash,
                   uint8_t category,
                   uint16_t cycle,
-                  std::optional<eosio::name> msig_name);
+                  std::optional<eosio::name> msig);
 
   [[eosio::action]]
   void hgrejectprop(uint64_t id);
@@ -123,4 +123,15 @@ private:
   typedef multi_index<"reservation"_n, reservation> reservation_table;
 
   config_table _config;
+};
+
+namespace eosiomsig {
+  struct [[eosio::table, eosio::contract("eosio.msig")]] proposal {
+    eosio::name proposal_name;
+    std::vector<char> packed_transaction;
+    eosio::binary_extension<std::optional<time_point>> earliest_exec_time;
+
+    uint64_t primary_key()const { return proposal_name.value; }
+  };
+  typedef multi_index<"proposal"_n, eosiomsig::proposal> proposals;
 };

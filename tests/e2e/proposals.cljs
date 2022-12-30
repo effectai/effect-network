@@ -1,5 +1,6 @@
 (ns e2e.proposals
   (:require [eos-cljs.core :as eos]
+            [eosjs :refer [Api JsonRpc RpcError Serialize]]
             [eos-cljs.node-api :refer [deploy-file]]
             [e2e.util :as util :refer [p-all wait]]
             [cljs.test :refer-macros [deftest is testing run-tests async use-fixtures]]
@@ -13,6 +14,7 @@
 
 (def owner-acc e2e.token/owner-acc)
 (def acc-2 (eos/random-account "acc"))
+(def acc-3 (eos/random-account "acc"))
 (def token-acc (eos/random-account "tkn"))
 (def prop-acc (eos/random-account "prop"))
 (def stake-acc (eos/random-account "stk"))
@@ -20,12 +22,19 @@
 
 (println "prop acc = " prop-acc)
 (println "acc-2 = " acc-2)
+(println "acc-3 = " acc-3)
 (println "token acc = " token-acc)
 (println "stake acc = " stake-acc)
 
 (def cycle-duration-sec 1209600)
 (def cycle-start-date (js/Date. (- (.valueOf (js/Date.)) (* cycle-duration-sec 1e3))))
 (def proposal-cost "1.0000 EFX")
+
+
+(defn make-time-string-after
+  "Time in EOS format (2022-12-29T13:31:47.000) `delta-sec` from now."
+  [delta-sec] (js/Date. (+ (.valueOf (js/Date.)) (* delta-sec 1e3))))
+(defn make-time-string [] (make-time-string-after 0))
 
 (def hash1 "ab58606332f813bcf6ea26f732014f49a2197d2d281cc2939e59813721ee5246")
 
@@ -38,31 +47,51 @@
      (async
       done
       (go
-        (<p! (p-all (eos/create-account owner-acc prop-acc)
-                    (eos/create-account owner-acc acc-2)))
+        (try
+          (<p! (p-all (eos/create-account owner-acc prop-acc)
+                      (eos/create-account owner-acc acc-3)
+                      (eos/create-account owner-acc acc-2)))
 
-        (<p! (eos/update-auth
-              prop-acc "xfer"
-              [{:permission {:actor prop-acc :permission "eosio.code"} :weight 1}]))
+          (<p! (eos/update-auth
+                prop-acc "dao" "active"
+                [{:permission {:actor prop-acc :permission "eosio.code"} :weight 1}]))
 
-        (<p! (deploy-file prop-acc "contracts/proposals/proposals"))
-        (<! (e2e.token/deploy-token token-acc [owner-acc token-acc prop-acc]))
-        (<! (e2e.stake/deploy-stake stake-acc token-acc "4,EFX" "4,NFX"
-                                    [[owner-acc "1056569.0000 EFX" "37276.0000 NFX"]
-                                     [token-acc "606645.0000 EFX" "24042.0000 NFX"]]))
-        (<! (e2e.dao/deploy-dao dao-acc stake-acc prop-acc token-acc "4,EFX" "4,NFX"
-                                [owner-acc token-acc acc-2]))
+          (<p! (deploy-file prop-acc "contracts/proposals/proposals"))
 
-        ;; proposal needs a xfer permission that can make token transactions
-        (<p! (eos/transact "eosio" "linkauth"
-                           {:account prop-acc
-                            :requirement "xfer"
-                            :code token-acc
-                            :type "transfer"}
-                           [{:actor prop-acc :permission "active"}]))
+          ;; deploy eosio.msig as privileged
+          (<p-may-fail! (eos/create-account owner-acc "eosio.msig"))
+          (<p-may-fail! (deploy-file "eosio.msig" "tests/eosio.msig"))
+
+          (<! (e2e.token/deploy-token token-acc [owner-acc token-acc prop-acc]))
+          (<! (e2e.stake/deploy-stake
+               stake-acc token-acc "4,EFX" "4,NFX"
+               [[owner-acc "1056569.0000 EFX" "37276.0000 NFX"]
+                [token-acc "606645.0000 EFX" "24042.0000 NFX"]]))
+          (<! (e2e.dao/deploy-dao dao-acc stake-acc prop-acc token-acc
+                                  "4,EFX" "4,NFX" [owner-acc token-acc acc-2]))
+
+          ;; proposal needs a dao permission that can make token transactions
+          (<p! (eos/transact "eosio" "linkauth"
+                             {:account     prop-acc
+                              :requirement "dao"
+                              :code        token-acc
+                              :type        "transfer"}
+                             [{:actor prop-acc :permission "active"}]))
+          (<p! (eos/transact "eosio" "linkauth"
+                             {:account     prop-acc
+                              :requirement "dao"
+                              :code        "eosio.msig"
+                              :type        "propose"}
+                             [{:actor prop-acc :permission "active"}]))
+          (<p! (eos/transact "eosio" "linkauth"
+                             {:account     prop-acc
+                              :requirement "dao"
+                              :code        "eosio.msig"
+                              :type        "approve"}
+                             [{:actor prop-acc :permission "active"}]))
+          (catch js/Error e (prn e)))
         (done))))
    :after (fn [])})
-
 
 (def prop-config {:cycle_duration_sec cycle-duration-sec
                   :quorum 4
@@ -105,13 +134,13 @@
     (is (= (count rows) 1))))
 
 (def base-prop
-  {:author owner-acc
-   :pay [{:field_0 {:quantity "400.0000 EFX" :contract token-acc}
-          :field_1 "2010-01-12"}]
+  {:author       owner-acc
+   :pay          [{:field_0 {:quantity "400.0000 EFX" :contract token-acc}
+                   :field_1 "2010-01-12"}]
    :content_hash "aa"
-   :category 0
-   :cycle 0
-   :msig_name nil})
+   :category     0
+   :cycle        0
+   :msig         nil})
 
 ;;;;;;;;;;
 ;; Proposal payments
@@ -179,11 +208,11 @@
 
 (defn- change-voting-duration
   "Helper function to change the cycle and voting duration config.
-
   This config is convenient to change during testing."
   [cd vd]
   (eos/transact prop-acc "update"
-                (assoc prop-config :cycle_duration_sec cd
+                (assoc prop-config
+                       :cycle_duration_sec cd
                        :cycle_voting_duration_sec vd)))
 
 (defn create-cycle [budget]
@@ -198,6 +227,8 @@
   (<p-should-succeed! (create-cycle "500.1000 EFX"))
   (<p-should-succeed! (create-cycle "326000.2000 EFX"))
   (<p-should-succeed! (create-cycle "326000.3000 EFX"))
+  (<p-should-succeed! (create-cycle "326000.4000 EFX"))
+  (<p-should-succeed! (create-cycle "326000.5000 EFX"))
 
   (let [{cycle "current_cycle"} (<p! (get-config))]
     (is (= cycle 0)))
@@ -284,7 +315,10 @@
 
   (<p! (eos/transact dao-acc "memberreg"
                      {:account acc-2 :agreedterms hash1}
-                     [{:actor acc-2 :permission "active"}])))
+                     [{:actor acc-2 :permission "active"}]))
+  (<p! (eos/transact dao-acc "memberreg"
+                     {:account owner-acc :agreedterms hash1}
+                     [{:actor owner-acc :permission "active"}])))
 
 (async-deftest process-cycle
   (<p-should-fail-with!
@@ -310,15 +344,27 @@
                         "can't execute rejected proposal"
                         "proposal is not accepted"))
 
+(defn create-prop
+  "Helper to issue tokens, reserve, and create a proposal.
+  Returns a promose of 1 transaction with 3 actions."
+  [creator prop]
+  (eos/transact
+   [{:account       token-acc
+     :name          "issue"
+     :authorization [{:actor token-acc :permission "active"}]
+     :data          {:to creator :quantity proposal-cost :memo ""}}
+    {:account       token-acc
+     :name          "transfer"
+     :authorization [{:actor creator :permission "active"}]
+     :data          {:from creator :to prop-acc :quantity proposal-cost :memo "proposal"}}
+    {:account       prop-acc
+     :name          "createprop"
+     :authorization [{:actor creator :permission "active"}]
+     :data          prop}]))
+
 (async-deftest reject-proposal
-  (<p! (eos/transact token-acc "issue" {:to acc-2 :quantity proposal-cost :memo ""}))
-  (<p! (eos/transact token-acc "transfer"
-                     {:from acc-2 :to prop-acc
-                      :quantity proposal-cost :memo "proposal"}
-                     [{:actor acc-2 :permission "active"}]))
-  (<p! (eos/transact prop-acc "createprop"
-                     (assoc base-prop :content_hash "cc" :author acc-2 :cycle 4)
-                     [{:actor acc-2 :permission "active"}]))
+  (<p! (create-prop acc-2 (assoc base-prop :content_hash "cc" :author acc-2 :cycle 4)))
+
   (<p-should-fail-with! (eos-tx-owner prop-acc "hgrejectprop" {:id 2})
                         "needs self signature"
                         (str "missing authority of " prop-acc))
@@ -329,6 +375,106 @@
                         "voting period not ended")
   (<p! (change-voting-duration 1 0))
   (<p-should-succeed! (eos/transact prop-acc "hgrejectprop" {:id 2})))
+
+(defn <make-msig-tx
+  "Create the transaction object that can be passed to the `trx`
+  argument of `eosio.msig` `propose` action."
+  [actions]
+  (go
+    {:expiration             (make-time-string-after 300)
+     :ref_block_num          0
+     :ref_block_prefix       0
+     :max_net_usage_words    0
+     :max_cpu_usage_ms       0
+     :delay_sec              0
+     :context_free_actions   []
+     :actions                (<p! (.serializeActions @eos/api (clj->js actions)))
+     :transaction_extensions []}))
+
+;; line below is just an example to turn the transaction into serialized hex string:
+;; serialized-tx (.toString (js/Buffer.from (.-serializedTransaction raw-tx)) "hex")
+
+(defn get-proposal
+  [id]
+  (go
+    (let [rows (<p! (eos/get-table-rows prop-acc prop-acc "proposal"))
+          id   (if (= id :last) (dec (count rows)) id)]
+      (->> rows (filter #(= (% "id") id)) first))))
+
+(async-deftest msig
+  (let [tx (<! (<make-msig-tx
+                [{:account       token-acc
+                  :name          "transfer"
+                  :authorization [{:actor      prop-acc
+                                   :permission "dao"}]
+                  :data          {:from     prop-acc
+                                  :to       acc-2
+                                  :quantity "1.0000 EFX"
+                                  :memo     ""}}]))
+
+        msig-name "msigname"]
+    (testing "msig should outlast cycle duration"
+      #_(<p! (change-voting-duration (inc 1e8) 1e8))
+      #_(<p-should-fail-with!
+       (eos/transact prop-acc "createmsig"
+                     {:proposer      acc-2
+                      :proposal_name "msigname2"
+                      :requested     [{:actor prop-acc :permission "active"}]
+                      :trx           tx})
+       "" "transaction expires before cycle duration")
+      (<p! (change-voting-duration 2 1))
+      (<p-should-succeed!
+       (eos/transact
+        [{:account       prop-acc
+          :name          "createmsig"
+          :authorization [{:actor acc-2 :permission "active"}]
+          :data
+          {:proposer      acc-2
+           :proposal_name msig-name
+           :requested     [{:actor prop-acc :permission "dao"}]
+           :trx           tx}}])))
+
+    (testing "can not execute msig before proposal"
+      (<p-should-fail-with!
+       (eos/transact "eosio.msig" "exec" {:proposer      prop-acc
+                                          :proposal_name msig-name
+                                          :executer      acc-2}
+                     [{:actor acc-2 :permission "active"}])
+       "" "transaction authorization failed")
+      (<p-should-fail-with!
+       (eos/transact "eosio.msig" "exec" {:proposer      prop-acc
+                                          :proposal_name msig-name
+                                          :executer      prop-acc}
+                     [{:actor prop-acc :permission "active"}])
+       "" "transaction authorization failed"))
+
+    (testing "can create msig proposal"
+      (<p-should-succeed!
+       (create-prop acc-2 (assoc base-prop
+                                 :msig msig-name
+                                 :author acc-2
+                                 :cycle 5)))
+      (let [p (<! (get-proposal :last))]
+        (is (= (get p "msig") msig-name))))
+
+    ;; start cycle, vote, and end cycle
+    (<p! (eos/transact prop-acc "cycleupdate" {}))
+    (<p! (change-voting-duration (inc 9e6) 9e6))
+    (<p! (eos/transact prop-acc "addvote"
+                       {:voter        owner-acc
+                        :prop_id      3
+                        :vote_type    1
+                        :comment_hash nil}
+                       [{:actor owner-acc :permission "active"}]))
+    (<p! (change-voting-duration 2 1))
+    (<p! (wait 500))
+    (<p! (eos/transact prop-acc "cycleupdate" {}))
+    (<p! (eos-tx-owner prop-acc "processcycle" {:account owner-acc :id 5}))
+
+    (testing "can execute the msig proposal"
+      (<p-should-succeed!
+       (eos/transact prop-acc "executeprop" {:id 3})))))
+
 
 (defn -main [& args]
   (run-tests))

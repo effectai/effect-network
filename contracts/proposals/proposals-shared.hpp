@@ -44,7 +44,7 @@ namespace proposalns {
     std::optional<std::string> proof_hash;
     std::optional<eosio::checksum256> transaction_hash;
 
-    eosio::binary_extension<eosio::name> msig_name;
+    eosio::binary_extension<eosio::name> msig;
 
     uint64_t primary_key() const { return id; }
     uint64_t by_author() const { return author.value; }
@@ -52,7 +52,7 @@ namespace proposalns {
 
     EOSLIB_SERIALIZE(proposal, (id)(author)(content_hash)(pay)(vote_counts)
                      (state)(cycle)(category)(proof_hash)(transaction_hash)
-                     (msig_name));
+                     (msig));
   };
 
   struct [[eosio::table("vote"), eosio::contract("proposals")]] vote {
