@@ -570,28 +570,28 @@
     (<p-should-fail-with!
      (tx-as acc-2 force-acc "assignquali"
             {:quali_id 0
-             :user_id 0
-             :value ""
-             :payer acc-2
-             :sig nil})
+             :user_id  0
+             :value    ""
+             :payer    acc-2
+             :sig      nil})
      "only owner" "abort() called")
     (<p-should-succeed!
      (tx-as acc-2 force-acc "assignquali"
             {:quali_id 0
-             :user_id 0
-             :value "testvalue"
-             :payer acc-2
-             :sig (sign-params (pack-assignquali-params 0 0 "testvalue"))}))
+             :user_id  0
+             :value    "testvalue"
+             :payer    acc-2
+             :sig      (sign-params (pack-assignquali-params 0 0 "testvalue"))}))
     (let [res (<p! (eos/get-table-rows force-acc force-acc "userquali"))]
-      (is (get-in r [0 "value"] "testvalue")))
+      (is (get-in res [0 "value"] "testvalue")))
     (<p-should-succeed!
      (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 1 :payer acc-2
-                                           :value ""
-                                           :sig (sign-params (pack-assignquali-params 0 1 ""))}))
+                                           :value    ""
+                                           :sig      (sign-params (pack-assignquali-params 0 1 ""))}))
     (<p-should-succeed!
      (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 4 :payer acc-2
-                                           :value ""
-                                           :sig (sign-params (pack-assignquali-params 0 4 ""))}))))
+                                           :value    ""
+                                           :sig      (sign-params (pack-assignquali-params 0 4 ""))}))))
 
 (async-deftest uassignquali
   (testing "owner can unassign quali"
