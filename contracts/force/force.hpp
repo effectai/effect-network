@@ -95,6 +95,10 @@ public:
                vaccount::sig sig);
 
   [[eosio::action]]
+  void cleartasks(uint64_t batch_pk,
+                  vaccount::sig sig);
+
+  [[eosio::action]]
   void closebatch(uint64_t batch_id,
                   vaccount::vaddress owner,
                   vaccount::sig sig);
@@ -425,12 +429,17 @@ private:
 
   typedef multi_index<"campaign"_n, campaign> campaign_table;
   typedef multi_index<"batch"_n, batch> batch_table;
-  typedef multi_index<"batchjoin"_n, batchjoin,
-                      indexed_by<"accbatch"_n, const_mem_fun<batchjoin, uint128_t, &batchjoin::by_account_batch>>> batchjoin_table;
+  typedef multi_index<
+    "batchjoin"_n,
+    batchjoin,
+    indexed_by<"accbatch"_n,
+               const_mem_fun<batchjoin, uint128_t, &batchjoin::by_account_batch>>>
+  batchjoin_table;
 
-  typedef multi_index<"submission"_n, submission,
-                      indexed_by<"leaf"_n, const_mem_fun<submission, checksum256, &submission::by_leaf>>,
-                      indexed_by<"batch"_n, const_mem_fun<submission, uint64_t, &submission::by_batch>>>
+  typedef multi_index<
+    "submission"_n, submission,
+    indexed_by<"leaf"_n, const_mem_fun<submission, checksum256, &submission::by_leaf>>,
+    indexed_by<"batch"_n, const_mem_fun<submission, uint64_t, &submission::by_batch>>>
   submission_table;
 
   typedef multi_index<"payment"_n, payment,
