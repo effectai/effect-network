@@ -58,12 +58,22 @@
                :code        "eosio.msig"
                :type        "propose"}
               [{:actor prop-acc :permission "active"}]))
-        (<p! (eos/transact "eosio" "linkauth"
-                           {:account     prop-acc
-                            :requirement "dao"
-                            :code        "eosio.msig"
-                            :type        "approve"}
-                           [{:actor prop-acc :permission "active"}]))
+        (<p! (eos/transact
+              "eosio"
+              "linkauth"
+              {:account     prop-acc
+               :requirement "dao"
+               :code        "eosio.msig"
+               :type        "approve"}
+              [{:actor prop-acc :permission "active"}]))
+        (<p! (eos/transact
+              "eosio"
+              "linkauth"
+              {:account     prop-acc
+               :requirement "dao"
+               :code        prop-acc
+               :type        "update"}
+              [{:actor prop-acc :permission "active"}]))
 
         ;; allow setfee in force.efx
         (<p! (eos/update-auth
