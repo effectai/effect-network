@@ -96,6 +96,7 @@ void force::rmbatch(uint32_t id, uint32_t campaign_id, vaccount::sig sig) {
   uint64_t batch_pk =(uint64_t{campaign_id} << 32) | id;
 
   auto& camp = camp_tbl.get(campaign_id, "campaign not found");
+
   auto batch_itr = batch_tbl.find(batch_pk);
   eosio::check(batch_itr != batch_tbl.end(), "batch does not exist");
 
@@ -106,6 +107,28 @@ void force::rmbatch(uint32_t id, uint32_t campaign_id, vaccount::sig sig) {
   vaccount::require_auth(msg_bytes, camp.owner, sig);
 
   batch_tbl.erase(batch_itr);
+}
+
+void force::cleartasks(uint64_t batch_pk, vaccount::sig sig) {
+  // tasks can only be cleared if the batch is removed
+  batch_table batch_tbl(_self, _self.value);
+  auto batch_itr = batch_tbl.find(batch_pk);
+  eosio::check(batch_itr == batch_tbl.end(), "batch still exists");
+
+  // remove the submissoins in this batch
+  submission_table submission_tbl(_self, _self.value);
+  auto by_batch = submission_tbl.get_index<"batch"_n>();
+  auto itr_start = by_batch.lower_bound(batch_pk);
+  auto itr_end = by_batch.upper_bound(batch_pk);
+  int erased = 0;
+
+  for (; itr_start != itr_end; itr_start++) {
+    erased++;
+    auto& subm = *itr_start;
+    submission_tbl.erase(subm);
+    if (erased >= 100)
+      break;
+  }
 }
 
 void force::publishbatch(uint64_t batch_id, uint32_t num_tasks, vaccount::sig sig) {
