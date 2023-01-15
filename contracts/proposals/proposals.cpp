@@ -349,12 +349,14 @@ void proposals::executeprop(uint64_t id) {
 
     eosio::check(lock <= time_point_sec(now()), "payment is still locked");
 
-    action(permission_level{_self, "dao"_n},
-           asset.contract,
-           "transfer"_n,
-           std::make_tuple(_self, prop.author, asset.quantity,
-                           "proposal " + std::to_string(prop.id)))
-      .send();
+    if (asset.quantity.amount > 0) {
+      action(permission_level{_self, "dao"_n},
+             asset.contract,
+             "transfer"_n,
+             std::make_tuple(_self, prop.author, asset.quantity,
+                             "proposal " + std::to_string(prop.id)))
+        .send();
+    }
   }
 }
 
