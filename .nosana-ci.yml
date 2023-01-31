@@ -1,0 +1,60 @@
+nosana:
+    description: Effect Network
+
+global:
+  trigger:
+    branch:
+      - main
+
+jobs:
+  - name: build contracts
+    image: effectai/eos-cdt-make
+    commands:
+      - make all
+    artifacts:
+      - paths:
+          - contracts/**/*.{wasm,abi}
+        name: contracts
+
+  - name: npm install
+    image: node:16
+    commands:
+      - npm ci
+      # - npm run lumo e2e.force
+    resources:
+      - name: contracts
+        path: build
+    artifacts:
+      - name: node_modules
+        path: node_modules
+
+  - name: eos-cljs
+    image: registry.hub.docker.com/bitnami/git:latest
+    commands:
+      - git clone https://github.com/effectai/eos-cljs.git
+      - cd eos-cljs
+      - git checkout d8bc32b54279340a4837ad33de6e218aa25a2321
+      - rm -r .git
+    artifacts:
+      - name: eos-cljs
+        path: eos-cljs
+
+  - name: eosio
+    image: effectai/eos207-node16
+    commands:
+      - ls -lha eos-cljs
+      - tmux new -d 'nodeos -e -p eosio --plugin eosio::chain_api_plugin --delete-all-blocks --access-control-allow-origin="*" --access-control-allow-headers="*" --plugin eosio::state_history_plugin --disable-replay-opts'
+      - npm run lumo e2e.dao
+      - npm run lumo e2e.force
+      - npm run lumo e2e.token
+      - npm run lumo e2e.stake
+      - tmux list-sessions
+      - tmux kill-session -t 0
+      - echo done!
+    resources:
+      - name: node_modules
+        path: .
+      - name: contracts
+        path: .
+      - name: eos-cljs
+        path: .

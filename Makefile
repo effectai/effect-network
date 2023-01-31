@@ -1,7 +1,9 @@
 EOS_CC ?= eosio-cpp
 ABI_CC ?= eosio-abigen
 
-SRC  = $(wildcard contracts/*/*.cpp)
+SKIP_CONTRACTS := $(wildcard contracts/swap/*.cpp contracts/taskproxy/*.cpp)
+
+SRC  = $(filter-out $(SKIP_CONTRACTS), $(wildcard contracts/*/*.cpp))
 WASM = $(SRC:.cpp=.wasm)
 ABI  = $(WASM:.wasm=.abi)
 

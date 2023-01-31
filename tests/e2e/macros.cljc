@@ -50,3 +50,6 @@
         ~@body
         (catch js/Error e# (prn "Error " e#) (throw e#)))
       (done#)))))
+
+(defn -main [args]
+  (prn "test"))
