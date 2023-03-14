@@ -1,0 +1,3 @@
+FROM eostudio/eos:v2.0.7
+
+RUN apt update && apt install nodejs tmux npm -y && rm -rf /var/lib/apt/lists/*
