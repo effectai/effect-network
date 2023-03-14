@@ -4,7 +4,7 @@ nosana:
 global:
   trigger:
     branch:
-      - main
+      - master
 
 jobs:
   - name: build contracts
