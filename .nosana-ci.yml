@@ -2,31 +2,22 @@ nosana:
     description: Effect Network
 
 global:
+  image: node:18
   trigger:
     branch:
       - master
+      - cicd
 
 jobs:
-  - name: build contracts
-    image: effectai/eos-cdt-make
+  # Build docker images before running rest of pipeline
+  - name: docker
+    image: nosana/podman:latest
+    environment:
+      CONTAINER_HOST: tcp://localhost:8080
     commands:
-      - make all
-    artifacts:
-      - paths:
-          - contracts/**/*.{wasm,abi}
-        name: contracts
-
-  - name: npm install
-    image: node:16
-    commands:
-      - npm ci
-      # - npm run lumo e2e.force
-    resources:
-      - name: contracts
-        path: build
-    artifacts:
-      - name: node_modules
-        path: node_modules
+      - docker build -f ci/Dockerfile . -t effectai/eos-cdt-make
+      - docker build -f ci/Dockerfile.nodeos . -t effectai/eos207-node16
+      - docker images
 
   - name: eos-cljs
     image: registry.hub.docker.com/bitnami/git:latest
@@ -39,18 +30,37 @@ jobs:
       - name: eos-cljs
         path: eos-cljs
 
+  - name: npm install
+    image: node:16
+    commands:
+      - ls -lha
+      - npm install
+    resources:
+      - name: eos-cljs
+        path: .
+    artifacts:
+      - name: node_modules
+        path: node_modules
+
+  - name: build contracts
+    image: effectai/eos-cdt-make
+    commands:
+      - make all
+    artifacts:
+      - paths:
+          - contracts/**/*.{wasm,abi}
+        name: contracts
+
   - name: eosio
     image: effectai/eos207-node16
     commands:
-      - ls -lha eos-cljs
-      - tmux new -d 'nodeos -e -p eosio --plugin eosio::chain_api_plugin --delete-all-blocks --access-control-allow-origin="*" --access-control-allow-headers="*" --plugin eosio::state_history_plugin --disable-replay-opts'
+      - ( nodeos -e -p eosio --plugin eosio::chain_api_plugin --delete-all-blocks --access-control-allow-origin="*" --access-control-allow-headers="*" --disable-replay-opts  > /dev/null 2>&1 & )
+      - sleep 2
+      - curl -s http://127.0.0.1:8888/v1/chain/get_info
       - npm run lumo e2e.dao
       - npm run lumo e2e.force
       - npm run lumo e2e.token
       - npm run lumo e2e.stake
-      - tmux list-sessions
-      - tmux kill-session -t 0
-      - echo done!
     resources:
       - name: node_modules
         path: .
