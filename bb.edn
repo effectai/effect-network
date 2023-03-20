@@ -1,0 +1,2 @@
+{:paths ["tasks"]
+ :tasks {backup-proposals effect/backup-proposals}}
