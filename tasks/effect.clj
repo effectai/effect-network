@@ -77,7 +77,9 @@
 
 (defn deploy-account
   [net account path]
-  (let [res (cleos net "set" "contract" account path)]
+  (let [res (try (cleos net "set" "contract" account path)
+                 (catch Exception e
+                   (:proc (ex-data e))))]
     (cond
       (string/includes? (:err res) "insufficient ram")
       (let [needed (get-needed-ram-from-error (:err res))]
@@ -107,4 +109,6 @@
     (doseq [{:keys [account path hash]} (deployment net)]
       (println (compose [:green "\n[#] Deploying " path " to "
                          [:yellow.bold account]]))
-      (deploy-account net account path))))
+      (try
+        (deploy-account net account path)
+        (catch Exception e (prn e))))))
