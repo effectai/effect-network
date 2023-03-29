@@ -8,7 +8,7 @@
 (def payer "efxefxefxefx")
 
 (def rpcs {:jungle4 "https://jungle4.cryptolions.io:443"})
-(def wallet-pass (slurp "/home/jesse/eosio-wallet/jungle3-password.txt"))
+(def wallet-pass (slurp "~/eosio-wallet/jungle3-password.txt"))
 
 (def deployment
   {:jungle4 [{:account "efxforce1112"
@@ -26,7 +26,9 @@
 
 (defn cleos [net & args]
   (->> args
-       (apply (partial shell {:out :string :err :string } "cleos" "--url" (rpcs net)))))
+       (apply (partial shell
+                       {:out :string :err :string }
+                       "cleos" "--url" (rpcs net)))))
 
 (defn unlock []
   (shell "cleos" "wallet" "lock_all")
@@ -45,7 +47,18 @@
 
 (defn buy-ram [net receiver bytes]
   (let [res (cleos net "system" "buyram" payer receiver "-b" bytes)]
-    (prn res)))
+    (cond (string/includes? (:err res) "overdrawn balance")
+          [nil "overdrawn balance"]
+
+          (zero? (:exit res))
+          (do
+            (println res)
+            [true "txid"])
+
+          (:err res)
+          (do
+            (println (compose [:bright-red (:err res)]))
+            [nil "unkown error"]))))
 
 (defn get-needed-ram-from-error
   "Get the number of bytes of RAM missing for a deploy.
@@ -53,29 +66,45 @@
   errors that occur sometimes."
   [e]
   (when-let [[needed available]
-             (->> e (re-find  #"needs (\d+) bytes has (\d+) bytes") rest (into []))]
+             (->> e
+                  (re-find  #"needs (\d+) bytes has (\d+) bytes")
+                  rest (into []))]
     (+ 500
        (- (Integer/parseInt needed) (Integer/parseInt available)))))
+
+(defn get-executed-tx-from-err [e]
+  (->> e (re-find  #"executed transaction: ([a-z0-9]+)") last))
+
+(defn deploy-account
+  [net account path]
+  (let [res (cleos net "set" "contract" account path)]
+    (cond
+      (string/includes? (:err res) "insufficient ram")
+      (let [needed (get-needed-ram-from-error (:err res))]
+        (println (compose [:red "[◯] Account is missing " [:bold needed]
+                           " bytes of RAM"]))
+        (println (compose [:bright-yellow "[❯] Buying ram for " payer]))
+        (let [[status msg] (buy-ram net account needed)]
+          (if status
+            (do
+              (println (compose [:green "[❯] RAM bought, deploying again"]))
+              (deploy-account net account path))
+            (throw (Exception. msg)))))
+
+      (string/includes? (:err res) "new code is the same as the existing code")
+      (println (compose [:green "[✔] On-chain code matches local code"]))
+
+      (zero? (:exit res))
+      (println (compose [:green "[✔] " (get-executed-tx-from-err (:err res))]))
+
+      (:err res)
+      (println (compose [:bright-red "[✖] Error: " (:err res)])))))
 
 (defn deploy [net]
   (unlock)
   (let [net (keyword net)]
     (println (str "Deploying to " (rpcs net)))
     (doseq [{:keys [account path hash]} (deployment net)]
-      (println (compose [:green "\n[#] Deploying " path " to " [:yellow.bold account]]))
-      (let [res (cleos net "set" "contract" account path)]
-        (cond
-          (string/includes? (:err res) "insufficient ram")
-          (let [needed (get-needed-ram-from-error (:err res))]
-            (println (compose [:bright-red "[◯] Account is missing " [:red needed] " bytes of RAM"]))
-            (println (compose [:bright-yellow "[❯] Buying ram for " payer "..."]))
-            (buy-ram net account needed))
-
-          (string/includes? (:err res) "new code is the same as the existing code")
-          (println (compose [:green "[✔] On-chain code matches local code"]))
-
-          (:err res)
-          (println (compose [:bright-red "XX Error: " (:err res)]))
-
-          :else
-          (println (compose [:green "[✔] " (:out res)])))))))
+      (println (compose [:green "\n[#] Deploying " path " to "
+                         [:yellow.bold account]]))
+      (deploy-account net account path))))
