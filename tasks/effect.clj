@@ -11,15 +11,19 @@
 (def wallet-pass (slurp "~/eosio-wallet/jungle3-password.txt"))
 
 (def deployment
-  {:jungle4 [{:account "efxforce1112"
-              :path    "contracts/force"
-              :hash    "17e1dab4a77306e236b6f879bb059cd162e97b204e8e530daac8c7666717313b"}
-             {:account "efxaccount11"
-              :path    "contracts/vaccount"
-              :hash    "2e1ae138c7cdcda4e237f4ca5dddc2e2d1782929925cf15c2ffc34c87dbc0cef"}
-             {:account "efxtoken1112"
-              :path    "contracts/token"
-              :hash    "27b86425a499657a738065cdb0e44c5fa1b5969f57e6ee9b6e7abf394348736d"}]})
+  {:jungle4
+   [{:account "efxdao111112"
+     :path    "contracts/dao"
+     :hash    "23bea5b5ed625340b4260ea139dbc20bfbc2e1f3bffee6ab8bf4fc8cdb4233bb"}
+    {:account "efxforce1112"
+     :path    "contracts/force"
+     :hash    "17e1dab4a77306e236b6f879bb059cd162e97b204e8e530daac8c7666717313b"}
+    {:account "efxaccount11"
+     :path    "contracts/vaccount"
+     :hash    "2e1ae138c7cdcda4e237f4ca5dddc2e2d1782929925cf15c2ffc34c87dbc0cef"}
+    {:account "efxtoken1112"
+     :path    "contracts/token"
+     :hash    "27b86425a499657a738065cdb0e44c5fa1b5969f57e6ee9b6e7abf394348736d"}]})
 
 (defn backup-proposals []
   (println "Backing up proposals"))
