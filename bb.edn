@@ -1,2 +1,5 @@
-{:paths ["tasks"]
- :tasks {backup-proposals effect/backup-proposals}}
+{:deps  {local/deps      {:local/root "tasks"}
+         io.aviso/pretty {:mvn/version "1.4"}}
+ :tasks {backup-proposals effect/backup-proposals
+         deploy           effect/deploy
+         unlock           effect/unlock}}
