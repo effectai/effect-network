@@ -1,8 +1,9 @@
 #include "dao.hpp"
 
-void effectdao::init(eosio::name stake_contract, eosio::name proposal_contract,
-                 eosio::extended_symbol utl_token_sym,
-                 eosio::extended_symbol gov_token_sym) {
+void effectdao::init(eosio::name stake_contract,
+                     eosio::name proposal_contract,
+                     eosio::extended_symbol utl_token_sym,
+                     eosio::extended_symbol gov_token_sym) {
   require_auth(get_self());
 
   eosio::check(is_account(stake_contract), "stake contract does not exsist");
