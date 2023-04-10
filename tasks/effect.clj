@@ -3,12 +3,16 @@
             [cheshire.core :as json]
             [clojure.edn :as edn]
             [io.aviso.ansi :as ansi :refer [compose]]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [clojure.pprint :as pprint])
+  (:import java.time.format.DateTimeFormatter
+           java.time.LocalDateTime))
 
 (def payer "efxefxefxefx")
 
-(def rpcs {:jungle4 "https://jungle4.cryptolions.io:443"})
-(def wallet-pass (slurp "~/eosio-wallet/jungle3-password.txt"))
+(def rpcs {:jungle4 "https://jungle4.cryptolions.io:443"
+           :mainnet "https://eos.greymass.com"})
+(def wallet-pass (slurp "/home/jesse/eosio-wallet/jungle3-password.txt"))
 
 (def deployment
   {:jungle4
@@ -29,7 +33,11 @@
                 :hash    "27b86425a499657a738065cdb0e44c5fa1b5969f57e6ee9b6e7abf394348736d"}
     :stake     {:account "efxstake1111"
                 :path    "contracts/stake"
-                :hash    "ec86c8383c154b51e67169af2da1006613218169ab6ea91904350b1f0e1dea4d"}}})
+                :hash    "ec86c8383c154b51e67169af2da1006613218169ab6ea91904350b1f0e1dea4d"}}
+   :mainnet
+   {:proposals {:account "daoproposals"}}})
+
+(def get-acc (memoize (fn [net acc] (-> deployment net acc :account))))
 
 (defn backup-proposals []
   (println "Backing up proposals"))
@@ -39,6 +47,55 @@
        (apply (partial shell
                        {:out :string :err :string }
                        "cleos" "--url" (rpcs net)))))
+
+(defn get-proposals-in-cycle [net cycle]
+  (let [prop-acc (-> deployment net :proposals :account)]
+    (-> (cleos
+         net "get" "table" prop-acc prop-acc "proposal"
+         "-L" cycle "-U" cycle "--index" 3 "--key-type" "i64")
+        :out
+        (json/decode true)
+        :rows)))
+
+(def msig-skeleton
+  {:expiration              nil
+   :ref_block_num:          0
+   :ref_block_prefix:       0
+   :max_net_usage_words:    0
+   :max_cpu_usage_ms:       0
+   :delay_sec:              0
+   :context_free_actions:   []
+   :transaction_extensions: []
+   :signatures:             []
+   :context_free_data:      []})
+
+(defn make-msig-tx [actions deadline-days]
+  (let [date      (.plusDays (LocalDateTime/now) deadline-days)
+        formatter (DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss")]
+    (-> msig-skeleton
+        (assoc :expiration (.format date formatter))
+        (assoc :actions    actions)
+        json/encode)))
+
+(defn process-cycle [id]
+  (try
+    (let [net          :mainnet
+          props        (get-proposals-in-cycle net id)
+          exec-actions (->> props
+                            (map
+                             (fn [p]
+                               (->
+                                (cleos net "push" "action" "-s" "-j" "-d"
+                                       (get-acc net :proposals)
+                                       "executeprop"
+                                       (json/encode {:id (:id p)})
+                                       "-p" (str (get-acc net :proposals) "@highguard"))
+                                :out (json/decode true) :actions)))
+                            flatten
+                            (into []))
+          msig-tx      (make-msig-tx exec-actions 42)]
+      (print msig-tx))
+    (catch Exception e (prn e))))
 
 (defn unlock []
   (shell "cleos" "wallet" "lock_all")
@@ -145,6 +202,7 @@
                         "]")
                    "-p"
                    (-> deployment net :dao :account))]
+        (println res)
         (log-info (str "Initialized " (get-executed-tx-from-err (:err res)))))
 
       (log-info "Initializing proposals")
