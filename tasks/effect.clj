@@ -58,16 +58,16 @@
         :rows)))
 
 (def msig-skeleton
-  {:expiration              nil
-   :ref_block_num:          0
-   :ref_block_prefix:       0
-   :max_net_usage_words:    0
-   :max_cpu_usage_ms:       0
-   :delay_sec:              0
-   :context_free_actions:   []
-   :transaction_extensions: []
-   :signatures:             []
-   :context_free_data:      []})
+  {:expiration             nil
+   :ref_block_num          0
+   :ref_block_prefix       0
+   :max_net_usage_words    0
+   :max_cpu_usage_ms       0
+   :delay_sec              0
+   :context_free_actions   []
+   :transaction_extensions []
+   :signatures             []
+   :context_free_data      []})
 
 (defn make-msig-tx [actions deadline-days]
   (let [date      (.plusDays (LocalDateTime/now) deadline-days)
