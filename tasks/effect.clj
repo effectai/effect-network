@@ -135,11 +135,43 @@
     (+ 500
        (- (Integer/parseInt needed) (Integer/parseInt available)))))
 
+
+
 (defn get-executed-tx-from-err [e]
   (->> e (re-find  #"executed transaction: ([a-z0-9]+)") last))
 
 (defn log-info [msg]
   (println (compose [:green "[#] " msg])))
+
+(defn do-cleos
+  "Run a cleos transaction buying ram if needed"
+  [net & args]
+  (let [account (last args)
+        res (try (apply (partial cleos net) args)
+                 (catch Exception e
+                   (:proc (ex-data e))))]
+    (cond
+      (string/includes? (:err res) "insufficient ram")
+      (let [needed (get-needed-ram-from-error (:err res))]
+        (println (compose [:red "[◯] Account is missing " [:bold needed]
+                           " bytes of RAM"]))
+        (println (compose [:bright-yellow "[❯] Buying ram for " account]))
+        (let [[status msg] (buy-ram net account needed)]
+          (if status
+            (do
+              (println (compose [:green "[❯] RAM bought, running again"]))
+              (apply (partial cleos net) args))
+            (throw (Exception. msg)))))
+
+      (zero? (:exit res))
+      (do
+        (println (compose [:green "[✔] " (get-executed-tx-from-err (:err res))])))
+
+      (:err res)
+      (println (compose [:bright-red "[✖] Error: " (:err res)]))
+
+      :else
+      (println "ERROR" res))))
 
 (defn deploy-account
   [net account path]
@@ -186,7 +218,10 @@
         (deploy-account net account path)
         (catch Exception e (prn e))))))
 
-(defn init [net]
+(defn init
+  "Initialize all the contracts on a brand new deployment"
+  [net]
+  (unlock)
   (let [net (keyword net)]
     (try
       (log-info "Initializing DAO")
@@ -202,7 +237,6 @@
                         "]")
                    "-p"
                    (-> deployment net :dao :account))]
-        (println res)
         (log-info (str "Initialized " (get-executed-tx-from-err (:err res)))))
 
       (log-info "Initializing proposals")
@@ -218,4 +252,35 @@
                    "-p"
                    (-> deployment net :proposals :account))]
         (log-info (str "Initialized " (get-executed-tx-from-err (:err res)))))
+
+      (log-info "Initializing tokens")
+      (do-cleos net "push" "action"
+                (-> deployment net :token :account)
+                "create"
+                (str "[" payer ", \"650000000.0000 EFX\"]")
+                "-p"
+                (-> deployment net :token :account))
+      (do-cleos net "push" "action"
+                (-> deployment net :token :account)
+                "create"
+                (str "[" payer ", \"20000000000.0000 NFX\"]")
+                "-p"
+                (-> deployment net :token :account))
+
+      (log-info "Initializing force")
+      (do-cleos net "push" "action"
+                (-> deployment net :vaccount :account)
+                "open"
+                (str "[[name, " (-> deployment net :force :account) "],"
+                     "[\"4,EFX\", \"" (-> deployment net :token :account) "\"],
+                     " payer "]")
+                "-p"
+                payer)
+      (do-cleos net "push" "action"
+                (-> deployment net :force :account)
+                "init"
+                (str "[" (-> deployment net :vaccount :account)  ", 0, 1800, 1800]")
+                "-p"
+                (-> deployment net :force :account))
+
       (catch Exception e (println e)))))
