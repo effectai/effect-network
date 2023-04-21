@@ -39,6 +39,9 @@
 
 (def get-acc (memoize (fn [net acc] (-> deployment net acc :account))))
 
+(defn log-info [msg]
+  (println (compose [:green "[#] " msg])))
+
 (defn backup-proposals []
   (println "Backing up proposals"))
 
@@ -56,6 +59,22 @@
         :out
         (json/decode true)
         :rows)))
+
+(defn get-last-cycle [net]
+  (let [prop-acc (-> deployment net :proposals :account)]
+    (-> (cleos net "get" "table" prop-acc prop-acc "cycle" "-l" "1" "-r")
+        :out
+        (json/decode true)
+        :rows
+        first)))
+
+(defn get-proposal-config [net]
+  (let [prop-acc (-> deployment net :proposals :account)]
+    (-> (cleos net "get" "table" prop-acc prop-acc "config")
+        :out
+        (json/decode true)
+        :rows
+        first)))
 
 (def msig-skeleton
   {:expiration             nil
@@ -77,10 +96,68 @@
         (assoc :actions    actions)
         json/encode)))
 
+(defn extract-quantity [quantity]
+  (Float/parseFloat (->> quantity (re-seq #"(\d+\.\d+) EFX") first second)))
+
+(defn create-cycle-action [net start-time]
+  (let [prop-acc (-> deployment net :proposals :account)]
+    {:account       prop-acc
+     :name          "addcycle"
+     :data          {:start_time start-time
+                     :budget     [{"quantity" "326000.0000 EFX"
+                                   "contract" "effecttokens"}]},
+     :authorization [{"actor"      "daoproposals",
+                      "permission" "active"}]}))
+
+(defn transfer-efx-action [from amount to]
+  {:account       "effecttokens"
+   :name          "transfer"
+   :data          {:from     from
+                   :to       to
+                   :quantity (str (format "%.4f" amount) " EFX")
+                   :memo     ""}
+   :authorization [{"actor"      from
+                    "permission" "active"}]})
+
+(defn create-tx-json [actions filename]
+  (->> {:delay_sec        0
+        :max_cpu_usage_ms 0
+        :actions          actions}
+      json/encode
+      (spit filename)))
+
 (defn process-cycle [id]
   (try
-    (let [net          :mainnet
-          props        (get-proposals-in-cycle net id)
+    (let [net   :mainnet
+          props (get-proposals-in-cycle net id)
+
+          config     (get-proposal-config net)
+          last-cycle (get-last-cycle net)
+
+          cycle-spent (->> props
+                           (map #(get-in % [:pay 0 :field_0 :quantity]))
+                           (map extract-quantity)
+                           (reduce +))
+
+          funds-left (->  last-cycle :budget first :quantity extract-quantity (- cycle-spent))
+
+          new-cycle-start (-> (:start_time last-cycle)
+                              java.time.LocalDateTime/parse
+                              (.plusSeconds (:cycle_duration_sec config))
+                              .toString)
+
+          new-cycle-actions [(create-cycle-action net new-cycle-start)
+                             (transfer-efx-action "daoproposals" (* 0.3 funds-left) "feepool.efx")
+                             (transfer-efx-action "daoproposals" (* 0.7 funds-left) "treasury.efx")
+                             {:account       "daoproposals"
+                              :name          "cycleupdate"
+                              :data          {}
+                              :authorization [{:actor "x.efx" :permission "active"}]}
+                             {:account       "daoproposals"
+                              :name          "processcycle"
+                              :data          {:account "x.efx" :id id}
+                              :authorization [{:actor "x.efx" :permission "active"}]}]
+
           exec-actions (->> props
                             (map
                              (fn [p]
@@ -94,7 +171,17 @@
                             flatten
                             (into []))
           msig-tx      (make-msig-tx exec-actions 42)]
-      (print msig-tx))
+
+      (if (= (:id last-cycle) id)
+        (do
+          (spit "highguardtx.json" msig-tx)
+          (log-info (str "Highguard approval transaction: highguardtx.json. Run with:"))
+          (println (str "cleosm multisig propose_trx cycle ~/highguard.json highguardtx.json <acc> -p <acc>")))
+          (create-tx-json new-cycle-actions "newcycle.json")
+          (log-info (str "New cycle transaction: newcycle.json. Run with:"))
+          (println (str "cleosm push transaction newcycle.json")))
+        (log-info "Cycle already processed."))
+      )
     (catch Exception e (prn e))))
 
 (defn unlock []
@@ -136,12 +223,10 @@
        (- (Integer/parseInt needed) (Integer/parseInt available)))))
 
 
-
 (defn get-executed-tx-from-err [e]
   (->> e (re-find  #"executed transaction: ([a-z0-9]+)") last))
 
-(defn log-info [msg]
-  (println (compose [:green "[#] " msg])))
+
 
 (defn do-cleos
   "Run a cleos transaction buying ram if needed"
