@@ -252,6 +252,7 @@
 
       (zero? (:exit res))
       (do
+        (prn res)
         (println (compose [:green "[✔] " (get-executed-tx-from-err (:err res))])))
 
       (:err res)
@@ -286,6 +287,7 @@
 
       (zero? (:exit res))
       (do
+        (prn res)
         (println (compose [:green "[✔] " (get-executed-tx-from-err (:err res))])))
 
       (:err res)
@@ -354,6 +356,28 @@
                 "-p"
                 (-> deployment net :token :account))
 
+      ;;;;
+      (log-info "Initializing vaccount")
+      (do-cleos net "set" "account" "permission"
+                (-> deployment net :vaccount :account)
+                "xfer"
+                (json/encode {:threshold 1
+                              :keys []
+                              :accounts [{:permission {:actor (-> deployment net :vaccount :account)
+                                                       :permission "eosio.code"}
+                                          :weight 1}]})
+                "active"
+                "-p"
+                (-> deployment net :vaccount :account))
+      (do-cleos net "set" "action" "permission"
+                (-> deployment net :vaccount :account)
+                (-> deployment net :token :account)
+                "transfer"
+                "xfer"
+                "-p"
+                (-> deployment net :vaccount :account))
+
+      ;;;;;
       (log-info "Initializing force")
       (do-cleos net "push" "action"
                 (-> deployment net :vaccount :account)
@@ -375,4 +399,37 @@
                 (str "[" (-> deployment net :force :account) ", " (-> deployment net :feepool :account) ", 0.1]")
                 "-p"
                 (-> deployment net :force :account))
+      (do-cleos net "set" "account" "permission"
+                (-> deployment net :force :account)
+                "xfer"
+                (json/encode {:threshold 1
+                              :keys []
+                              :accounts [{:permission {:actor (-> deployment net :force :account)
+                                                       :permission "eosio.code"}
+                                          :weight 1}]})
+                "active"
+                "-p"
+                (-> deployment net :force :account))
+      (do-cleos net "set" "action" "permission"
+                (-> deployment net :force :account)
+                (-> deployment net :vaccount :account)
+                "vtransfer"
+                "xfer"
+                "-p"
+                (-> deployment net :force :account))
+      (do-cleos net "set" "action" "permission"
+                (-> deployment net :force :account)
+                (-> deployment net :vaccount :account)
+                "withdraw"
+                "xfer"
+                "-p"
+                (-> deployment net :force :account))
+
+      (log-info "Initializing feepool")
+      (do-cleos net "push" "action"
+                (-> deployment net :feepool :account)
+                "init"
+                (str "[" (-> deployment net :proposals :account)  "]")
+                "-p"
+                (-> deployment net :feepool :account))
       (catch Exception e (println e)))))
