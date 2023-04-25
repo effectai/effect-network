@@ -33,7 +33,10 @@
                 :hash    "27b86425a499657a738065cdb0e44c5fa1b5969f57e6ee9b6e7abf394348736d"}
     :stake     {:account "efxstake1111"
                 :path    "contracts/stake"
-                :hash    "ec86c8383c154b51e67169af2da1006613218169ab6ea91904350b1f0e1dea4d"}}
+                :hash    "ec86c8383c154b51e67169af2da1006613218169ab6ea91904350b1f0e1dea4d"}
+    :feepool     {:account "efxfeepool11"
+                  :path    "contracts/feepool"
+                  :hash    "21de8c82bfbfc8e633a77807ea8555f0960b31a2eff9054251a8f5308313c5ef"}}
    :mainnet
    {:proposals {:account "daoproposals"}}})
 
@@ -176,12 +179,11 @@
         (do
           (spit "highguardtx.json" msig-tx)
           (log-info (str "Highguard approval transaction: highguardtx.json. Run with:"))
-          (println (str "cleosm multisig propose_trx cycle ~/highguard.json highguardtx.json <acc> -p <acc>")))
+          (println (str "cleosm multisig propose_trx cycle ~/highguard.json highguardtx.json <acc> -p <acc>"))
           (create-tx-json new-cycle-actions "newcycle.json")
           (log-info (str "New cycle transaction: newcycle.json. Run with:"))
           (println (str "cleosm push transaction newcycle.json")))
-        (log-info "Cycle already processed."))
-      )
+        (log-info "Cycle already processed.")))
     (catch Exception e (prn e))))
 
 (defn unlock []
@@ -367,5 +369,10 @@
                 (str "[" (-> deployment net :vaccount :account)  ", 0, 1800, 1800]")
                 "-p"
                 (-> deployment net :force :account))
-
+      (do-cleos net "push" "action"
+                (-> deployment net :force :account)
+                "migrate"
+                (str "[" (-> deployment net :force :account) ", " (-> deployment net :feepool :account) ", 0.1]")
+                "-p"
+                (-> deployment net :force :account))
       (catch Exception e (println e)))))
