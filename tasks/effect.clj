@@ -12,7 +12,7 @@
 
 (def rpcs {:jungle4 "https://jungle4.cryptolions.io:443"
            :mainnet "https://eos.greymass.com"})
-(def wallet-pass (slurp "/home/jesse/eosio-wallet/jungle3-password.txt"))
+(def wallet-pass (slurp "jungle3-password.txt"))
 
 (def deployment
   {:jungle4
@@ -261,6 +261,10 @@
       :else
       (println "ERROR" res))))
 
+(def powerup {:jungle4 #(do-cleos :jungle4 "push" "action" "eosio" "powerup"
+                                  (str "[\"" payer "\", \"" %1 "\", 1, 100000000000, 100000000000, \"1.0000 EOS\"]")
+                                  "-p" payer)})
+
 (defn deploy-account
   [net account path]
   (let [res (try (cleos net "set" "contract" account path)
@@ -283,11 +287,17 @@
       (println (compose [:green "[✔] On-chain code matches local code"]))
 
       (string/includes? (:err res) "usage limit imposed")
-      (println (compose [:bright-red "[✖] Not enough resources, needs powerup:\n" (:err res)]))
+      (if (get powerup net)
+        (do
+          (println (compose [:bright-red "[◯] Not enough resources, doing powerup"]))
+          (println (compose [:bright-yellow "[❯] Powering up " account]))
+          (let [res ((get powerup net) account)]
+            (deploy-account net account path)))
+        (do
+          (println (compose [:bright-red "[✖] Not enough resources, needs powerup:\n" (:err res)]))))
 
       (zero? (:exit res))
       (do
-        (prn res)
         (println (compose [:green "[✔] " (get-executed-tx-from-err (:err res))])))
 
       (:err res)
