@@ -1,0 +1,5 @@
+FROM cimg/clojure:1.11
+
+RUN wget https://github.com/AntelopeIO/leap/releases/download/v4.0.0/leap_4.0.0-ubuntu22.04_amd64.deb \
+    && sudo apt install ./leap_4.0.0-ubuntu22.04_amd64.deb \
+    && rm leap_4.0.0-ubuntu22.04_amd64.deb
