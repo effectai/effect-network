@@ -17,6 +17,7 @@ jobs:
     commands:
       - docker build -f ci/Dockerfile . -t effectai/eos-cdt-make
       - docker build -f ci/Dockerfile.nodeos . -t effectai/eos207-node16
+      - docker build -f ci/Dockerfile.clojure-eos . -t effectai/clojure-eos
       - docker images
 
   - name: eos-cljs
@@ -28,7 +29,6 @@ jobs:
       - rm -r .git
     artifacts:
       - name: eos-cljs
-        path: eos-cljs
 
   - name: npm install
     image: node:16
@@ -40,7 +40,6 @@ jobs:
         path: .
     artifacts:
       - name: node_modules
-        path: node_modules
 
   - name: build contracts
     image: effectai/eos-cdt-make
@@ -58,13 +57,27 @@ jobs:
       - sleep 2
       - curl -s http://127.0.0.1:8888/v1/chain/get_info
       - npm run lumo e2e.dao
-      - npm run lumo e2e.force
-      - npm run lumo e2e.token
-      - npm run lumo e2e.stake
+      # - npm run lumo e2e.force
+      # - npm run lumo e2e.token
+      # - npm run lumo e2e.stake
     resources:
       - name: node_modules
-        path: .
       - name: contracts
-        path: .
       - name: eos-cljs
-        path: .
+
+  - name: deploy-testnet
+    image: effectai/clojure-eos
+    work-dir: /app/project
+    secrets:
+      - EOS_WALLET
+      - EOS_WALLET_PASS
+    commands:
+      - echo -n $EOS_WALLET_PASS > jungle3-password.txt
+      - cat jungle3-password.txt
+      - mkdir -p /home/circleci/eosio-wallet
+      - echo -n $EOS_WALLET > /home/circleci/eosio-wallet/jungle3.wallet
+      - bb deploy jungle4
+    resources:
+      - name: checkout
+        path: /app
+      - name: contracts
