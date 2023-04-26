@@ -6,6 +6,7 @@
 #include <eosio/system.hpp>
 
 #include "dao-shared.hpp"
+#include "atomicassets-interface.hpp"
 
 class [[eosio::contract("dao")]] effectdao : public eosio::contract {
  public:
@@ -21,9 +22,19 @@ class [[eosio::contract("dao")]] effectdao : public eosio::contract {
   void memberunreg(eosio::name account);
 
   [[eosio::action]]
+  void setavatar(eosio::name account, uint64_t asset_id);
+
+  [[eosio::action]]
   void init(eosio::name stake_contract,
             eosio::name proposal_contract,
             eosio::extended_symbol utl_token_sym,
             eosio::extended_symbol gov_token_sym);
 
+ private:
+  struct [[eosio::table("avatar")]] avatar {
+    uint8_t type;
+    uint64_t asset_id;
+    uint64_t primary_key() const { return asset_id; }
+  };
+  typedef multi_index<"avatar"_n, avatar> avatar_table;
 };

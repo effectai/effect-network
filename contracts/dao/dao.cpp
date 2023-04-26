@@ -76,3 +76,30 @@ void effectdao::memberunreg(eosio::name account) {
 
   member_tbl.erase(this_member);
 }
+
+void effectdao::setavatar(eosio::name account, uint64_t asset_id) {
+  eosio::require_auth(account);
+
+  auto assets_tbl = atomicassets::get_assets(account);
+  auto this_asset = assets_tbl.find(asset_id);
+  eosio::check(this_asset != assets_tbl.end(), "you do not own the asset");
+
+  auto avatar_tbl = avatar_table(_self, account.value);
+  auto this_avatar = avatar_tbl.find(asset_id);
+
+  if (this_avatar != avatar_tbl.end()) {
+    avatar_tbl.modify(this_avatar,
+                      eosio::same_payer,
+                      [&](auto &a)
+                      {
+                        a.asset_id = asset_id;
+                      });
+  } else {
+    avatar_tbl.emplace(account,
+                       [&](auto& a)
+                       {
+                         a.asset_id = asset_id;
+                         a.type = 0;
+                       });
+  }
+}
