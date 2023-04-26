@@ -4,4 +4,5 @@
          deploy           effect/deploy
          unlock           effect/unlock
          init             effect/init
-         process-cycle    effect/process-cycle}}
+         process-cycle    effect/process-cycle
+         deploy-mainnet   effect/msig-deploy}}

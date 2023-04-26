@@ -9,6 +9,10 @@
            java.time.LocalDateTime))
 
 (def payer "efxefxefxefx")
+(def payer-net {:mainnet "efxdeployer1"
+                "mainnet" "efxdeployer1"
+                :jungle4 "efxefxefxefx"
+                "jungle4" "efxefxefxefx"})
 
 (def rpcs {:jungle4 "https://jungle4.cryptolions.io:443"
            :mainnet "https://eos.greymass.com"})
@@ -52,7 +56,7 @@
   (->> args
        (apply (partial shell
                        {:out :string :err :string }
-                       "cleos" "--url" (rpcs net)))))
+                       "cleos" "--url" (rpcs (keyword net))))))
 
 (defn get-proposals-in-cycle [net cycle]
   (let [prop-acc (-> deployment net :proposals :account)]
@@ -98,6 +102,8 @@
         (assoc :expiration (.format date formatter))
         (assoc :actions    actions)
         json/encode)))
+
+
 
 (defn extract-quantity [quantity]
   (Float/parseFloat (->> quantity (re-seq #"(\d+\.\d+) EFX") first second)))
@@ -202,7 +208,7 @@
      :available (- total used)}))
 
 (defn buy-ram [net receiver bytes]
-  (let [res (cleos net "system" "buyram" payer receiver "-b" bytes)]
+  (let [res (cleos net "system" "buyram" (payer-net net) receiver "-b" bytes)]
     (cond (string/includes? (:err res) "overdrawn balance")
           [nil "overdrawn balance"]
           (zero? (:exit res))
@@ -228,8 +234,6 @@
 (defn get-executed-tx-from-err [e]
   (->> e (re-find  #"executed transaction: ([a-z0-9]+)") last))
 
-
-
 (defn do-cleos
   "Run a cleos transaction buying ram if needed"
   [net & args]
@@ -251,15 +255,30 @@
             (throw (Exception. msg)))))
 
       (zero? (:exit res))
-      (do
-        (prn res)
-        (println (compose [:green "[✔] " (get-executed-tx-from-err (:err res))])))
+      (let [txid (get-executed-tx-from-err (:err res))]
+        (println (compose [:green "[✔] " (or txid (:err res))])))
 
       (:err res)
       (println (compose [:bright-red "[✖] Error: " (:err res)]))
 
       :else
       (println "ERROR" res))))
+
+(defn msig-deploy [net account contract-path]
+  (unlock)
+  (try
+    (let [payer (payer-net (keyword net))
+          acts (-> (cleos net "set" "contract" "-s" "-j" "-d" account contract-path)
+                   :out
+                   (json/decode true)
+                   :actions)
+          perms [{:actor account :permission "active"}]
+          tx (make-msig-tx acts 42)]
+      (let [res
+            (do-cleos net "multisig" "propose_trx" "test"  (json/encode perms)
+                      tx payer "-p" payer)]
+        (prn "done?")))
+    (catch Exception e (prn e))))
 
 (def powerup {:jungle4 #(do-cleos :jungle4 "push" "action" "eosio" "powerup"
                                   (str "[\"" payer "\", \"" %1 "\", 1, 100000000000, 100000000000, \"1.0000 EOS\"]")
