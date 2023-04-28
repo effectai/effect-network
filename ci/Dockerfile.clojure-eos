@@ -1,5 +1,7 @@
-FROM cimg/clojure:1.11
+FROM clojure:tools-deps-1.11.1.1273
 
-RUN wget https://github.com/AntelopeIO/leap/releases/download/v4.0.0/leap_4.0.0-ubuntu22.04_amd64.deb \
-    && sudo apt install ./leap_4.0.0-ubuntu22.04_amd64.deb \
-    && rm leap_4.0.0-ubuntu22.04_amd64.deb
+RUN curl https://raw.githubusercontent.com/babashka/babashka/master/install | bash
+
+RUN curl -L https://github.com/AntelopeIO/leap/releases/download/v4.0.0/leap_4.0.0-ubuntu22.04_amd64.deb -o leap.deb \
+    && apt install ./leap.deb \
+    && rm leap.deb

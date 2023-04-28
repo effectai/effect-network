@@ -10,15 +10,15 @@ global:
 
 jobs:
   # Build docker images before running rest of pipeline
-  # - name: docker
-  #   image: nosana/podman:latest
-  #   environment:
-  #     CONTAINER_HOST: tcp://localhost:8080
-  #   commands:
-  #     - docker build -f ci/Dockerfile . -t effectai/eos-cdt-make
-  #     - docker build -f ci/Dockerfile.nodeos . -t effectai/eos207-node16
-  #     - docker build -f ci/Dockerfile.clojure-eos . -t effectai/clojure-eos
-  #     - docker images
+  - name: docker
+    image: nosana/podman:latest
+    environment:
+      CONTAINER_HOST: tcp://localhost:8080
+    commands:
+      - docker build -f ci/Dockerfile . -t effectai/eos-cdt-make
+      - docker build -f ci/Dockerfile.nodeos . -t effectai/eos207-node16
+      - docker build -f ci/Dockerfile.clojure-eos . -t effectai/clojure-eos
+      - docker images
 
   - name: eos-cljs
     image: registry.hub.docker.com/bitnami/git:latest
@@ -67,8 +67,6 @@ jobs:
 
   - name: deploy-testnet
     image: effectai/clojure-eos
-    work-dir: /app/project
-    workdir: /app/project
     secrets:
       - EOS_WALLET
       - EOS_WALLET_PASS
@@ -76,8 +74,8 @@ jobs:
       - pwd
       - ls -l
       - echo -n $EOS_WALLET_PASS > jungle3-password.txt
-      - mkdir -p /home/circleci/eosio-wallet
-      - echo -n $EOS_WALLET > /home/circleci/eosio-wallet/jungle3.wallet
+      - mkdir -p eosio-wallet
+      - echo -n $EOS_WALLET > eosio-wallet/jungle3.wallet
       - bb deploy jungle4
     resources:
       - name: checkout
