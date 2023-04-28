@@ -18,6 +18,12 @@
            :mainnet "https://eos.greymass.com"})
 (def wallet-pass (slurp "jungle3-password.txt"))
 
+(declare do-cleos)
+
+(def powerup {:jungle4 #(do-cleos :jungle4 "push" "action" "eosio" "powerup"
+                                  (str "[\"" payer "\", \"" %1 "\", 1, 100000000000, 100000000000, \"1.0000 EOS\"]")
+                                  "-p" payer)})
+
 (def deployment
   {:jungle4
    {:dao       {:account "efxdao111112"
@@ -207,17 +213,6 @@
      :used      used
      :available (- total used)}))
 
-(defn buy-ram [net receiver bytes]
-  (let [res (cleos net "system" "buyram" (payer-net net) receiver "-b" bytes)]
-    (cond (string/includes? (:err res) "overdrawn balance")
-          [nil "overdrawn balance"]
-          (zero? (:exit res))
-          [true "txid"]
-          (:err res)
-          (do
-            (println (compose [:bright-red (:err res)]))
-            [nil "unkown error"]))))
-
 (defn get-needed-ram-from-error
   "Get the number of bytes of RAM missing for a deploy.
   This always returns 500 bytes more than required to avoid rounding
@@ -230,13 +225,18 @@
     (+ 500
        (- (Integer/parseInt needed) (Integer/parseInt available)))))
 
-
 (defn get-executed-tx-from-err [e]
   (->> e (re-find  #"executed transaction: ([a-z0-9]+)") last))
 
-(defn do-cleos
-  "Run a cleos transaction buying ram if needed"
-  [net & args]
+(def do-cleos-max-iterations 3)
+
+(declare buy-ram)
+
+(defn- do-cleos-it
+  "Run a cleos transaction buying ram if needed."
+  [it net & args]
+  (when (> it do-cleos-max-iterations)
+    (throw (Exception. "Too many do-cleos tries")))
   (let [account (last args)
         res (try (apply (partial cleos net) args)
                  (catch Exception e
@@ -251,8 +251,18 @@
           (if status
             (do
               (println (compose [:green "[❯] RAM bought, running again"]))
-              (apply (partial cleos net) args))
+              (apply (partial do-cleos-it (inc it) net) args))
             (throw (Exception. msg)))))
+
+      (string/includes? (:err res) "usage limit imposed")
+      (if (get powerup net)
+        (do
+          (println (compose [:bright-red "[◯] Not enough resources, doing powerup"]))
+          (println (compose [:bright-yellow "[❯] Powering up " account]))
+          (let [res ((get powerup net) account)]
+            (apply (partial do-cleos-it (inc it) net) args)))
+        (do
+          (println (compose [:bright-red "[✖] Not enough resources, needs powerup:\n" (:err res)]))))
 
       (zero? (:exit res))
       (let [txid (get-executed-tx-from-err (:err res))]
@@ -263,6 +273,21 @@
 
       :else
       (println "ERROR" res))))
+
+(defn do-cleos [net & args]
+  (apply (partial do-cleos-it 0 (keyword net)) args))
+
+(defn buy-ram
+  [net receiver bytes]
+  (let [res (do-cleos net "system" "buyram" (payer-net net) receiver "-b" bytes)]
+    (cond (string/includes? (:err res) "overdrawn balance")
+          [nil "overdrawn balance"]
+          (zero? (:exit res))
+          [true "txid"]
+          (:err res)
+          (do
+            (println (compose [:bright-red (:err res)]))
+            [nil "unkown error"]))))
 
 (defn msig-deploy [net account contract-path]
   (unlock)
@@ -280,9 +305,7 @@
         (prn "done?")))
     (catch Exception e (prn e))))
 
-(def powerup {:jungle4 #(do-cleos :jungle4 "push" "action" "eosio" "powerup"
-                                  (str "[\"" payer "\", \"" %1 "\", 1, 100000000000, 100000000000, \"1.0000 EOS\"]")
-                                  "-p" payer)})
+
 
 (defn deploy-account
   [net account path]
