@@ -68,6 +68,7 @@ jobs:
   - name: deploy-testnet
     image: effectai/clojure-eos
     work-dir: /app/project
+    workdir: /app/project
     secrets:
       - EOS_WALLET
       - EOS_WALLET_PASS
@@ -75,7 +76,6 @@ jobs:
       - pwd
       - ls -l
       - echo -n $EOS_WALLET_PASS > jungle3-password.txt
-      - cat jungle3-password.txt;'
       - mkdir -p /home/circleci/eosio-wallet
       - echo -n $EOS_WALLET > /home/circleci/eosio-wallet/jungle3.wallet
       - bb deploy jungle4
