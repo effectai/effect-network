@@ -57,9 +57,9 @@ jobs:
       - sleep 2
       - curl -s http://127.0.0.1:8888/v1/chain/get_info
       - npm run lumo e2e.dao
-      # - npm run lumo e2e.force
-      # - npm run lumo e2e.token
-      # - npm run lumo e2e.stake
+      - npm run lumo e2e.force
+      - npm run lumo e2e.token
+      - npm run lumo e2e.stake
     resources:
       - name: node_modules
       - name: contracts
