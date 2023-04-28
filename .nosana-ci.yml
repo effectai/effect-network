@@ -10,15 +10,15 @@ global:
 
 jobs:
   # Build docker images before running rest of pipeline
-  - name: docker
-    image: nosana/podman:latest
-    environment:
-      CONTAINER_HOST: tcp://localhost:8080
-    commands:
-      - docker build -f ci/Dockerfile . -t effectai/eos-cdt-make
-      - docker build -f ci/Dockerfile.nodeos . -t effectai/eos207-node16
-      - docker build -f ci/Dockerfile.clojure-eos . -t effectai/clojure-eos
-      - docker images
+  # - name: docker
+  #   image: nosana/podman:latest
+  #   environment:
+  #     CONTAINER_HOST: tcp://localhost:8080
+  #   commands:
+  #     - docker build -f ci/Dockerfile . -t effectai/eos-cdt-make
+  #     - docker build -f ci/Dockerfile.nodeos . -t effectai/eos207-node16
+  #     - docker build -f ci/Dockerfile.clojure-eos . -t effectai/clojure-eos
+  #     - docker images
 
   - name: eos-cljs
     image: registry.hub.docker.com/bitnami/git:latest
@@ -72,8 +72,10 @@ jobs:
       - EOS_WALLET
       - EOS_WALLET_PASS
     commands:
+      - pwd
+      - ls -l
       - echo -n $EOS_WALLET_PASS > jungle3-password.txt
-      - cat jungle3-password.txt
+      - cat jungle3-password.txt;'
       - mkdir -p /home/circleci/eosio-wallet
       - echo -n $EOS_WALLET > /home/circleci/eosio-wallet/jungle3.wallet
       - bb deploy jungle4
