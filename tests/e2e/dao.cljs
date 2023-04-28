@@ -164,5 +164,43 @@
        (is (empty? $) "unregistered member found in table"))
      (done))))
 
+(deftest add-collections
+  (async
+   done
+   (go
+     ;; needs contract authority
+     (<p! (util/should-fail-with
+           (eos/transact dao-acc "addcol" {:cols ["effectlife"] :remove false}
+                         [{:actor owner-acc :permission "active"}])
+           (str "missing authority of " dao-acc)))
+     ;; can add collections
+     (<p! (util/should-succeed
+           (eos/transact dao-acc "addcol" {:cols ["effectlife" "aiishere"] :remove false})))
+     (let [[{cols "allowed_collections"}]
+           (<p! (eos/get-table-rows dao-acc dao-acc "config"))]
+       (is (= (count cols) 2))
+       (is (some #{"effectlife"} cols))
+       (is (some #{"aiishere"} cols)))
+     ;; can remove collection
+     (prn(<p! (util/should-succeed
+               (eos/transact dao-acc "addcol" {:cols ["aiishere"] :remove true}))))
+     (let [[{cols "allowed_collections"}]
+           (<p! (eos/get-table-rows dao-acc dao-acc "config"))]
+       (is (= cols ["effectlife"])))
+     ;; add more cols
+     (<p! (util/should-succeed
+           (eos/transact dao-acc "addcol" {:cols ["col1" "col2" "col3" "col4"] :remove false})))
+     (let [[{cols "allowed_collections"}]
+           (<p! (eos/get-table-rows dao-acc dao-acc "config"))]
+       (is (= (count cols) 5)))
+     ;; can remove all collections
+     (<p! (util/should-succeed
+           (eos/transact dao-acc "addcol" {:cols ["effectlife" "col1" "col2" "col3" "col4"]
+                                           :remove true})))
+     (let [[{cols "allowed_collections"}]
+           (<p! (eos/get-table-rows dao-acc dao-acc "config"))]
+       (is (empty? cols)))
+     (done))))
+
 (defn -main [& args]
     (run-tests))

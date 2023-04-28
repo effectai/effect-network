@@ -87,6 +87,12 @@ void effectdao::setavatar(eosio::name account, uint64_t asset_id) {
   auto avatar_tbl = avatar_table(_self, account.value);
   auto this_avatar = avatar_tbl.find(asset_id);
 
+  dao::config_table config_tbl(_self, _self.value);
+  auto conf = config_tbl.get();
+  auto cols = *conf.allowed_collections;
+  eosio::check(cols.find(this_asset->collection_name) != cols.end(),
+               "collection not allowed");
+
   if (this_avatar != avatar_tbl.end()) {
     avatar_tbl.modify(this_avatar,
                       eosio::same_payer,
@@ -102,4 +108,23 @@ void effectdao::setavatar(eosio::name account, uint64_t asset_id) {
                          a.type = 0;
                        });
   }
+}
+
+void effectdao::addcol(std::set<eosio::name> cols, bool remove) {
+  require_auth(_self);
+
+  dao::config_table config_tbl(_self, _self.value);
+  check(config_tbl.exists(), "dao config table not initialized");
+  auto conf = config_tbl.get();
+
+  std::set<eosio::name>toremove({"aiishere"_n});
+  if (remove == true) {
+    for (auto it = cols.begin(); it != cols.end(); ++it)
+      conf.allowed_collections->erase(*it);
+  }
+  else {
+    conf.allowed_collections->insert(cols.begin(), cols.end());
+  }
+
+  config_tbl.set(conf, get_self());
 }

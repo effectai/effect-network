@@ -25,6 +25,9 @@ class [[eosio::contract("dao")]] effectdao : public eosio::contract {
   void setavatar(eosio::name account, uint64_t asset_id);
 
   [[eosio::action]]
+  void addcol(std::set<eosio::name> cols, bool remove);
+
+  [[eosio::action]]
   void init(eosio::name stake_contract,
             eosio::name proposal_contract,
             eosio::extended_symbol utl_token_sym,

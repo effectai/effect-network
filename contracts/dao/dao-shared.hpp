@@ -5,6 +5,7 @@
 #include <eosio/symbol.hpp>
 #include <eosio/asset.hpp>
 #include <eosio/singleton.hpp>
+#include <eosio/binary_extension.hpp>
 
 inline uint32_t now() {
   static uint32_t current_time = eosio::current_time_point().sec_since_epoch();
@@ -36,6 +37,7 @@ namespace dao {
     eosio::name proposal_contract;
     eosio::extended_symbol utl_token_sym;
     eosio::extended_symbol gov_token_sym;
+    eosio::binary_extension<std::set<eosio::name>> allowed_collections;
   };
 
   struct [[eosio::table("stake"), eosio::contract("dao")]] stakeentry {
