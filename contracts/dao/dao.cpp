@@ -117,14 +117,17 @@ void effectdao::addcol(std::set<eosio::name> cols, bool remove) {
   check(config_tbl.exists(), "dao config table not initialized");
   auto conf = config_tbl.get();
 
-  std::set<eosio::name>toremove({"aiishere"_n});
+  std::set<eosio::name> cur_cols;
+  if (conf.allowed_collections.has_value())
+    cur_cols = conf.allowed_collections.value();
+
   if (remove == true) {
     for (auto it = cols.begin(); it != cols.end(); ++it)
-      conf.allowed_collections->erase(*it);
-  }
-  else {
-    conf.allowed_collections->insert(cols.begin(), cols.end());
+      cur_cols.erase(*it);
+  } else {
+    cur_cols.insert(cols.begin(), cols.end());
   }
 
+  conf.allowed_collections.emplace(cur_cols);
   config_tbl.set(conf, get_self());
 }

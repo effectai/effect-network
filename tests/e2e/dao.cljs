@@ -182,8 +182,8 @@
        (is (some #{"effectlife"} cols))
        (is (some #{"aiishere"} cols)))
      ;; can remove collection
-     (prn(<p! (util/should-succeed
-               (eos/transact dao-acc "addcol" {:cols ["aiishere"] :remove true}))))
+     (<p! (util/should-succeed
+           (eos/transact dao-acc "addcol" {:cols ["aiishere"] :remove true})))
      (let [[{cols "allowed_collections"}]
            (<p! (eos/get-table-rows dao-acc dao-acc "config"))]
        (is (= cols ["effectlife"])))
