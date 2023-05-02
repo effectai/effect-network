@@ -37,7 +37,7 @@ class [[eosio::contract("dao")]] effectdao : public eosio::contract {
   struct [[eosio::table("avatar")]] avatar {
     uint8_t type;
     uint64_t asset_id;
-    uint64_t primary_key() const { return asset_id; }
+    uint64_t primary_key() const { return (uint64_t) type; }
   };
   typedef multi_index<"avatar"_n, avatar> avatar_table;
 };

@@ -85,7 +85,7 @@ void effectdao::setavatar(eosio::name account, uint64_t asset_id) {
   eosio::check(this_asset != assets_tbl.end(), "you do not own the asset");
 
   auto avatar_tbl = avatar_table(_self, account.value);
-  auto this_avatar = avatar_tbl.find(asset_id);
+  auto this_avatar = avatar_tbl.find(0);
 
   dao::config_table config_tbl(_self, _self.value);
   auto conf = config_tbl.get();
