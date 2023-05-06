@@ -44,11 +44,12 @@
     :stake     {:account "efxstake1111"
                 :path    "contracts/stake"
                 :hash    "ec86c8383c154b51e67169af2da1006613218169ab6ea91904350b1f0e1dea4d"}
-    :feepool     {:account "efxfeepool11"
-                  :path    "contracts/feepool"
-                  :hash    "21de8c82bfbfc8e633a77807ea8555f0960b31a2eff9054251a8f5308313c5ef"}}
+    :feepool   {:account "efxfeepool11"
+                :path    "contracts/feepool"
+                :hash    "21de8c82bfbfc8e633a77807ea8555f0960b31a2eff9054251a8f5308313c5ef"}}
    :mainnet
-   {:proposals {:account "daoproposals"}}})
+   {:proposals {:account "daoproposals"}
+    :dao       {:account "theeffectdao"}}})
 
 (def get-acc (memoize (fn [net acc] (-> deployment net acc :account))))
 
@@ -63,6 +64,12 @@
        (apply (partial shell
                        {:out :string :err :string }
                        "cleos" "--url" (rpcs (keyword net))))))
+
+(defn prn-cleos [net & args]
+  (->> args
+       (concat ["cleos" "--url" (rpcs (keyword net))])
+       (clojure.string/join " ")
+       println))
 
 (defn get-proposals-in-cycle [net cycle]
   (let [prop-acc (-> deployment net :proposals :account)]
@@ -187,7 +194,7 @@
                             (into []))
           msig-tx      (make-msig-tx exec-actions 42)]
 
-      (if (= (:id last-cycle) id)
+      (if (= (str (:id last-cycle)) id)
         (do
           (spit "highguardtx.json" msig-tx)
           (log-info (str "Highguard approval transaction: highguardtx.json. Run with:"))
@@ -233,7 +240,8 @@
 (declare buy-ram)
 
 (defn- do-cleos-it
-  "Run a cleos transaction buying ram if needed."
+  "Run a cleos transaction buying ram if needed.
+  `it` is an iterator to track max recursion depth."
   [it net & args]
   (when (> it do-cleos-max-iterations)
     (throw (Exception. "Too many do-cleos tries")))
@@ -304,8 +312,6 @@
                       tx payer "-p" payer)]
         (prn "done?")))
     (catch Exception e (prn e))))
-
-
 
 (defn deploy-account
   [net account path]
@@ -485,3 +491,24 @@
                 "-p"
                 (-> deployment net :feepool :account))
       (catch Exception e (println e)))))
+
+(defn make-atp [type msig-name proposer]
+  (case type
+    "addcol"
+    (try
+      (let [net :mainnet
+            dao-acc (-> deployment net :dao :account)
+            prop-acc (-> deployment net :proposals :account)
+            acts (->
+                  (cleos net "push" "action" "-s" "-j" "-d" dao-acc "addcol"
+                         (json/encode [["pomelo" ".gems" "avatar.boid" "shufan.free"] false])
+                         "-p" (str dao-acc "@dao"))
+                  :out (json/decode true) :actions)
+            perms [{:actor prop-acc  :permission "dao"}]
+            tx (make-msig-tx acts 42)]
+        (prn-cleos net "multisig" "propose_trx"
+                   msig-name
+                   (str "'" (json/encode perms) "'")
+                   (str "'" tx "'")
+                   proposer "-p" proposer))
+      (catch Exception e (prn e)))))
