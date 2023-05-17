@@ -95,8 +95,8 @@ public:
                vaccount::sig sig);
 
   [[eosio::action]]
-  void cleartasks(uint64_t batch_pk,
-                  vaccount::sig sig);
+  void cleartasks(uint32_t batch_id,
+                  uint32_t campaign_id);
 
   [[eosio::action]]
   void closebatch(uint64_t batch_id,

@@ -873,6 +873,19 @@
                                  {:payment_id 1
                                   :sig (sign-params params-1)})))))
 
+(async-deftest free-task-ram
+  (testing "can not clear tasks when batch still exists"
+    (<p-should-fail-with!
+     (tx-as acc-2 force-acc "cleartasks"
+            {:batch_id 0
+             :campaign_id 0})
+     "" "batch still exists"))
+  (testing "can clear tasks of removed batch"
+    (<p-should-succeed!
+     (tx-as acc-2 force-acc "cleartasks"
+            {:batch_id 1
+             :campaign_id 0}))))
+
 ;; (async-deftest proxy
 ;;   (testing "proxy can create campaign"
 ;;     (<p-should-succeed!
