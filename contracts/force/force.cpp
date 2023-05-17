@@ -109,7 +109,9 @@ void force::rmbatch(uint32_t id, uint32_t campaign_id, vaccount::sig sig) {
   batch_tbl.erase(batch_itr);
 }
 
-void force::cleartasks(uint64_t batch_pk, vaccount::sig sig) {
+void force::cleartasks(uint32_t batch_id, uint32_t campaign_id) {
+  uint64_t batch_pk =(uint64_t{campaign_id} << 32) | batch_id;
+
   // tasks can only be cleared if the batch is removed
   batch_table batch_tbl(_self, _self.value);
   auto batch_itr = batch_tbl.find(batch_pk);
