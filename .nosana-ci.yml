@@ -4,9 +4,13 @@ nosana:
 global:
   image: node:18
   trigger:
-    branch:
-      - master
-      - cicd
+    push:
+      branches:
+        - master
+        - cicd
+    pull_request:
+      branches:
+        - '*'
 
 jobs:
   # Build docker images before running rest of pipeline
@@ -66,6 +70,10 @@ jobs:
       - name: eos-cljs
 
   - name: deploy-testnet
+    trigger:
+      push:
+        branches:
+          - master
     image: effectai/clojure-eos
     secrets:
       - EOS_WALLET
