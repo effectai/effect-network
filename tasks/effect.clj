@@ -28,28 +28,35 @@
   {:jungle4
    {:dao       {:account "efxdao111112"
                 :path    "contracts/dao"
-                :hash    "23bea5b5ed625340b4260ea139dbc20bfbc2e1f3bffee6ab8bf4fc8cdb4233bb"}
+                :hash    nil}
     :proposals {:account "efxproposals"
                 :path    "contracts/proposals"
-                :hash    "d4ab62fdfec73e954577b0500b2c625d5991c0cee4fb39f25e31e07605c96093"}
+                :hash    nil}
     :force     {:account "efxforce1112"
                 :path    "contracts/force"
-                :hash    "17e1dab4a77306e236b6f879bb059cd162e97b204e8e530daac8c7666717313b"}
+                :hash    nil}
     :vaccount  {:account "efxaccount11"
                 :path    "contracts/vaccount"
-                :hash    "2e1ae138c7cdcda4e237f4ca5dddc2e2d1782929925cf15c2ffc34c87dbc0cef"}
+                :hash    nil}
     :token     {:account "efxtoken1112"
                 :path    "contracts/token"
-                :hash    "27b86425a499657a738065cdb0e44c5fa1b5969f57e6ee9b6e7abf394348736d"}
+                :hash    nil}
     :stake     {:account "efxstake1111"
                 :path    "contracts/stake"
-                :hash    "ec86c8383c154b51e67169af2da1006613218169ab6ea91904350b1f0e1dea4d"}
+                :hash    nil}
     :feepool   {:account "efxfeepool11"
                 :path    "contracts/feepool"
-                :hash    "21de8c82bfbfc8e633a77807ea8555f0960b31a2eff9054251a8f5308313c5ef"}}
+                :hash    nil}}
    :mainnet
-   {:proposals {:account "daoproposals"}
-    :dao       {:account "theeffectdao"}}})
+   {:proposals {:account "daoproposals"
+                :path    "contracts/proposals"
+                :hash    "d4ab62fdfec73e954577b0500b2c625d5991c0cee4fb39f25e31e07605c96093"}
+    :dao       {:account "theeffectdao"
+                :path    "contracts/dao"
+                :hash    "22814f2c83433da8e929533e4b46bb3be95bc8826c4e4bcc62242f05b4cd2744"}
+    :force     {:account "force.efx"
+                :path    "contracts/force"
+                :hash    "17e1dab4a77306e236b6f879bb059cd162e97b204e8e530daac8c7666717313b"}}})
 
 (def get-acc (memoize (fn [net acc] (-> deployment net acc :account))))
 
