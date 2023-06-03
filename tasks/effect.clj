@@ -175,7 +175,12 @@
                               (.plusSeconds (:cycle_duration_sec config))
                               .toString)
 
-          new-cycle-actions [(create-cycle-action net new-cycle-start)
+          new-cycle-actions [;; the first action is a NOOP that makes x.efx the ram payer
+                             {:account "effecttokens"
+                              :name "open"
+                              :data {:owner "x.efx" :symbol "4,EFX" :ram_payer "x.efx"}
+                              :authorization [{:actor "x.efx" :permission "active"}]}
+                             (create-cycle-action net new-cycle-start)
                              (transfer-efx-action "daoproposals" (* 0.3 funds-left) "feepool.efx")
                              (transfer-efx-action "daoproposals" (* 0.7 funds-left) "treasury.efx")
                              {:account       "daoproposals"
