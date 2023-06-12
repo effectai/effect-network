@@ -72,6 +72,13 @@
                        {:out :string :err :string }
                        "cleos" "--url" (rpcs (keyword net))))))
 
+(defn get-code-hash [net acc]
+  (->> (cleos net "get" "code" acc)
+       :out
+       (re-seq #"code hash: ([a-z0-9]+)\n")
+       first
+       last))
+
 (defn prn-cleos [net & args]
   (->> args
        (concat ["cleos" "--url" (rpcs (keyword net))])
@@ -371,11 +378,17 @@
   (let [net (keyword net)]
     (println (str "Deploying to " (rpcs net)))
     (doseq [{:keys [account path hash]} (vals (deployment net))]
-      (println (compose [:green "\n[#] Deploying " path " to "
+      (print (compose [:green "\n[#] Deploying " path " to "
                          [:yellow.bold account]]))
-      (try
-        (deploy-account net account path)
-        (catch Exception e (prn e))))))
+      (if (and hash
+               (= hash (get-code-hash net account)))
+        (println (compose [:yellow "\n[>] Deployed code equals configured code "
+                           [:yellow.bold hash]". Skipping."]))
+        (try
+          (println (compose [:yellow "\n[>] Updating code at " path " to "
+                             [:yellow.bold account]]))
+          (deploy-account net account path)
+          (catch Exception e (prn e)))))))
 
 (defn init
   "Initialize all the contracts on a brand new deployment"
