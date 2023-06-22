@@ -161,16 +161,18 @@ void force::publishbatch(uint64_t batch_id, uint32_t num_tasks, vaccount::sig si
                      b.balance -= batch_fee;
                    });
 
-  action(permission_level{_self, "xfer"_n},
-         settings.vaccount_contract,
-         "withdraw"_n,
-         std::make_tuple((uint64_t) settings.force_vaccount_id,
-                         settings.fee_contract,
-                         batch_fee,
-                         std::string("batch " + std::to_string(batch_id)),
-                         NULL,
-                         NULL))
-    .send();
+  if (batch_fee.quantity.amount > 0) {
+    action(permission_level{_self, "xfer"_n},
+           settings.vaccount_contract,
+           "withdraw"_n,
+           std::make_tuple((uint64_t) settings.force_vaccount_id,
+                           settings.fee_contract,
+                           batch_fee,
+                           std::string("batch " + std::to_string(batch_id)),
+                           NULL,
+                           NULL))
+      .send();
+  }
 }
 
 void force::mkquali(content content, uint32_t account_id, eosio::name payer, vaccount::sig sig) {
