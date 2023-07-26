@@ -107,4 +107,4 @@ Please see our guide on [Blockchain Wallets](docs/Effect-Network/blockchainwalle
 ## **Converting EFX to Fiat**
 
 ### **Where can I convert EFX to my local currency?**
-You will need to use an exchange that is available to you in your country. Popular exchanges are Kraken, Binance, KuCoin, and Coinbase. Please look into these and choose one that supports your location. 
+You will need to use an exchange that is available to you in your country. Popular exchanges are Kraken, Binance, and Coinbase. Please look into these and choose one that supports your location. 
