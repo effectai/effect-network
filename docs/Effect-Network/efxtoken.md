@@ -26,8 +26,6 @@ You can buy $EFX tokens with BTC, EOS, or USDT.
 
 PancakeSwap -[Buy EFX with BNB](https://pancakeswap.finance/swap?outputCurrency=0xc51ef828319b131b595b7ec4b28210ecf4d05ad0)
 
-KUCOIN -Buy EFX with [BTC](https://trade.kucoin.com/EFX-BTC) or [USDT](https://www.kucoin.com/trade/EFX-USDT)
-
 Newdex -[Buy EFX with EOS](https://newdex.io/trade/effecttokens-efx-eos)
 
 ORION -[Buy EFX with USDT (BSC)](https://trade.orionprotocol.io/trade/EFX-USDT)
