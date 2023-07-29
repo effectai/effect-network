@@ -32,15 +32,6 @@ public:
     Exclusive = 1
   };
 
-  template <typename T>
-  void cleanTable(name code, uint64_t account, const uint32_t batchSize){
-    T db(code, account);
-    uint32_t counter = 0;
-    auto itr = db.begin();
-    while (itr != db.end() && counter++ < batchSize) {
-      itr = db.erase(itr);
-    }
-  }
 
   force(eosio::name receiver, eosio::name code, eosio::datastream<const char*> ds) :
     eosio::contract(receiver, code, ds), _config(_self, _self.value), _settings(_self, _self.value)
@@ -80,7 +71,6 @@ public:
                content content,
                checksum256 task_merkle_root,
                uint32_t repetitions,
-               std::optional<camp_quali_map> qualis,
                eosio::name payer,
                vaccount::sig sig);
 
@@ -104,12 +94,9 @@ public:
                   vaccount::sig sig);
 
   [[eosio::action]]
-  void reservetask(std::vector<eosio::checksum256> proof,
-                   std::vector<uint8_t> position,
-                   std::vector<char> data,
-                   uint32_t campaign_id,
-                   uint32_t batch_id,
+  void reservetask(uint32_t campaign_id,
                    uint32_t account_id,
+                   uint32_t last_task_done,
                    eosio::name payer,
                    vaccount::sig sig);
 
@@ -172,15 +159,15 @@ public:
                          vaccount::sig sig,
                          std::optional<extended_asset> fee);
 
-  [[eosio::action]]
-  void clean() {
-    require_auth(_self);
-    cleanTable<submission_table>(_self, _self.value, 100);
-    cleanTable<batch_table>(_self, _self.value, 100);
-    cleanTable<campaign_table>(_self, _self.value, 100);
-    cleanTable<payment_table>(_self, _self.value, 100);
-    cleanTable<batchjoin_table>(_self, _self.value, 100);
-  };
+  // [[eosio::action]]
+  // void clean() {
+  //   require_auth(_self);
+  //   cleanTable<submission_table>(_self, _self.value, 100);
+  //   cleanTable<batch_table>(_self, _self.value, 100);
+  //   cleanTable<campaign_table>(_self, _self.value, 100);
+  //   cleanTable<payment_table>(_self, _self.value, 100);
+  //   cleanTable<batchjoin_table>(_self, _self.value, 100);
+  // };
 
   [[eosio::action]]
   void migrate(eosio::name payer, eosio::name fee_contract, float fee_percentage) {
@@ -224,10 +211,9 @@ private:
 
   struct reservetask_params {
     uint8_t mark;
-    checksum256 leaf_hash;
+    uint32_t last_task_done;
     uint32_t campaign_id;
-    uint32_t batch_id;
-    EOSLIB_SERIALIZE(reservetask_params, (mark)(leaf_hash)(campaign_id)(batch_id));
+    EOSLIB_SERIALIZE(reservetask_params, (mark)(last_task_done)(campaign_id));
   };
 
   struct submittask_params {
@@ -346,11 +332,9 @@ private:
     uint32_t repetitions;
     uint32_t tasks_done;
     uint32_t num_tasks;
-    eosio::binary_extension<std::map<uint32_t, uint8_t>> qualis;
     eosio::binary_extension<eosio::extended_asset> reward;
 
     uint64_t primary_key() const { return (uint64_t{campaign_id} << 32) | id; }
-    uint32_t by_campaign() const { return campaign_id; }
   };
 
   struct [[eosio::table]] batchjoin {
@@ -380,17 +364,15 @@ private:
     uint64_t id;
     std::optional<uint32_t> account_id;
     std::optional<content> content;
-    checksum256 leaf_hash;
     uint64_t batch_id;
     std::optional<std::string> data;
     bool paid;
     eosio::time_point_sec submitted_on;
 
     uint64_t primary_key() const { return id; }
-    checksum256 by_leaf() const { return leaf_hash; }
     uint64_t by_batch() const { return batch_id; }
 
-    EOSLIB_SERIALIZE(submission, (id)(account_id)(content)(leaf_hash)(batch_id)
+    EOSLIB_SERIALIZE(submission, (id)(account_id)(content)(batch_id)
                      (data)(paid)(submitted_on))
   };
 

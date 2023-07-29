@@ -227,11 +227,12 @@
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize)) (.push 13) (.pushUint32 acc-id))))
 
-(defn pack-reservetask-params [leaf-hash camp-id batch-id]
+(defn pack-reservetask-params [last-task-done camp-id]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize))
-     (.push 6) (.pushUint8ArrayChecked (vacc/hex->bytes leaf-hash) 32)
-     (.pushUint32 camp-id) (.pushUint32 batch-id))))
+     (.push 6)
+     (.pushUint32 last-task-done)
+     (.pushUint32 camp-id))))
 
 (defn pack-submittask-params [sub-id data]
   (.asUint8Array
@@ -358,13 +359,11 @@
                              :task_merkle_root merkle-root
                              :repetitions 100
                              :payer acc-2
-                             :qualis nil
                              :sig nil})))
 
   (testing "campaign owner can create batch"
     (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
                                {:id 0
-                                :qualis nil
                                 :campaign_id 0
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :task_merkle_root merkle-root
@@ -407,7 +406,6 @@
       (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
                                  {:id 0
                                   :campaign_id 3
-                                  :qualis nil
                                   :content {:field_0 0 :field_1 vacc/hash160-1}
                                   :task_merkle_root merkle-root
                                   :repetitions 1
@@ -416,7 +414,6 @@
       (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
                                  {:id 1
                                   :campaign_id 3
-                                  :qualis nil
                                   :content {:field_0 0 :field_1 vacc/hash160-1}
                                   :task_merkle_root merkle-root
                                   :repetitions 1
@@ -425,7 +422,6 @@
       (<p-should-succeed! (tx-as acc-4 force-acc "mkbatch"
                                  {:id 0
                                   :campaign_id 5
-                                  :qualis nil
                                   :content {:field_0 0 :field_1 vacc/hash160-1}
                                   :task_merkle_root merkle-root
                                   :payer acc-4
@@ -655,75 +651,46 @@
 
 (def task-data ["aaeebb" "bb1234" "cc" "dd"])
 
-(defn make-proof [batch-pk]
-  (let [task-data-prep (map #(str batch-pk %) task-data)
-        leaves (map #(sha256 (vacc/hex->bytes %)) task-data-prep)
-        tree (MerkleTree. (clj->js leaves) sha256)
-        root (.toString (.getRoot tree) "hex")
-        ;; _ (prn "merkle root for " batch-pk root)
-        params-1 (pack-reservetask-params (first leaves) 0 0)
-        params-2 (pack-reservetask-params (second leaves) 0 0)]
-    (for [i (range 2)]
-      (let [proof (.getProof tree (nth leaves i))]
-        [(map #(buf->hex (.-data %)) proof)
-         (map #(if (= (.-position %) "left") 0 1) proof)
-         (nth leaves i)]))))
-
 (async-deftest reservetask
-  (let [[proof-000 proof-001 & _] (make-proof "0000000000000000")
-        [proof-200 & _] (make-proof "0200000000000000")
-        [proof-020 & _] (make-proof "0000000002000000")]
+  (let []
     (testing "can make reservation"
       (<p-should-succeed!
-       (tx-as acc-3 force-acc "reservetask" {:proof (first proof-000)
-                                             :position (second proof-000)
-                                             :data (first task-data)
-                                             :campaign_id 0
-                                             :batch_id 0
+       (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
                                              :account_id 1
-                                             :payer acc-3
-                                             :sig nil}))
-
-      (<p-should-fail-with!
-       (tx-as acc-3 force-acc "reservetask" {:proof (first proof-200)
-                                             :position (second proof-200)
-                                             :data (first task-data)
-                                             :campaign_id 0
-                                             :batch_id 2
-                                             :account_id 1
+                                             :last_task_done 0
                                              :payer acc-3
                                              :sig nil})
-       "" "missing qualification")
+       "can reserve for campaign 0")
 
-      (<p-should-succeed!
-       (tx-as acc-3 force-acc "reservetask" {:proof (first proof-001)
-                                             :position (second proof-001)
-                                             :data (second task-data)
-                                             :campaign_id 0
-                                             :batch_id 0
-                                             :account_id 0
-                                             :payer acc-3
-                                             :sig (sign-params (pack-reservetask-params (nth proof-001 2) 0 0))}))
-
-      (<p-should-succeed!
-       (tx-as acc-3 force-acc "reservetask" {:proof (first proof-020)
-                                             :position (second proof-020)
-                                             :data (first task-data)
-                                             :campaign_id 2
-                                             :batch_id 0
+      (<p-should-fail-with!
+       (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
                                              :account_id 1
+                                             :last_task_done 1
                                              :payer acc-3
-                                             :sig nil})))
+                                             :sig nil})
+       "missing qualification" "missing qualification")
+
+      (<p-should-succeed!
+       (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
+                                             :account_id 0
+                                             :last_task_done 1
+                                             :payer acc-3
+                                             :sig (sign-params (pack-reservetask-params 1 0))}))
+
+      (<p-should-succeed!
+       (tx-as acc-3 force-acc "reservetask" {:campaign_id 2
+                                             :account_id 1
+                                             :last_task_done 0
+                                             :payer acc-3
+                                             :sig nil})
+       "can reserve for campaign 2"))
 
     (<p! (eos/wait-block (js/Promise.resolve 1)) 300)
     (testing "must join campaign"
       (<p-should-fail-with!
-       (tx-as acc-2 force-acc "reservetask" {:proof (first proof-000)
-                                             :position (second proof-000)
-                                             :data (first task-data)
-                                             :campaign_id 0
-                                             :batch_id 0
+       (tx-as acc-2 force-acc "reservetask" {:campaign_id 0
                                              :account_id 2
+                                             :last_task_done 0
                                              :payer acc-2
                                              :sig nil})
        "" "missing qualification")
@@ -732,12 +699,9 @@
                                                  :sig (sign-params (pack-assignquali-params 0 2 ""))})))
 
     (testing "cant exceed repetitions"
-      (let [reserve-data  {:proof (first proof-000)
-                           :position (second proof-000)
-                           :data (first task-data)
-                           :campaign_id 0
-                           :batch_id 0
+      (let [reserve-data  {:campaign_id 0
                            :account_id 1
+                           :last_task_done 0
                            :payer acc-3
                            :sig nil}]
         (<p-should-fail-with!
