@@ -303,7 +303,7 @@
                                 :owner ["name" acc-2]
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :reward {:quantity "3.0000 EFX" :contract token-acc}
-                                :qualis [{"key" 0 "value" 0}]
+                                :qualis [{"first" 0 "second" 0}]
                                 :payer acc-2
                                 :sig nil})))
 
@@ -378,7 +378,7 @@
                                 :task_merkle_root merkle-root
                                 :repetitions 1
                                 :payer acc-2
-                                :qualis [{"key" 1 "value" 0}]
+                                :qualis [{"first" 1 "second" 0}]
                                 :sig nil}))
     (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
                                {:id 2
@@ -387,7 +387,7 @@
                                 :task_merkle_root "2cf909c4cfffcdc13f2eb7cb5ed16c51da0424aaaccaa4597f7117ee7cd492b8"
                                 :repetitions 1
                                 :payer acc-2
-                                :qualis [{"key" 1 "value" 0}]
+                                :qualis [{"first" 1 "second" 0}]
                                 :sig nil}))
     (<p-should-succeed! (tx-as acc-4 force-acc "mkbatch"
                                {:id 0

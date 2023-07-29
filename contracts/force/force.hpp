@@ -451,7 +451,6 @@ private:
                       indexed_by<"acc"_n, const_mem_fun<quali, uint64_t, &quali::by_account>>> quali_table;
   typedef multi_index<"userquali"_n, userquali> user_quali_table;
 
-
   const eosio::name settings_pk = "settings"_n;
 
   struct [[eosio::table]] settings {

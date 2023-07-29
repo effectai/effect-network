@@ -6,7 +6,7 @@
 #include <eosio/asset.hpp>
 #include <eosio/datastream.hpp>
 
-#include "../proposals/proposals-shared.hpp"
+using namespace eosio;
 
 enum class VaccountType {
   Address = 0,
