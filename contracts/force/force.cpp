@@ -22,10 +22,13 @@ void force::mkcampaign(vaccount::vaddress owner, content content, eosio::extende
                    [&](auto& c)
                    {
                      c.id = camp_id;
+                     c.tasks_done = 0;
+                     c.active_batch = 0;
                      c.content = content;
                      c.owner = owner;
                      c.reward = reward;
                      c.qualis.emplace(qualis);
+                     c.total_tasks = 0;
                    });
 }
 
@@ -119,7 +122,7 @@ void force::cleartasks(uint32_t batch_id, uint32_t campaign_id) {
   auto batch_itr = batch_tbl.find(batch_pk);
   eosio::check(batch_itr == batch_tbl.end(), "batch still exists");
 
-  // remove the submissoins in this batch
+  // remove the submissions in this batch
   submission_table submission_tbl(_self, _self.value);
   auto by_batch = submission_tbl.get_index<"batch"_n>();
   auto itr_start = by_batch.lower_bound(batch_pk);
@@ -162,6 +165,12 @@ void force::publishbatch(uint64_t batch_id, uint32_t num_tasks, vaccount::sig si
                      b.num_tasks = num_tasks;
                      b.balance -= batch_fee;
                    });
+
+  camp_tbl.modify(camp,
+                  eosio::same_payer,
+                  [&](auto& b) {
+                    b.total_tasks += num_tasks;
+                  });
 
   if (batch_fee.quantity.amount > 0) {
     action(permission_level{_self, "xfer"_n},
@@ -235,98 +244,131 @@ void force::uassignquali(uint32_t quali_id, uint32_t user_id, eosio::name payer,
   user_quali_tbl.erase(user_quali);
 }
 
-void force::require_batchjoin(uint32_t account_id, uint64_t batch_pk, bool try_to_join, name payer) {
-  batchjoin_table join_tbl(_self, _self.value);
-  uint128_t pk = (uint128_t{batch_pk} << 64) | (uint64_t{account_id} << 32);
-
-  auto by_accbatch = join_tbl.get_index<"accbatch"_n>();
-  auto entry = by_accbatch.find(pk);
-  bool has_joined = (entry != by_accbatch.end());
-  if (!has_joined) {
-    eosio::check(try_to_join, "batch not joined");
-
-    batch_table batch_tbl(_self, _self.value);
-    auto batch = batch_tbl.get(batch_pk, "batch not found");
-    campaign_table camp_tbl(_self, _self.value);
-    auto camp = camp_tbl.get(batch.campaign_id, "campaign not found");
-    user_quali_table user_quali_tbl(_self, _self.value);
-
-    auto qualis = camp.qualis.value();;
-
-    for (auto q : qualis) {
-      uint32_t quali_id = std::get<0>(q);
-      uint8_t quali_type = std::get<1>(q);
-      uint64_t user_quali_id = (uint64_t{account_id} << 32) | quali_id;
-      auto user_quali = user_quali_tbl.find(user_quali_id);
-      bool has_quali = (user_quali != user_quali_tbl.end());
-      if (has_quali)
-        eosio::check(quali_type == force::Inclusive, "qualification excluded");
-      else
-        eosio::check(quali_type == force::Exclusive, "missing qualification");
-    }
-
-    uint64_t join_id = join_tbl.available_primary_key();
-    join_tbl.emplace(payer,
-                     [&](auto& j)
-                     {
-                       j.account_id = account_id;
-                       j.batch_id = batch_pk;
-                       j.id = join_id;
-                     });
-  }
-}
-
 void force::reservetask(uint32_t campaign_id,
                         uint32_t account_id,
                         uint32_t last_task_done,
                         name payer,
                         vaccount::sig sig) {
-  uint32_t batch_id = 0;
-  submission_table submission_tbl(_self, _self.value);
-  batch_table batch_tbl(_self, _self.value);
-  campaign_table campaign_tbl(_self, _self.value);
-
-  uint64_t batch_pk = (uint64_t{campaign_id} << 32) | batch_id;
-  require_batchjoin(account_id, batch_pk, true, payer);
-
-  auto& batch = batch_tbl.get(batch_pk, "batch not found");
-  auto& campaign = campaign_tbl.get(campaign_id, "campaign not found");
-
-  eosio::check(batch.tasks_done >= 0 && batch.num_tasks > 0, "batch paused");
-
-
-  // TODO: find task id
-  uint32_t task_idx = 1;
-
-  reservetask_params params = {6, task_idx, campaign_id};
+  reservetask_params params = {6, last_task_done, campaign_id};
   require_vaccount(account_id, pack(params), sig);
 
-  // printhex(&data_hash.extract_as_byte_array()[0], 32);
+  campaign_table campaign_tbl(_self, _self.value);
+  auto& campaign = campaign_tbl.get(campaign_id, "campaign not found");
 
-  uint32_t submission_id = submission_tbl.available_primary_key();
+  uint32_t batch_id = campaign.active_batch;
+  uint64_t batch_pk = (uint64_t{campaign_id} << 32) | batch_id;
+  batch_table batch_tbl(_self, _self.value);
+  auto& batch = batch_tbl.get(batch_pk, "no batches available");
 
-  // check if repetitions are not done
-  // auto by_leaf = submission_tbl.get_index<"leaf"_n>();
-  // auto itr_start = by_leaf.lower_bound(data_hash);
-  // auto itr_end = by_leaf.upper_bound(data_hash);
-  // uint32_t rep_count = 0;
+  eosio::check(campaign.tasks_done < batch.start_task_idx + batch.num_tasks,
+               "no more tasks in campaign");
 
-  // for (; itr_start != itr_end; itr_start++) {
-  //   rep_count++;
-  //   auto& subm = *itr_start;
-  //   eosio::check(subm.account_id != account_id, "account already did task");
-  // }
-  // eosio::check(rep_count < batch.repetitions, "task already completed");
+  // TODO: check qualifications
 
-  submission_tbl.emplace(payer,
-                         [&](auto& s)
-                         {
-                           s.id = submission_id;
-                           s.account_id = account_id;
-                           s.batch_id = batch_pk;
-                           s.paid = false;
-                           s.submitted_on = time_point_sec(now());
-                         });
+  // check if user has a reservation already
+  uint64_t acccamp_pk = (uint64_t{account_id} << 32) | campaign_id;
+  reservation_table reservation_tbl(_self, _self.value);
+  auto by_acccamp = reservation_tbl.get_index<"acccamp"_n>();
+  auto existing_reservation = by_acccamp.find(acccamp_pk);
+  eosio::check(existing_reservation == by_acccamp.end(), "you already have a reservation");
+
+  // find the last task idx the user completed in the campaign
+  acctaskidx_table acctaskidx_tbl(_self, _self.value);
+  auto user_last_task_check = acctaskidx_tbl.find(acccamp_pk);
+
+  if (user_last_task_check == acctaskidx_tbl.end()) {
+    acctaskidx_tbl.emplace(payer,
+                           [&](auto& i)
+                           {
+                             i.campaign_id = campaign_id;
+                             i.account_id = account_id;
+                             i.value = 0;
+                           });
+  }
+
+  auto& user_last_task = acctaskidx_tbl.get(acccamp_pk);
+
+  eosio::check(campaign.total_tasks > user_last_task.value,
+               "no more tasks for you");
+
+  // reserve suitable task idx to the user
+  uint32_t task_idx = std::max(campaign.tasks_done, user_last_task.value);
+
+  // check if there is an earlier expired tasks to claim instead
+  auto by_camp = reservation_tbl.get_index<"camp"_n>();
+  auto by_camp_itr = by_camp.find(campaign_id);
+  if (by_camp_itr != by_camp.end() &&
+      past_delay(by_camp_itr->reserved_on, "release_task") &&
+      // only claim reservations that come before our assigned task idx
+      task_idx >= by_camp_itr->task_idx) {
+    auto& res = *by_camp_itr;
+    uint64_t bump_id = reservation_tbl.available_primary_key();
+    reservation_tbl.modify(res,
+                           payer,
+                           [&](auto& r)
+                           {
+                             // we bump the ID as this one will not expire for a while
+                             r.id = bump_id;
+                             r.account_id = account_id;
+                             r.reserved_on = time_point_sec(now());
+                           });
+    // NOTE: early return here
+    return;
+  }
+
+  // check how many reps are done for this task
+  uint64_t repsdone_pk = (uint64_t{campaign_id} << 32) | task_idx;
+  repsdone_table repsdone_tbl(_self, _self.value);
+  auto repetitions_done = repsdone_tbl.find(repsdone_pk);
+
+  // check if this task is done
+  bool has_reps_done_row = !(repetitions_done == repsdone_tbl.end());
+  bool task_done = false;
+  if (batch.repetitions == 1) {
+    task_done = true;
+  } else {
+    if (!has_reps_done_row) {
+      repsdone_tbl.emplace(payer,
+                           [&](auto& i)
+                           {
+                             i.campaign_id = campaign_id;
+                             i.task_idx = task_idx;
+                             i.value = 1;
+                           });
+    } else {
+      if (repetitions_done->value + 1 == batch.repetitions)
+        task_done = true;
+    }
+  }
+
+  // update campaign counters if task is done
+  acctaskidx_tbl.modify(user_last_task, payer, [&](auto& i) { i.value = task_idx + 1; });
+  if (task_done) {
+    if (has_reps_done_row)
+      repsdone_tbl.erase(repetitions_done);
+
+    bool batch_done = (campaign.tasks_done >= batch.num_tasks);
+    campaign_tbl.modify(campaign,
+                        eosio::same_payer,
+                        [&](auto& c) {
+                          c.tasks_done += 1;
+                          if (batch_done) {
+                            c.active_batch += 1;
+                          }
+                        });
+  }
+
+  uint64_t reservation_id = reservation_tbl.available_primary_key();
+  reservation_tbl.emplace(payer,
+                          [&](auto& r)
+                          {
+                            r.id = reservation_id;
+                            r.task_idx = task_idx;
+                            r.account_id = account_id;
+                            r.batch_id = batch_pk;
+                            r.reserved_on = time_point_sec(now());
+                            r.campaign_id = campaign_id;
+                          });
 }
 
 void force::payout(uint64_t payment_id, std::optional<eosio::signature> sig) {
@@ -448,8 +490,6 @@ void force::reclaimtask(uint64_t task_id, uint32_t account_id,
 
   eosio::check(batch.tasks_done >= 0 && batch.num_tasks > 0,
                "cannot reclaim task on paused batch.");
-
-  require_batchjoin(account_id, sub.batch_id, true, payer);
 
   task_params params = {15, task_id, account_id};
   require_vaccount(account_id, pack(params), sig);

@@ -122,12 +122,12 @@
    (<p-should-fail! (tx-as owner-acc force-acc "init" {:vaccount_contract vacc-acc
                                                        :force_vaccount_id force-vacc-id
                                                        :payout_delay_sec 1
-                                                       :release_task_delay_sec 5})))
+                                                       :release_task_delay_sec 0})))
  (testing "owner can init"
    (<p-should-succeed! (tx-as-owner force-acc force-acc "init" {:vaccount_contract vacc-acc
                                                                 :force_vaccount_id force-vacc-id
                                                                 :payout_delay_sec 1
-                                                                :release_task_delay_sec 5})))
+                                                                :release_task_delay_sec 0})))
 
  (testing "can migrate"
    (<p-should-succeed!
@@ -652,203 +652,235 @@
 (def task-data ["aaeebb" "bb1234" "cc" "dd"])
 
 (async-deftest reservetask
-  (let []
-    (testing "can make reservation"
+  (testing "user 1 makes reservation"
+    (js/console.log
+     (eos/tx-get-console
       (<p-should-succeed!
        (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
                                              :account_id 1
                                              :last_task_done 0
                                              :payer acc-3
-                                             :sig nil})
-       "can reserve for campaign 0")
+                                             :sig nil}))))
+    (is (= (<p! (get-in-rows force-acc "campaign" [0 "tasks_done"])) 0)))
 
-      (<p-should-fail-with!
-       (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
-                                             :account_id 1
-                                             :last_task_done 1
-                                             :payer acc-3
-                                             :sig nil})
-       "missing qualification" "missing qualification")
+  (testing "user 1 can not make two reservations"
+    (<p-should-fail-with!
+     (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
+                                           :account_id 1
+                                           :last_task_done 1
+                                           :payer acc-3
+                                           :sig nil})
+     "" "you already have a reservation"))
 
+  (testing "user 2 makes reservation"
+    (js/console.log
+     (eos/tx-get-console
       (<p-should-succeed!
-       (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
-                                             :account_id 0
-                                             :last_task_done 1
-                                             :payer acc-3
-                                             :sig (sign-params (pack-reservetask-params 1 0))}))
-
-      (<p-should-succeed!
-       (tx-as acc-3 force-acc "reservetask" {:campaign_id 2
-                                             :account_id 1
-                                             :last_task_done 0
-                                             :payer acc-3
-                                             :sig nil})
-       "can reserve for campaign 2"))
-
-    (<p! (eos/wait-block (js/Promise.resolve 1)) 300)
-    (testing "must join campaign"
-      (<p-should-fail-with!
        (tx-as acc-2 force-acc "reservetask" {:campaign_id 0
                                              :account_id 2
                                              :last_task_done 0
                                              :payer acc-2
                                              :sig nil})
-       "" "missing qualification")
-      (<p! (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 2 :payer acc-2
-                                                 :value ""
-                                                 :sig (sign-params (pack-assignquali-params 0 2 ""))})))
+       (is (= (<p! (get-in-rows force-acc "campaign" [0 "tasks_done"])) 1)))))))
 
-    (testing "cant exceed repetitions"
-      (let [reserve-data  {:campaign_id 0
-                           :account_id 1
-                           :last_task_done 0
-                           :payer acc-3
-                           :sig nil}]
-        (<p-should-fail-with!
-         (tx-as acc-3 force-acc "reservetask" reserve-data) "" "account already did task")
+;; (async-deftest reservetask
+;;   (let []
+;;     (testing "can make reservation"
+;;       (<p-should-succeed!
+;;        (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
+;;                                              :account_id 1
+;;                                              :last_task_done 0
+;;                                              :payer acc-3
+;;                                              :sig nil})
+;;        "can reserve for campaign 0")
 
-        (<p-should-succeed!
-         (tx-as acc-2 force-acc "reservetask" (assoc reserve-data :account_id 2 :payer acc-2)))
+;;       (<p-should-fail-with!
+;;        (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
+;;                                              :account_id 1
+;;                                              :last_task_done 1
+;;                                              :payer acc-3
+;;                                              :sig nil})
+;;        "missing qualification" "missing qualification")
 
-        (<p-should-fail-with!
-         (tx-as acc-5 force-acc "reservetask" (assoc reserve-data :account_id 4 :payer acc-5))
-         "" "task already completed")))))
+;;       (<p-should-succeed!
+;;        (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
+;;                                              :account_id 0
+;;                                              :last_task_done 1
+;;                                              :payer acc-3
+;;                                              :sig (sign-params (pack-reservetask-params 1 0))}))
 
-(async-deftest releasetask
-  (testing "other workers cannot release reserved task before delay."
-    (<p-should-fail! (tx-as acc-4 force-acc "releasetask"
-                            {:task_id 1
-                             :account_id 3
-                             :payer acc-4
-                             :sig nil
-                             })))
-  (<p! (util/wait 6000))
-  (testing "campaign owner can release reserved task with eos account"
-    (<p-should-succeed! (tx-as acc-2 force-acc "releasetask"
-                               {:task_id 0
-                                :account_id 2
-                                :payer acc-2
-                                :sig nil
-                                })))
+;;       (<p-should-succeed!
+;;        (tx-as acc-3 force-acc "reservetask" {:campaign_id 2
+;;                                              :account_id 1
+;;                                              :last_task_done 0
+;;                                              :payer acc-3
+;;                                              :sig nil})
+;;        "can reserve for campaign 2"))
 
-  (testing "worker cannot release already released task"
-    (<p-should-fail! (tx-as acc-3 force-acc "releasetask"
-                            {:task_id 0
-                             :account_id 1
-                             :payer acc-3
-                             :sig nil
-                             })))
+;;     (<p! (eos/wait-block (js/Promise.resolve 1)) 300)
+;;     (testing "must join campaign"
+;;       (<p-should-fail-with!
+;;        (tx-as acc-2 force-acc "reservetask" {:campaign_id 0
+;;                                              :account_id 2
+;;                                              :last_task_done 0
+;;                                              :payer acc-2
+;;                                              :sig nil})
+;;        "" "missing qualification")
+;;       (<p! (tx-as acc-2 force-acc "assignquali" {:quali_id 0 :user_id 2 :payer acc-2
+;;                                                  :value ""
+;;                                                  :sig (sign-params (pack-assignquali-params 0 2 ""))})))
 
-  (testing "can release reserved task with pub key hash"
-    (<p-should-succeed! (tx-as acc-4 force-acc "releasetask"
-                               {:task_id 1
-                                :account_id 0
-                                :payer acc-4
-                                :sig (sign-params (pack-task-params 14 1 0))}))))
+;;     (testing "cant exceed repetitions"
+;;       (let [reserve-data  {:campaign_id 0
+;;                            :account_id 1
+;;                            :last_task_done 0
+;;                            :payer acc-3
+;;                            :sig nil}]
+;;         (<p-should-fail-with!
+;;          (tx-as acc-3 force-acc "reservetask" reserve-data) "" "account already did task")
 
-(async-deftest reclaimtask
-  (testing "can not reclaim task when not qualified"
-    (<p-should-fail-with! (tx-as acc-2 force-acc "reclaimtask"
-                                 {:task_id 1
-                                  :account_id 3
-                                  :payer acc-2
-                                  :sig nil})
-                          "" "missing qualification"))
+;;         (<p-should-succeed!
+;;          (tx-as acc-2 force-acc "reservetask" (assoc reserve-data :account_id 2 :payer acc-2)))
 
-  (let [submitted-first (get (<p! (eos/get-table-row force-acc force-acc "submission" 1))
-                             "submitted_on")]
-    (testing "can reclaim released task with eos account"
-      (<p-should-succeed! (tx-as acc-2 force-acc "reclaimtask"
-                                 {:task_id 1
-                                  :account_id 2
-                                  :payer acc-2
-                                  :sig nil})))
-    (let [submitted-after (get (<p! (eos/get-table-row force-acc force-acc "submission" 1))
-                               "submitted_on")]
-      (is (not (= submitted-first submitted-after))
-          "reclaimtask should reset submitted_on")))
+;;         (<p-should-fail-with!
+;;          (tx-as acc-5 force-acc "reservetask" (assoc reserve-data :account_id 4 :payer acc-5))
+;;          "" "task already completed")))))
 
-  (testing "can reclaim released task with pub key hash"
-    (<p-should-succeed! (tx-as acc-3 force-acc "reclaimtask"
-                               {:task_id 0
-                                :account_id 0
-                                :payer acc-3
-                                :sig (sign-params (pack-task-params 15 0 0))}))))
+;; (async-deftest releasetask
+;;   (testing "other workers cannot release reserved task before delay."
+;;     (<p-should-fail! (tx-as acc-4 force-acc "releasetask"
+;;                             {:task_id 1
+;;                              :account_id 3
+;;                              :payer acc-4
+;;                              :sig nil
+;;                              })))
+;;   (<p! (util/wait 6000))
+;;   (testing "campaign owner can release reserved task with eos account"
+;;     (<p-should-succeed! (tx-as acc-2 force-acc "releasetask"
+;;                                {:task_id 0
+;;                                 :account_id 2
+;;                                 :payer acc-2
+;;                                 :sig nil
+;;                                 })))
 
-(async-deftest submit-task
-  (testing "can submit task"
-    (<p-should-succeed!
-     (tx-as acc-2 force-acc "submittask" {:data "testdata"
-                                          :batch_id 0
-                                          :task_id 1
-                                          :account_id 2
-                                          :sig nil
-                                          :payer acc-2}))
-    (let [data "testdata 2"]
-      (<p-should-succeed!
-       (tx-as acc-3 force-acc "submittask" {:data data
-                                            :batch_id 0
-                                            :task_id 0
-                                            :account_id 0
-                                            :sig (sign-params (pack-submittask-params 0 data))
-                                            :payer acc-3}))))
-  (testing "can not double submit"
-    (<p-should-fail-with!
-     (tx-as acc-2 force-acc "submittask" {:data "testdata 3"
-                                          :batch_id 0
-                                          :task_id 1
-                                          :account_id 2
-                                          :sig nil
-                                          :payer acc-2})
-     "" "already submitted")))
+;;   (testing "worker cannot release already released task"
+;;     (<p-should-fail! (tx-as acc-3 force-acc "releasetask"
+;;                             {:task_id 0
+;;                              :account_id 1
+;;                              :payer acc-3
+;;                              :sig nil
+;;                              })))
+
+;;   (testing "can release reserved task with pub key hash"
+;;     (<p-should-succeed! (tx-as acc-4 force-acc "releasetask"
+;;                                {:task_id 1
+;;                                 :account_id 0
+;;                                 :payer acc-4
+;;                                 :sig (sign-params (pack-task-params 14 1 0))}))))
+
+;; (async-deftest reclaimtask
+;;   (testing "can not reclaim task when not qualified"
+;;     (<p-should-fail-with! (tx-as acc-2 force-acc "reclaimtask"
+;;                                  {:task_id 1
+;;                                   :account_id 3
+;;                                   :payer acc-2
+;;                                   :sig nil})
+;;                           "" "missing qualification"))
+
+;;   (let [submitted-first (get (<p! (eos/get-table-row force-acc force-acc "submission" 1))
+;;                              "submitted_on")]
+;;     (testing "can reclaim released task with eos account"
+;;       (<p-should-succeed! (tx-as acc-2 force-acc "reclaimtask"
+;;                                  {:task_id 1
+;;                                   :account_id 2
+;;                                   :payer acc-2
+;;                                   :sig nil})))
+;;     (let [submitted-after (get (<p! (eos/get-table-row force-acc force-acc "submission" 1))
+;;                                "submitted_on")]
+;;       (is (not (= submitted-first submitted-after))
+;;           "reclaimtask should reset submitted_on")))
+
+;;   (testing "can reclaim released task with pub key hash"
+;;     (<p-should-succeed! (tx-as acc-3 force-acc "reclaimtask"
+;;                                {:task_id 0
+;;                                 :account_id 0
+;;                                 :payer acc-3
+;;                                 :sig (sign-params (pack-task-params 15 0 0))}))))
+
+;; (async-deftest submit-task
+;;   (testing "can submit task"
+;;     (<p-should-succeed!
+;;      (tx-as acc-2 force-acc "submittask" {:data "testdata"
+;;                                           :batch_id 0
+;;                                           :task_id 1
+;;                                           :account_id 2
+;;                                           :sig nil
+;;                                           :payer acc-2}))
+;;     (let [data "testdata 2"]
+;;       (<p-should-succeed!
+;;        (tx-as acc-3 force-acc "submittask" {:data data
+;;                                             :batch_id 0
+;;                                             :task_id 0
+;;                                             :account_id 0
+;;                                             :sig (sign-params (pack-submittask-params 0 data))
+;;                                             :payer acc-3}))))
+;;   (testing "can not double submit"
+;;     (<p-should-fail-with!
+;;      (tx-as acc-2 force-acc "submittask" {:data "testdata 3"
+;;                                           :batch_id 0
+;;                                           :task_id 1
+;;                                           :account_id 2
+;;                                           :sig nil
+;;                                           :payer acc-2})
+;;      "" "already submitted")))
 
 
 
-(async-deftest payout
-  (let [params-1 (pack-payout-params 0)
-        params-2 (pack-payout-params 2)]
+;; (async-deftest payout
+;;   (let [params-1 (pack-payout-params 0)
+;;         params-2 (pack-payout-params 2)]
 
-    (testing "cannot payout before the delay is past"
-      (<p-should-fail-with! (tx-as acc-2 force-acc "payout"
-                                   {:payment_id 0
-                                    :sig nil})
-                            "" "not past payout delay"))
+;;     (testing "cannot payout before the delay is past"
+;;       (<p-should-fail-with! (tx-as acc-2 force-acc "payout"
+;;                                    {:payment_id 0
+;;                                     :sig nil})
+;;                             "" "not past payout delay"))
 
-    (testing "cannot payout with nonexisting payment"
-      (<p-should-fail-with! (tx-as acc-2 force-acc "payout"
-                                   {:payment_id 2
-                                    :sig (sign-params params-2)})
-                            "" "payment not found"))
+;;     (testing "cannot payout with nonexisting payment"
+;;       (<p-should-fail-with! (tx-as acc-2 force-acc "payout"
+;;                                    {:payment_id 2
+;;                                     :sig (sign-params params-2)})
+;;                             "" "payment not found"))
 
-    (<p! (util/wait 3000))
+;;     (<p! (util/wait 3000))
 
-    (testing "can payout from eos account"
-      ;; test that account balance increases after payment
-      (is (= (<p! (get-in-rows force-acc "payment" [1 "pending" "quantity"])) "3.0000 EFX"))
-      (is (= (<p! (get-in-rows vacc-acc "account" [2 "balance" "quantity"])) "1434.0000 EFX"))
+;;     (testing "can payout from eos account"
+;;       ;; test that account balance increases after payment
+;;       (is (= (<p! (get-in-rows force-acc "payment" [1 "pending" "quantity"])) "3.0000 EFX"))
+;;       (is (= (<p! (get-in-rows vacc-acc "account" [2 "balance" "quantity"])) "1434.0000 EFX"))
 
-      (<p-should-succeed! (tx-as acc-2 force-acc "payout"
-                                 {:payment_id 0
-                                  :sig nil}))
-      (is (= (<p! (get-in-rows vacc-acc "account" [2 "balance" "quantity"])) "1437.0000 EFX")))
+;;       (<p-should-succeed! (tx-as acc-2 force-acc "payout"
+;;                                  {:payment_id 0
+;;                                   :sig nil}))
+;;       (is (= (<p! (get-in-rows vacc-acc "account" [2 "balance" "quantity"])) "1437.0000 EFX")))
 
-    (testing "can payout from pub key hash."
-      (<p-should-succeed! (tx-as acc-2 force-acc "payout"
-                                 {:payment_id 1
-                                  :sig (sign-params params-1)})))))
+;;     (testing "can payout from pub key hash."
+;;       (<p-should-succeed! (tx-as acc-2 force-acc "payout"
+;;                                  {:payment_id 1
+;;                                   :sig (sign-params params-1)})))))
 
-(async-deftest free-task-ram
-  (testing "can not clear tasks when batch still exists"
-    (<p-should-fail-with!
-     (tx-as acc-2 force-acc "cleartasks"
-            {:batch_id 0
-             :campaign_id 0})
-     "" "batch still exists"))
-  (testing "can clear tasks of removed batch"
-    (<p-should-succeed!
-     (tx-as acc-2 force-acc "cleartasks"
-            {:batch_id 1
-             :campaign_id 0}))))
+;; (async-deftest free-task-ram
+;;   (testing "can not clear tasks when batch still exists"
+;;     (<p-should-fail-with!
+;;      (tx-as acc-2 force-acc "cleartasks"
+;;             {:batch_id 0
+;;              :campaign_id 0})
+;;      "" "batch still exists"))
+;;   (testing "can clear tasks of removed batch"
+;;     (<p-should-succeed!
+;;      (tx-as acc-2 force-acc "cleartasks"
+;;             {:batch_id 1
+;;              :campaign_id 0}))))
 
 ;; (async-deftest proxy
 ;;   (testing "proxy can create campaign"

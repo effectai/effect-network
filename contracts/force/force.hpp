@@ -195,19 +195,8 @@ private:
 
     if (type_delay == "payout") delay = _config.get().payout_delay_sec;
     else if (type_delay == "release_task") delay = _config.get().release_task_delay_sec;
-    return time_point_sec(now()) > (base_time + delay);
+    return time_point_sec(now()) >= (base_time + delay);
   }
-
-  // Helper. Assumes we already did require_vaccount on account_id
-  void require_batchjoin(uint32_t account_id,
-                         uint64_t batch_id,
-                         bool try_to_join,
-                         eosio::name payer);
-
-  void require_merkle(std::vector<eosio::checksum256> proof,
-                      std::vector<uint8_t> position,
-                      eosio::checksum256 root,
-                      eosio::checksum256 data);
 
   struct reservetask_params {
     uint8_t mark;
@@ -313,6 +302,9 @@ private:
 
   struct [[eosio::table]] campaign {
     uint32_t id;
+    uint32_t tasks_done;
+    uint32_t total_tasks;
+    uint32_t active_batch;
     vaccount::vaddress owner;
     content content;
     eosio::extended_asset reward;
@@ -320,7 +312,7 @@ private:
 
     uint64_t primary_key() const { return (uint64_t) id; }
 
-    EOSLIB_SERIALIZE(campaign, (id)(owner)(content)(reward)(qualis))
+    EOSLIB_SERIALIZE(campaign, (id)(tasks_done)(total_tasks)(active_batch)(owner)(content)(reward)(qualis))
   };
 
   struct [[eosio::table]] batch {
@@ -332,18 +324,24 @@ private:
     uint32_t repetitions;
     uint32_t tasks_done;
     uint32_t num_tasks;
+    uint32_t start_task_idx;
     eosio::binary_extension<eosio::extended_asset> reward;
 
     uint64_t primary_key() const { return (uint64_t{campaign_id} << 32) | id; }
   };
 
-  struct [[eosio::table]] batchjoin {
-    // This id is only necessary for uniqueness of primary key
-    uint64_t id;
+  struct [[eosio::table]] acctaskidx {
     uint32_t account_id;
-    uint64_t batch_id;
-    uint64_t primary_key() const { return id; }
-    uint128_t by_account_batch() const { return (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32); }
+    uint32_t campaign_id;
+    uint32_t value;
+    uint64_t primary_key() const { return (uint64_t{account_id} << 32) | campaign_id; }
+  };
+
+  struct [[eosio::table]] repsdone {
+    uint32_t campaign_id;
+    uint32_t task_idx;
+    uint32_t value;
+    uint64_t primary_key() const { return (uint64_t{campaign_id} << 32) | task_idx; }
   };
 
   struct [[eosio::table]] payment {
@@ -358,6 +356,24 @@ private:
       return (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32);
     }
     uint64_t by_account() const { return (uint64_t) account_id; }
+  };
+
+  struct [[eosio::table]] reservation {
+    // auto incrementing id to ensure task ordering. the id gets
+    // "bumped" everytime the reservation expires and is refreshed.
+    uint64_t id;
+    uint32_t task_idx;
+    uint32_t account_id;
+    uint64_t batch_id;
+    eosio::time_point_sec reserved_on;
+    uint32_t campaign_id;
+
+    uint64_t primary_key() const { return id; }
+    // index to check if user has a reservation for a
+    // campaign. account_id in the front, so can be used as account
+    // filter
+    uint64_t by_account_campaign() const { return (uint64_t{account_id} << 32) | campaign_id; }
+    uint64_t by_camp() const { return campaign_id; }
   };
 
   struct [[eosio::table]] submission {
@@ -411,16 +427,17 @@ private:
 
   typedef multi_index<"campaign"_n, campaign> campaign_table;
   typedef multi_index<"batch"_n, batch> batch_table;
+  typedef multi_index<"repsdone"_n, repsdone> repsdone_table;
+  typedef multi_index<"acctaskidx"_n, acctaskidx> acctaskidx_table;
+
   typedef multi_index<
-    "batchjoin"_n,
-    batchjoin,
-    indexed_by<"accbatch"_n,
-               const_mem_fun<batchjoin, uint128_t, &batchjoin::by_account_batch>>>
-  batchjoin_table;
+    "reservation"_n, reservation,
+    indexed_by<"acccamp"_n, const_mem_fun<reservation, uint64_t, &reservation::by_account_campaign>>,
+    indexed_by<"camp"_n, const_mem_fun<reservation, uint64_t, &reservation::by_camp>>>
+  reservation_table;
 
   typedef multi_index<
     "submission"_n, submission,
-    indexed_by<"leaf"_n, const_mem_fun<submission, checksum256, &submission::by_leaf>>,
     indexed_by<"batch"_n, const_mem_fun<submission, uint64_t, &submission::by_batch>>>
   submission_table;
 
