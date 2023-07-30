@@ -97,7 +97,6 @@ public:
   [[eosio::action]]
   void reservetask(uint32_t campaign_id,
                    uint32_t account_id,
-                   uint32_t last_task_done,
                    eosio::name payer,
                    vaccount::sig sig);
 

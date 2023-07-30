@@ -257,12 +257,8 @@ void force::uassignquali(uint32_t quali_id, uint32_t user_id, eosio::name payer,
 
 void force::reservetask(uint32_t campaign_id,
                         uint32_t account_id,
-                        uint32_t last_task_done,
                         name payer,
                         vaccount::sig sig) {
-  reservetask_params params = {6, last_task_done, campaign_id};
-  require_vaccount(account_id, pack(params), sig);
-
   campaign_table campaign_tbl(_self, _self.value);
   auto& campaign = campaign_tbl.get(campaign_id, "campaign not found");
 
@@ -299,6 +295,10 @@ void force::reservetask(uint32_t campaign_id,
 
   auto& user_last_task = acctaskidx_tbl.get(acccamp_pk);
   uint32_t user_next_task_idx = user_last_task_check ? 0 : user_last_task.value + 1;
+
+  reservetask_params params = {6, user_next_task_idx, campaign_id};
+  require_vaccount(account_id, pack(params), sig);
+
 
   eosio::check(!user_last_task_check || campaign.total_tasks > user_last_task.value,
                "no more tasks for you");

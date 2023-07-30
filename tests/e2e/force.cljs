@@ -675,7 +675,6 @@
       (<p-should-succeed!
        (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
                                              :account_id 1
-                                             :last_task_done 0
                                              :payer acc-3
                                              :sig nil}))))
     (is (= (<p! (get-in-rows force-acc "campaign" [0 "tasks_done"])) 0))
@@ -687,7 +686,6 @@
     (<p-should-fail-with!
      (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
                                            :account_id 1
-                                           :last_task_done 1
                                            :payer acc-3
                                            :sig nil})
      "" "you already have a reservation"))
@@ -698,7 +696,6 @@
       (<p-should-succeed!
        (tx-as acc-2 force-acc "reservetask" {:campaign_id 0
                                              :account_id 2
-                                             :last_task_done 0
                                              :payer acc-2
                                              :sig nil})
        (is (= (<p! (get-in-rows force-acc "campaign" [0 "tasks_done"])) 0))
@@ -710,7 +707,6 @@
     (<p-should-succeed!
      (tx-as acc-3 force-acc "reservetask" {:campaign_id 2
                                            :account_id 1
-                                           :last_task_done 0
                                            :payer acc-3
                                            :sig nil}))
     (is (= (<p! (get-in-rows force-acc "campaign" [1 "tasks_done"])) 1))
@@ -721,7 +717,6 @@
     (<p-should-succeed!
      (tx-as acc-2 force-acc "reservetask" {:campaign_id 2
                                            :account_id 2
-                                           :last_task_done 0
                                            :payer acc-2
                                            :sig nil}))
     (is (= (<p! (get-in-rows force-acc "campaign" [1 "tasks_done"])) 2))))
@@ -734,7 +729,6 @@
 ;;       (<p-should-succeed!
 ;;        (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
 ;;                                              :account_id 1
-;;                                              :last_task_done 0
 ;;                                              :payer acc-3
 ;;                                              :sig nil})
 ;;        "can reserve for campaign 0")
@@ -742,7 +736,6 @@
 ;;       (<p-should-fail-with!
 ;;        (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
 ;;                                              :account_id 1
-;;                                              :last_task_done 1
 ;;                                              :payer acc-3
 ;;                                              :sig nil})
 ;;        "missing qualification" "missing qualification")
@@ -750,14 +743,12 @@
 ;;       (<p-should-succeed!
 ;;        (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
 ;;                                              :account_id 0
-;;                                              :last_task_done 1
 ;;                                              :payer acc-3
 ;;                                              :sig (sign-params (pack-reservetask-params 1 0))}))
 
 ;;       (<p-should-succeed!
 ;;        (tx-as acc-3 force-acc "reservetask" {:campaign_id 2
 ;;                                              :account_id 1
-;;                                              :last_task_done 0
 ;;                                              :payer acc-3
 ;;                                              :sig nil})
 ;;        "can reserve for campaign 2"))
@@ -767,7 +758,6 @@
 ;;       (<p-should-fail-with!
 ;;        (tx-as acc-2 force-acc "reservetask" {:campaign_id 0
 ;;                                              :account_id 2
-;;                                              :last_task_done 0
 ;;                                              :payer acc-2
 ;;                                              :sig nil})
 ;;        "" "missing qualification")
@@ -778,7 +768,6 @@
 ;;     (testing "cant exceed repetitions"
 ;;       (let [reserve-data  {:campaign_id 0
 ;;                            :account_id 1
-;;                            :last_task_done 0
 ;;                            :payer acc-3
 ;;                            :sig nil}]
 ;;         (<p-should-fail-with!
@@ -853,10 +842,9 @@
 ;;                                 :sig (sign-params (pack-task-params 15 0 0))}))))
 
 
-(defn reserve-task-fn [campaign-id last-task-done account account-id]
+(defn reserve-task-fn [campaign-id account account-id]
   (tx-as account force-acc "reservetask" {:campaign_id campaign-id
                                           :account_id account-id
-                                          :last_task_done last-task-done
                                           :payer account
                                           :sig nil}))
 
@@ -908,23 +896,20 @@
 
   (testing "submit 2 more tasks"))
 
-
-
 (async-deftest reservetask-carryover
   (testing "complete first batch of campaign 0"
-    (<p-should-succeed! (reserve-task-fn 2 0 acc-5 4) "acc5 reserve")
+    (<p-should-succeed! (reserve-task-fn 2 acc-5 4) "acc5 reserve")
     (<p-should-succeed! (submit-task-fn 2 0 acc-3 1) "acc3 submit")
-    (<p-should-succeed! (reserve-task-fn 2 0 acc-4 3) "acc4 submit")
-    ;; (<p! (reserve-task-fn 0 0 acc-4 3))
+    (<p-should-succeed! (reserve-task-fn 2 acc-4 3) "acc4 submit")
     (<p! (util/wait 100))
     (<p-should-succeed! (submit-task-fn 2 2 acc-5 4) "acc5 submit")
-    (<p-should-succeed! (reserve-task-fn 2 2 acc-3 1) "acc3 reserve")
+    (<p-should-succeed! (reserve-task-fn 2 acc-3 1) "acc3 reserve")
     (<p! (util/wait 100))
-    (<p-should-succeed! (reserve-task-fn 2 0 acc-5 4) "acc5 reserve")
+    (<p-should-succeed! (reserve-task-fn 2 acc-5 4) "acc5 reserve")
     (<p-should-succeed! (submit-task-fn 2 4 acc-3 1) "acc3 submit")
     (<p! (util/wait 100)))
   (testing "can not reserve when depleted"
-    (<p-should-fail-with! (reserve-task-fn 2 4 acc-3 1) "acc3 reserve" "no batches available" ))
+    (<p-should-fail-with! (reserve-task-fn 2 acc-3 1) "acc3 reserve" "no batches available" ))
   (testing "can publish new batch and work"
     (<p-should-succeed! (tx-as acc-4 force-acc "mkbatch"
                                {:id 2
@@ -937,7 +922,7 @@
                                 :sig nil}))
     (<p-should-succeed! (v-transfer acc-4 3 50 (str (get-composite-key 2 2))))
     (<p-should-succeed! (publish-batch acc-4 3 (get-composite-key 2 2) 3))
-    (<p-should-succeed! (reserve-task-fn 2 5 acc-3 1) "acc3 reserve")))
+    (<p-should-succeed! (reserve-task-fn 2 acc-3 1) "acc3 reserve")))
 
 ;; (async-deftest payout
 ;;   (let [params-1 (pack-payout-params 0)
