@@ -46,6 +46,7 @@ public:
   [[eosio::action]]
   void mkcampaign(vaccount::vaddress owner,
                   content content,
+                  uint32_t max_task_time,
                   eosio::extended_asset reward,
                   camp_quali_map qualis,
                   eosio::name payer,
@@ -190,6 +191,10 @@ public:
   }
 
 private:
+  inline bool has_expired(time_point_sec base_time, uint32_t delay) {
+    return time_point_sec(now()) >= (base_time + delay);
+  }
+
   inline bool past_delay(time_point_sec base_time, std::string type_delay) {
     auto delay = NULL;
 
@@ -307,12 +312,14 @@ private:
     uint32_t active_batch;
     vaccount::vaddress owner;
     content content;
+    uint32_t max_task_time;
     eosio::extended_asset reward;
     eosio::binary_extension<std::map<uint32_t, uint8_t>> qualis;
 
     uint64_t primary_key() const { return (uint64_t) id; }
 
-    EOSLIB_SERIALIZE(campaign, (id)(tasks_done)(total_tasks)(active_batch)(owner)(content)(reward)(qualis))
+    EOSLIB_SERIALIZE(campaign, (id)(tasks_done)(total_tasks)(active_batch)(owner)(content)
+                     (max_task_time)(reward)(qualis))
   };
 
   struct [[eosio::table]] batch {

@@ -253,6 +253,7 @@
     (<p-should-succeed! (tx-as acc-2 force-acc "mkcampaign"
                                {:owner ["name" acc-2]
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
+                                :max_task_time 0
                                 :reward {:quantity "1.0000 EFX" :contract token-acc}
                                 :qualis []
                                 :payer acc-2
@@ -260,6 +261,7 @@
     (<p-should-succeed! (tx-as acc-2 force-acc "mkcampaign"
                                {:owner ["name" acc-2]
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
+                                :max_task_time 5
                                 :reward {:quantity "11.0000 EFX" :contract token-acc}
                                 :qualis []
                                 :payer acc-2
@@ -267,6 +269,7 @@
     (<p-should-succeed! (tx-as acc-4 force-acc "mkcampaign"
                                {:owner ["name" acc-4]
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
+                                :max_task_time 5
                                 :reward {:quantity "2.0000 EFX" :contract token-acc}
                                 :qualis []
                                 :payer acc-4
@@ -278,6 +281,7 @@
       (<p-should-succeed! (tx-as acc-2 force-acc "mkcampaign"
                                  {:owner (first accs)
                                   :content {:field_0 0 :field_1 ipfs-hash}
+                                  :max_task_time 5
                                   :reward {:quantity "115.0000 EFX" :contract token-acc}
                                   :qualis []
                                   :payer acc-2
@@ -285,6 +289,7 @@
       (<p-should-succeed! (tx-as acc-2 force-acc "mkcampaign"
                                  {:owner (first accs)
                                   :content {:field_0 0 :field_1 ipfs-hash}
+                                  :max_task_time 5
                                   :reward {:quantity "110.0000 EFX" :contract token-acc}
                                   :qualis []
                                   :payer acc-2
@@ -292,6 +297,7 @@
       (<p-should-succeed! (tx-as acc-4 force-acc "mkcampaign"
                                  {:owner (first accs)
                                   :content {:field_0 0 :field_1 ipfs-hash}
+                                  :max_task_time 5
                                   :reward {:quantity "11.0000 EFX" :contract token-acc}
                                   :qualis []
                                   :payer acc-4
@@ -661,9 +667,12 @@
                                              :last_task_done 0
                                              :payer acc-3
                                              :sig nil}))))
-    (is (= (<p! (get-in-rows force-acc "campaign" [0 "tasks_done"])) 0)))
+    (is (= (<p! (get-in-rows force-acc "campaign" [0 "tasks_done"])) 0))
+    (let [rows (<p! (eos/get-table-rows force-acc force-acc "reservation"))]
+      (is (= (count rows) 1))
+      (is (= (get-in rows [0 "account_id"]) 1))))
 
-  (testing "user 1 can not make two reservations"
+  (testing "user 1 can not make more reservations"
     (<p-should-fail-with!
      (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
                                            :account_id 1
@@ -672,7 +681,7 @@
                                            :sig nil})
      "" "you already have a reservation"))
 
-  (testing "user 2 makes reservation"
+  (testing "user 2 steals the exsiting reservation"
     (js/console.log
      (eos/tx-get-console
       (<p-should-succeed!
@@ -681,7 +690,32 @@
                                              :last_task_done 0
                                              :payer acc-2
                                              :sig nil})
-       (is (= (<p! (get-in-rows force-acc "campaign" [0 "tasks_done"])) 1)))))))
+       (is (= (<p! (get-in-rows force-acc "campaign" [0 "tasks_done"])) 0))
+       (let [rows (<p! (eos/get-table-rows force-acc force-acc "reservation"))]
+         (is (= (count rows) 1))
+         (is (= (get-in rows [0 "account_id"]) 2) ))))))
+
+  (testing "user 1 completes task in second campaign"
+    (js/console.log
+     (eos/tx-get-console
+      (<p-should-succeed!
+       (tx-as acc-3 force-acc "reservetask" {:campaign_id 2
+                                             :account_id 1
+                                             :last_task_done 0
+                                             :payer acc-3
+                                             :sig nil}))))
+    (is (= (<p! (get-in-rows force-acc "campaign" [1 "tasks_done"])) 1))
+    (let [rows (<p! (eos/get-table-rows force-acc force-acc "reservation"))]
+      (is (= (count rows) 2))
+      (is (= (get-in rows [1 "account_id"]) 1)))
+
+    (<p-should-succeed!
+     (tx-as acc-2 force-acc "reservetask" {:campaign_id 2
+                                           :account_id 2
+                                           :last_task_done 0
+                                           :payer acc-2
+                                           :sig nil}))
+        (is (= (<p! (get-in-rows force-acc "campaign" [1 "tasks_done"])) 2))))
 
 ;; (async-deftest reservetask
 ;;   (let []

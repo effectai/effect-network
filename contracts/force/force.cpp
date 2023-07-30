@@ -9,8 +9,13 @@ void force::init(eosio::name vaccount_contract, uint32_t force_vaccount_id,
                      release_task_delay_sec}, _self);
 }
 
-void force::mkcampaign(vaccount::vaddress owner, content content, eosio::extended_asset reward,
-                       camp_quali_map qualis, eosio::name payer, vaccount::sig sig) {
+void force::mkcampaign(vaccount::vaddress owner,
+                       content content,
+                       uint32_t max_task_time,
+                       eosio::extended_asset reward,
+                       camp_quali_map qualis,
+                       eosio::name payer,
+                       vaccount::sig sig) {
   campaign_table camp_tbl(_self, _self.value);
   uint32_t camp_id = camp_tbl.available_primary_key();
   // TODO: add owner, reward, and qualis to the params
@@ -26,6 +31,7 @@ void force::mkcampaign(vaccount::vaddress owner, content content, eosio::extende
                      c.active_batch = 0;
                      c.content = content;
                      c.owner = owner;
+                     c.max_task_time = max_task_time;
                      c.reward = reward;
                      c.qualis.emplace(qualis);
                      c.total_tasks = 0;
@@ -274,9 +280,9 @@ void force::reservetask(uint32_t campaign_id,
 
   // find the last task idx the user completed in the campaign
   acctaskidx_table acctaskidx_tbl(_self, _self.value);
-  auto user_last_task_check = acctaskidx_tbl.find(acccamp_pk);
+  auto user_last_task_check = (acctaskidx_tbl.find(acccamp_pk) == acctaskidx_tbl.end());
 
-  if (user_last_task_check == acctaskidx_tbl.end()) {
+  if (user_last_task_check) {
     acctaskidx_tbl.emplace(payer,
                            [&](auto& i)
                            {
@@ -287,31 +293,39 @@ void force::reservetask(uint32_t campaign_id,
   }
 
   auto& user_last_task = acctaskidx_tbl.get(acccamp_pk);
+  uint32_t user_next_task_idx = user_last_task_check ? 0 : user_last_task.value + 1;
 
-  eosio::check(campaign.total_tasks > user_last_task.value,
+  eosio::check(!user_last_task_check || campaign.total_tasks > user_last_task.value,
                "no more tasks for you");
 
   // reserve suitable task idx to the user
-  uint32_t task_idx = std::max(campaign.tasks_done, user_last_task.value);
+  uint32_t task_idx = std::max(campaign.tasks_done, user_next_task_idx);
 
-  // check if there is an earlier expired tasks to claim instead
+  // check if there is an earlier expired reservatoin to claim instead
   auto by_camp = reservation_tbl.get_index<"camp"_n>();
   auto by_camp_itr = by_camp.find(campaign_id);
   if (by_camp_itr != by_camp.end() &&
-      past_delay(by_camp_itr->reserved_on, "release_task") &&
-      // only claim reservations that come before our assigned task idx
+      has_expired(by_camp_itr->reserved_on, campaign.max_task_time) &&
+      // only claim reservations that come before our assigned task
+      // idx. if the user were to steal future indexis, bumping
+      // acctaskidx would mean the users misses out on tasks, and
+      // omitting so would let him do this repetition twice.
       task_idx >= by_camp_itr->task_idx) {
     auto& res = *by_camp_itr;
     uint64_t bump_id = reservation_tbl.available_primary_key();
-    reservation_tbl.modify(res,
-                           payer,
-                           [&](auto& r)
-                           {
-                             // we bump the ID as this one will not expire for a while
-                             r.id = bump_id;
-                             r.account_id = account_id;
-                             r.reserved_on = time_point_sec(now());
-                           });
+
+    // we must re-insert the reservation in order to bump the id
+    reservation_tbl.erase(res);
+    reservation_tbl.emplace(payer,
+                            [&](auto& r)
+                            {
+                              r.id = bump_id;
+                              r.task_idx = res.task_idx;
+                              r.account_id = account_id;
+                              r.batch_id = batch_pk;
+                              r.reserved_on = time_point_sec(now());
+                              r.campaign_id = campaign_id;
+                            });
     // NOTE: early return here
     return;
   }
@@ -342,7 +356,7 @@ void force::reservetask(uint32_t campaign_id,
   }
 
   // update campaign counters if task is done
-  acctaskidx_tbl.modify(user_last_task, payer, [&](auto& i) { i.value = task_idx + 1; });
+  acctaskidx_tbl.modify(user_last_task, payer, [&](auto& i) { i.value = task_idx; });
   if (task_done) {
     if (has_reps_done_row)
       repsdone_tbl.erase(repetitions_done);
