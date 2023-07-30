@@ -102,10 +102,10 @@ public:
                    vaccount::sig sig);
 
   [[eosio::action]]
-  void submittask(uint64_t task_id,
+  void submittask(uint32_t campaign_id,
+                  uint32_t task_idx,
                   std::string data,
                   uint32_t account_id,
-                  uint64_t batch_id,
                   eosio::name payer,
                   vaccount::sig sig);
 
@@ -212,9 +212,10 @@ private:
 
   struct submittask_params {
     uint8_t mark;
-    uint64_t submission_id;
+    uint32_t campaign_id;
+    uint32_t task_idx;
     std::string data;
-    EOSLIB_SERIALIZE(submittask_params, (mark)(submission_id)(data));
+    EOSLIB_SERIALIZE(submittask_params, (mark)(campaign_id)(task_idx)(data));
   };
 
   struct mkcampaign_params {
@@ -370,7 +371,7 @@ private:
     // "bumped" everytime the reservation expires and is refreshed.
     uint64_t id;
     uint32_t task_idx;
-    uint32_t account_id;
+    std::optional<uint32_t> account_id;
     uint64_t batch_id;
     eosio::time_point_sec reserved_on;
     uint32_t campaign_id;
@@ -379,12 +380,14 @@ private:
     // index to check if user has a reservation for a
     // campaign. account_id in the front, so can be used as account
     // filter
-    uint64_t by_account_campaign() const { return (uint64_t{account_id} << 32) | campaign_id; }
+    uint64_t by_account_campaign() const { return (uint64_t{account_id.value()} << 32) | campaign_id; }
     uint64_t by_camp() const { return campaign_id; }
   };
 
   struct [[eosio::table]] submission {
     uint64_t id;
+    uint32_t campaign_id;
+    uint32_t task_idx;
     std::optional<uint32_t> account_id;
     std::optional<content> content;
     uint64_t batch_id;
@@ -395,7 +398,7 @@ private:
     uint64_t primary_key() const { return id; }
     uint64_t by_batch() const { return batch_id; }
 
-    EOSLIB_SERIALIZE(submission, (id)(account_id)(content)(batch_id)
+    EOSLIB_SERIALIZE(submission, (id)(campaign_id)(task_idx)(account_id)(content)(batch_id)
                      (data)(paid)(submitted_on))
   };
 

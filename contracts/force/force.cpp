@@ -170,6 +170,11 @@ void force::publishbatch(uint64_t batch_id, uint32_t num_tasks, vaccount::sig si
                    [&](auto& b) {
                      b.num_tasks = num_tasks;
                      b.balance -= batch_fee;
+                     // if this batch becomes the active batch of the
+                     // campaign track it starting index
+                     if (camp.active_batch == b.id) {
+                       b.start_task_idx = camp.tasks_done;
+                     }
                    });
 
   camp_tbl.modify(camp,
@@ -361,15 +366,31 @@ void force::reservetask(uint32_t campaign_id,
     if (has_reps_done_row)
       repsdone_tbl.erase(repetitions_done);
 
-    bool batch_done = (campaign.tasks_done >= batch.num_tasks);
+    bool batch_done = ((campaign.tasks_done + 1) >= (batch.start_task_idx + batch.num_tasks));
     campaign_tbl.modify(campaign,
                         eosio::same_payer,
-                        [&](auto& c) {
+                        [&](auto& c)
+                        {
                           c.tasks_done += 1;
                           if (batch_done) {
                             c.active_batch += 1;
                           }
                         });
+
+    // if we roll over to a new batch, we must track at which task index it starts
+    if (batch_done) {
+      uint64_t next_batch_pk = (uint64_t{campaign_id} << 32) | (batch_id + 1);
+      auto next_batch = batch_tbl.find(next_batch_pk);
+
+      if (next_batch != batch_tbl.end()) {
+        batch_tbl.modify(*next_batch,
+                         eosio::same_payer,
+                         [&](auto &b)
+                         {
+                           b.start_task_idx = campaign.tasks_done;
+                         });
+      }
+    }
   }
 
   uint64_t reservation_id = reservation_tbl.available_primary_key();
@@ -378,7 +399,7 @@ void force::reservetask(uint32_t campaign_id,
                           {
                             r.id = reservation_id;
                             r.task_idx = task_idx;
-                            r.account_id = account_id;
+                            r.account_id.emplace(account_id);
                             r.batch_id = batch_pk;
                             r.reserved_on = time_point_sec(now());
                             r.campaign_id = campaign_id;
@@ -411,31 +432,47 @@ void force::payout(uint64_t payment_id, std::optional<eosio::signature> sig) {
   .send();
 }
 
-void force::submittask(uint64_t submission_id, std::string data, uint32_t account_id,
-                       uint64_t batch_id, name payer, vaccount::sig sig) {
+void force::submittask(uint32_t campaign_id, uint32_t task_idx,
+                       std::string data, uint32_t account_id,
+                       name payer, vaccount::sig sig) {
+  uint64_t acccamp_pk = (uint64_t{account_id} << 32) | campaign_id;
+  reservation_table reservation_tbl(_self, _self.value);
+  auto by_acccamp = reservation_tbl.get_index<"acccamp"_n>();
+  auto res = by_acccamp.find(acccamp_pk);
+
+  eosio::check(res != by_acccamp.end(), "already submitted or not reserved by you");
+  eosio::check(res->account_id.has_value(), "not reserved");
+  eosio::check(res->account_id.value() == account_id, "different account");
+  eosio::check(res->task_idx == task_idx, "wrong task index");
+
   submission_table submission_tbl(_self, _self.value);
   payment_table payment_tbl(_self, _self.value);
   batch_table batch_tbl(_self, _self.value);
   campaign_table campaign_tbl(_self, _self.value);
 
-  auto& sub = submission_tbl.get(submission_id, "submission not found");
-  eosio::check(sub.account_id.has_value(), "task not reserved");
-  eosio::check(sub.account_id == account_id, "different account");
-  eosio::check(!sub.data.has_value(), "already submitted");
-  submission_tbl.modify(sub, payer, [&](auto& s) { s.data.emplace(data); });
+  reservation_tbl.erase(*res);
+  submission_tbl.emplace(payer,
+                         [&](auto& s)
+                         {
+                           s.id = res->id;
+                           s.campaign_id = campaign_id;
+                           s.task_idx = task_idx;
+                           s.account_id.emplace(account_id);
+                           s.data.emplace(data);
+                           s.batch_id = res->batch_id;
+                           s.paid = false;
+                           s.submitted_on = time_point_sec(now());
+                         });
 
-  auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
-  auto& camp = campaign_tbl.get(batch.campaign_id);
+  auto& batch = batch_tbl.get(res->batch_id);
 
-  batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.tasks_done++; });
+  submittask_params params = {5, campaign_id, task_idx, data};
+  require_vaccount(account_id, pack(params), sig);
 
   if (batch.reward.value().quantity.amount > 0) {
-    submittask_params params = {5, submission_id, data};
-    require_vaccount(account_id, pack(params), sig);
-
     uint64_t payment_id = payment_tbl.available_primary_key();
 
-    uint128_t payment_sk = (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32);
+    uint128_t payment_sk = (uint128_t{res->batch_id} << 64) | (uint64_t{account_id} << 32);
     auto payment_idx = payment_tbl.get_index<"accbatch"_n>();
     auto payment = payment_idx.find(payment_sk);
 
@@ -445,7 +482,7 @@ void force::submittask(uint64_t submission_id, std::string data, uint32_t accoun
                           {
                             p.id = payment_id;
                             p.account_id = account_id;
-                            p.batch_id = batch_id;
+                            p.batch_id = res->batch_id;
                             p.pending = batch.reward.value();
                             p.last_submission_time = time_point_sec(now());
                           });
