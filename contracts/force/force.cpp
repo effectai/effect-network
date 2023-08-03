@@ -13,7 +13,7 @@ void force::mkcampaign(vaccount::vaddress owner,
                        content content,
                        uint32_t max_task_time,
                        eosio::extended_asset reward,
-                       camp_quali_map qualis,
+                       std::vector<Quali> qualis,
                        eosio::name payer,
                        vaccount::sig sig) {
   campaign_table camp_tbl(_self, _self.value);
@@ -33,14 +33,18 @@ void force::mkcampaign(vaccount::vaddress owner,
                      c.owner = owner;
                      c.max_task_time = max_task_time;
                      c.reward = reward;
-                     c.qualis.emplace(qualis);
+                     c.qualis = qualis;
                      c.total_tasks = 0;
                    });
 }
 
-void force::editcampaign(uint32_t campaign_id, vaccount::vaddress owner, content content,
-                         eosio::extended_asset reward, camp_quali_map qualis,
-                         eosio::name payer, vaccount::sig sig) {
+void force::editcampaign(uint32_t campaign_id,
+                         vaccount::vaddress owner,
+                         content content,
+                         eosio::extended_asset reward,
+                         std::vector<Quali> qualis,
+                         eosio::name payer,
+                         vaccount::sig sig) {
   campaign_table camp_tbl(_self, _self.value);
   auto& camp = camp_tbl.get(campaign_id, "campaign does not exist");
 
@@ -54,7 +58,7 @@ void force::editcampaign(uint32_t campaign_id, vaccount::vaddress owner, content
                   {
                     c.content = content;
                     c.reward = reward;
-                    c.qualis.emplace(qualis);
+                    c.qualis = qualis;
                   });
 }
 
@@ -258,7 +262,8 @@ void force::uassignquali(uint32_t quali_id, uint32_t user_id, eosio::name payer,
 void force::reservetask(uint32_t campaign_id,
                         uint32_t account_id,
                         name payer,
-                        vaccount::sig sig) {
+                        vaccount::sig sig,
+                        std::optional<std::vector<uint32_t>> quali_assets) {
   campaign_table campaign_tbl(_self, _self.value);
   auto& campaign = campaign_tbl.get(campaign_id, "campaign not found");
 

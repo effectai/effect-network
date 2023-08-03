@@ -310,7 +310,7 @@
                                 :owner ["name" acc-2]
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :reward {:quantity "3.0000 EFX" :contract token-acc}
-                                :qualis [{"first" 0 "second" 0}]
+                                :qualis [{:type 0 :address ["uint32" 123] :data_filter nil}]
                                 :payer acc-2
                                 :sig nil})))
 
@@ -383,7 +383,6 @@
                                 :task_merkle_root merkle-root
                                 :repetitions 1
                                 :payer acc-2
-                                :qualis [{"first" 1 "second" 0}]
                                 :sig nil}))
     (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
                                {:id 2
@@ -392,11 +391,9 @@
                                 :task_merkle_root "2cf909c4cfffcdc13f2eb7cb5ed16c51da0424aaaccaa4597f7117ee7cd492b8"
                                 :repetitions 1
                                 :payer acc-2
-                                :qualis [{"first" 1 "second" 0}]
                                 :sig nil}))
     (<p-should-succeed! (tx-as acc-4 force-acc "mkbatch"
                                {:id 0
-                                :qualis nil
                                 :campaign_id 2
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :task_merkle_root merkle-root-xx
@@ -405,7 +402,6 @@
                                 :sig nil}))
     (<p-should-succeed! (tx-as acc-4 force-acc "mkbatch"
                                {:id 1
-                                :qualis nil
                                 :campaign_id 2
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :task_merkle_root merkle-root-xx
@@ -676,6 +672,7 @@
        (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
                                              :account_id 1
                                              :payer acc-3
+                                             :quali_assets nil
                                              :sig nil}))))
     (is (= (<p! (get-in-rows force-acc "campaign" [0 "tasks_done"])) 0))
     (let [rows (<p! (eos/get-table-rows force-acc force-acc "reservation"))]
@@ -687,6 +684,7 @@
      (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
                                            :account_id 1
                                            :payer acc-3
+                                           :quali_assets nil
                                            :sig nil})
      "" "you already have a reservation"))
 
@@ -697,6 +695,7 @@
        (tx-as acc-2 force-acc "reservetask" {:campaign_id 0
                                              :account_id 2
                                              :payer acc-2
+                                             :quali_assets nil
                                              :sig nil})
        (is (= (<p! (get-in-rows force-acc "campaign" [0 "tasks_done"])) 0))
        (let [rows (<p! (eos/get-table-rows force-acc force-acc "reservation"))]
@@ -708,6 +707,7 @@
      (tx-as acc-3 force-acc "reservetask" {:campaign_id 2
                                            :account_id 1
                                            :payer acc-3
+                                           :quali_assets nil
                                            :sig nil}))
     (is (= (<p! (get-in-rows force-acc "campaign" [1 "tasks_done"])) 1))
     (let [rows (<p! (eos/get-table-rows force-acc force-acc "reservation"))]
@@ -716,6 +716,7 @@
 
     (<p-should-succeed!
      (tx-as acc-2 force-acc "reservetask" {:campaign_id 2
+                                           :quali_assets nil
                                            :account_id 2
                                            :payer acc-2
                                            :sig nil}))
@@ -845,6 +846,7 @@
 (defn reserve-task-fn [campaign-id account account-id]
   (tx-as account force-acc "reservetask" {:campaign_id campaign-id
                                           :account_id account-id
+                                          :quali_assets nil
                                           :payer account
                                           :sig nil}))
 
@@ -913,7 +915,6 @@
   (testing "can publish new batch and work"
     (<p-should-succeed! (tx-as acc-4 force-acc "mkbatch"
                                {:id 2
-                                :qualis nil
                                 :campaign_id 2
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :task_merkle_root merkle-root-xx

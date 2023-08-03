@@ -8,6 +8,7 @@
 #include <eosio/crypto.hpp>
 #include <eosio/binary_extension.hpp>
 #include "../vaccount/vaccount-shared.hpp"
+#include "../dao/atomicassets-interface.hpp"
 
 using namespace eosio;
 
@@ -27,11 +28,27 @@ public:
 
   typedef std::tuple<uint8_t, std::string> content;
 
-  enum QualiType {
-    Inclusive = 0,
-    Exclusive = 1
+  // assets and templates are uint32_t, while collections and schemas are eosio::name
+  typedef std::variant <eosio::name, uint32_t> QUALI_ATOMIC_ADDRESS;
+
+  // this allocates some data for in the future
+  struct QualiDataFilter {
+    uint8_t attr_id;
+    uint8_t filter_type;
+    std::vector<uint8_t> data;
   };
 
+  struct Quali {
+    uint8_t type;
+    QUALI_ATOMIC_ADDRESS address;
+    std::optional<QualiDataFilter> data_filter;
+  };
+
+  enum QualiType {
+    Collection = 0,
+    Template = 1,
+    Asset = 2
+  };
 
   force(eosio::name receiver, eosio::name code, eosio::datastream<const char*> ds) :
     eosio::contract(receiver, code, ds), _config(_self, _self.value), _settings(_self, _self.value)
@@ -48,7 +65,7 @@ public:
                   content content,
                   uint32_t max_task_time,
                   eosio::extended_asset reward,
-                  camp_quali_map qualis,
+                  std::vector<Quali> qualis,
                   eosio::name payer,
                   vaccount::sig sig);
 
@@ -57,7 +74,7 @@ public:
                     vaccount::vaddress owner,
                     content content,
                     eosio::extended_asset reward,
-                    camp_quali_map qualis,
+                    std::vector<Quali> qualis,
                     eosio::name payer,
                     vaccount::sig sig);
 
@@ -98,7 +115,8 @@ public:
   void reservetask(uint32_t campaign_id,
                    uint32_t account_id,
                    eosio::name payer,
-                   vaccount::sig sig);
+                   vaccount::sig sig,
+                   std::optional<std::vector<uint32_t>> quali_assets);
 
   [[eosio::action]]
   void submittask(uint32_t campaign_id,
@@ -314,7 +332,7 @@ private:
     content content;
     uint32_t max_task_time;
     eosio::extended_asset reward;
-    eosio::binary_extension<std::map<uint32_t, uint8_t>> qualis;
+    std::vector<Quali> qualis;
 
     uint64_t primary_key() const { return (uint64_t) id; }
 
