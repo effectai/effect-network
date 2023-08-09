@@ -261,9 +261,9 @@ void force::uassignquali(uint32_t quali_id, uint32_t user_id, eosio::name payer,
 
 void force::reservetask(uint32_t campaign_id,
                         uint32_t account_id,
+                        std::optional<std::vector<uint64_t>> quali_assets,
                         name payer,
-                        vaccount::sig sig,
-                        std::optional<std::vector<uint32_t>> quali_assets) {
+                        vaccount::sig sig) {
   campaign_table campaign_tbl(_self, _self.value);
   auto& campaign = campaign_tbl.get(campaign_id, "campaign not found");
 
@@ -275,7 +275,55 @@ void force::reservetask(uint32_t campaign_id,
   eosio::check(campaign.tasks_done < batch.start_task_idx + batch.num_tasks,
                "no more tasks in campaign");
 
-  // TODO: check qualifications
+  // check qualifications
+  settings settings = get_settings();
+  auto vacc = vaccount::get_vaccount(settings.vaccount_contract, account_id);
+  bool is_eos = vaccount::is_eos(vacc->address);
+  eosio::name asset_owner = is_eos ? vaccount::get_name(vacc->address) : _self;
+  auto acc_assets_tbl = atomicassets::get_assets(asset_owner);
+  auto force_assets_tbl = atomicassets::get_assets(_self);
+
+  if (campaign.qualis.size() > 0)
+    eosio::check(quali_assets.has_value() && quali_assets.value().size() == campaign.qualis.size(),
+                 "wrong number of quali_assets");
+
+  for (int i = 0; i < campaign.qualis.size(); i++) {
+    auto quali = campaign.qualis[i];
+    uint64_t asset_id = quali_assets.value()[i];
+    atomicassets::assets_s asset;
+
+    // check right asset owner
+    auto acc_asset = acc_assets_tbl.find(asset_id);
+    auto force_asset = force_assets_tbl.find(asset_id);
+    bool asset_is_eos = acc_asset != acc_assets_tbl.end();
+    eosio::check(asset_is_eos || force_asset != force_assets_tbl.end(),
+                 "asset now owned by you");
+    asset = asset_is_eos ? *acc_asset : *force_asset;
+
+    // if this is a vaccount, we must additionaly check the asset is owned by it
+    if (!asset_is_eos) {
+      auto schema_tbl = atomicassets::get_schemas(asset.collection_name);
+      auto schema = schema_tbl.get(asset.schema_name.value, "asset not owned by vaccount");
+      auto data_map = atomicdata::deserialize(asset.mutable_serialized_data, schema.format);
+      auto asset_vacc_owner = std::get<uint32_t>(data_map["vaccount"]);
+      eosio::check(asset_vacc_owner == account_id, "asset not owned by vaccount");
+    }
+
+    switch (quali.type) {
+    case Collection:
+      eosio::check(asset.collection_name == std::get<eosio::name>(quali.address),
+                   "wrong collection");
+      break;
+    case Template:
+      eosio::check(asset.template_id == std::get<uint32_t>(quali.address),
+                   "wrong template");
+      break;
+    case Asset:
+      eosio::check(asset.asset_id == std::get<uint64_t>(quali.address),
+                   "wrong asset");
+      break;
+    }
+  }
 
   // check if user has a reservation already
   uint64_t acccamp_pk = (uint64_t{account_id} << 32) | campaign_id;
@@ -437,8 +485,10 @@ void force::payout(uint64_t payment_id, std::optional<eosio::signature> sig) {
   .send();
 }
 
-void force::submittask(uint32_t campaign_id, uint32_t task_idx,
-                       std::string data, uint32_t account_id,
+void force::submittask(uint32_t campaign_id,
+                       uint32_t task_idx,
+                       std::string data,
+                       uint32_t account_id,
                        name payer, vaccount::sig sig) {
   uint64_t acccamp_pk = (uint64_t{account_id} << 32) | campaign_id;
   reservation_table reservation_tbl(_self, _self.value);

@@ -9,6 +9,7 @@
 #include <eosio/binary_extension.hpp>
 #include "../vaccount/vaccount-shared.hpp"
 #include "../dao/atomicassets-interface.hpp"
+#include "atomicdata.hpp"
 
 using namespace eosio;
 
@@ -28,8 +29,8 @@ public:
 
   typedef std::tuple<uint8_t, std::string> content;
 
-  // assets and templates are uint32_t, while collections and schemas are eosio::name
-  typedef std::variant <eosio::name, uint32_t> QUALI_ATOMIC_ADDRESS;
+  // assets is uint64_t, templates are uint32_t, collections and schemas are eosio::name
+  typedef std::variant <eosio::name, uint32_t, uint64_t> QUALI_ATOMIC_ADDRESS;
 
   // this allocates some data for in the future
   struct QualiDataFilter {
@@ -114,9 +115,9 @@ public:
   [[eosio::action]]
   void reservetask(uint32_t campaign_id,
                    uint32_t account_id,
+                   std::optional<std::vector<uint64_t>> quali_assets,
                    eosio::name payer,
-                   vaccount::sig sig,
-                   std::optional<std::vector<uint32_t>> quali_assets);
+                   vaccount::sig sig);
 
   [[eosio::action]]
   void submittask(uint32_t campaign_id,
@@ -245,6 +246,7 @@ private:
     uint8_t mark;
     uint32_t campaign_id;
     content content;
+    std::vector<Quali> qualis;
     EOSLIB_SERIALIZE(editcampaign_params, (mark)(campaign_id)(content));
   };
 
@@ -399,6 +401,7 @@ private:
     // filter
     uint64_t by_account_campaign() const { return (uint64_t{account_id.value()} << 32) | campaign_id; }
     uint64_t by_camp() const { return campaign_id; }
+    uint64_t by_account() const { return account_id.value(); }
   };
 
   struct [[eosio::table]] submission {
@@ -460,7 +463,8 @@ private:
   typedef multi_index<
     "reservation"_n, reservation,
     indexed_by<"acccamp"_n, const_mem_fun<reservation, uint64_t, &reservation::by_account_campaign>>,
-    indexed_by<"camp"_n, const_mem_fun<reservation, uint64_t, &reservation::by_camp>>>
+    indexed_by<"camp"_n, const_mem_fun<reservation, uint64_t, &reservation::by_camp>>,
+    indexed_by<"acc"_n, const_mem_fun<reservation, uint64_t, &reservation::by_account>>>
   reservation_table;
 
   typedef multi_index<
