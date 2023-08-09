@@ -295,7 +295,7 @@ void force::reservetask(uint32_t campaign_id,
     // check right asset owner
     auto acc_asset = acc_assets_tbl.find(asset_id);
     auto force_asset = force_assets_tbl.find(asset_id);
-    bool asset_is_eos = acc_asset != acc_assets_tbl.end();
+    bool asset_is_eos = (acc_asset != acc_assets_tbl.end());
     eosio::check(asset_is_eos || force_asset != force_assets_tbl.end(),
                  "asset now owned by you");
     asset = asset_is_eos ? *acc_asset : *force_asset;

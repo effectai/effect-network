@@ -45,9 +45,10 @@
   "Applies `get-in` on the result of `get-table-rows`
 
   Scope is assumed to be the same as account"
-  [acc tbl vec]
-  (.then (eos/get-table-rows acc acc tbl)
-         #(get-in % vec)))
+  ([acc tbl vec] (get-in-rows acc acc tbl vec))
+  ([acc scope tbl vec]
+   (.then (eos/get-table-rows acc scope tbl)
+          #(get-in % vec))))
 
 (println "acc-4 " acc-4)
 (println "acc-5 " acc-5)
@@ -62,6 +63,9 @@
 
 (def force-vacc-id 5)
 
+(def atomic-acc "atomicassets")
+(def force-collection-name "forcecollect")
+
 (use-fixtures :once
   {:before
    (fn []
@@ -71,6 +75,7 @@
         (try
           (<p-may-fail! (eos/create-account owner-acc force-acc))
           (<p-may-fail! (eos/create-account owner-acc fee-acc))
+          (<p-may-fail! (eos/create-account owner-acc "atomicassets"))
           (<p! (eos/create-account owner-acc vacc-acc))
           (<p! (deploy-file vacc-acc "contracts/vaccount/vaccount"))
           (<p-may-fail! (deploy-file force-acc "contracts/force/force"))
@@ -79,6 +84,13 @@
 
           (<p! (eos/update-auth vacc-acc "xfer" "active"
                                 [{:permission {:actor vacc-acc :permission "eosio.code"}
+                                  :weight 1}]))
+
+          ;; set permissions for atomic assets account
+          (<p-may-fail! (deploy-file "atomicassets" "tests/atomicassets"))
+          (<p-may-fail! (tx-as atomic-acc atomic-acc "init" {}))
+          (<p-may-fail! (eos/update-auth atomic-acc "active" "owner"
+                                [{:permission {:actor atomic-acc :permission "eosio.code"}
                                   :weight 1}]))
 
           (<p! (eos/transact "eosio" "linkauth"
@@ -112,6 +124,32 @@
             (<p! (tx-as owner-acc vacc-acc "open"
                         {:acc [type acc] :payer owner-acc
                          :symbol {:contract token-acc :sym "4,EFX"}})))
+
+
+          ;; deploy atomicassets and create default collection
+          (<p-may-fail! (tx-as owner-acc atomic-acc "createcol"
+                               {:author owner-acc
+                                :collection_name force-collection-name
+                                :allow_notify true
+                                :authorized_accounts [owner-acc]
+                                :notify_accounts []
+                                :market_fee 0
+                                :data ""}))
+          (<p-may-fail! (tx-as owner-acc atomic-acc "createschema"
+                               {:authorized_creator owner-acc
+                                :collection_name force-collection-name
+                                :schema_name "default"
+                                :schema_format [{:name "name" :type "string"}]}))
+          (<p! (tx-as owner-acc atomic-acc "mintasset"
+                               {:authorized_minter owner-acc
+                                :collection_name force-collection-name
+                                :schema_name "default"
+                                :template_id -1
+                                :new_asset_owner acc-3
+                                :immutable_data ""
+                                :mutable_data ""
+                                :tokens_to_back []}))
+
           (done)
           (catch js/Error e (prn "Error " e))))))
    :after (fn [])})
@@ -310,7 +348,7 @@
                                 :owner ["name" acc-2]
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
                                 :reward {:quantity "3.0000 EFX" :contract token-acc}
-                                :qualis [{:type 0 :address ["uint32" 123] :data_filter nil}]
+                                :qualis []
                                 :payer acc-2
                                 :sig nil})))
 
@@ -664,6 +702,8 @@
 
 (def task-data ["aaeebb" "bb1234" "cc" "dd"])
 
+
+
 (async-deftest reservetask
   (testing "user 1 makes reservation"
     (js/console.log
@@ -672,7 +712,7 @@
        (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
                                              :account_id 1
                                              :payer acc-3
-                                             :quali_assets nil
+                                             :quali_assets []
                                              :sig nil}))))
     (is (= (<p! (get-in-rows force-acc "campaign" [0 "tasks_done"])) 0))
     (let [rows (<p! (eos/get-table-rows force-acc force-acc "reservation"))]
@@ -684,7 +724,7 @@
      (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
                                            :account_id 1
                                            :payer acc-3
-                                           :quali_assets nil
+                                           :quali_assets [0]
                                            :sig nil})
      "" "you already have a reservation"))
 
@@ -695,7 +735,7 @@
        (tx-as acc-2 force-acc "reservetask" {:campaign_id 0
                                              :account_id 2
                                              :payer acc-2
-                                             :quali_assets nil
+                                             :quali_assets [0]
                                              :sig nil})
        (is (= (<p! (get-in-rows force-acc "campaign" [0 "tasks_done"])) 0))
        (let [rows (<p! (eos/get-table-rows force-acc force-acc "reservation"))]
@@ -899,7 +939,7 @@
   (testing "submit 2 more tasks"))
 
 (async-deftest reservetask-carryover
-  (testing "complete first batch of campaign 0"
+  (testing "complete first batch of campaign 2"
     (<p-should-succeed! (reserve-task-fn 2 acc-5 4) "acc5 reserve")
     (<p-should-succeed! (submit-task-fn 2 0 acc-3 1) "acc3 submit")
     (<p-should-succeed! (reserve-task-fn 2 acc-4 3) "acc4 submit")
@@ -924,6 +964,37 @@
     (<p-should-succeed! (v-transfer acc-4 3 50 (str (get-composite-key 2 2))))
     (<p-should-succeed! (publish-batch acc-4 3 (get-composite-key 2 2) 3))
     (<p-should-succeed! (reserve-task-fn 2 acc-3 1) "acc3 reserve")))
+
+(async-deftest qualifications
+  (testing "can set campaign qualification requirement"
+    (<p-should-succeed! (tx-as acc-2 force-acc "editcampaign"
+                               {:campaign_id 0
+                                :owner ["name" acc-2]
+                                :content {:field_0 0 :field_1 vacc/hash160-1}
+                                :reward {:quantity "3.0000 EFX" :contract token-acc}
+                                :qualis [{:type 0
+                                          :address ["name" force-collection-name]
+                                          :data_filter nil}]
+                                :payer acc-2
+                                :sig nil})))
+
+  (testing "can not join campaign without NFT from collection"
+    (<p-should-fail-with!
+     (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
+                                           :account_id 1
+                                           :payer acc-3
+                                           :quali_assets []
+                                           :sig nil})
+     "" "wrong number of quali_assets"))
+
+  (testing "can join campaign with NFT from collection"
+    (let [acc-3-asset-id (<p! (get-in-rows atomic-acc acc-3 "assets" [0 "asset_id"]))]
+      (<p-should-succeed!
+       (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
+                                             :account_id 1
+                                             :payer acc-3
+                                             :quali_assets [acc-3-asset-id]
+                                             :sig nil})))))
 
 ;; (async-deftest payout
 ;;   (let [params-1 (pack-payout-params 0)
