@@ -201,64 +201,6 @@ void force::publishbatch(uint64_t batch_id, uint32_t num_tasks, vaccount::sig si
   }
 }
 
-void force::mkquali(content content, uint32_t account_id, eosio::name payer, vaccount::sig sig) {
-  mkquali_params params = {18, account_id, content};
-  require_vaccount(account_id, pack(params), sig);
-
-  quali_table quali_tbl(_self, _self.value);
-  uint32_t quali_id = quali_tbl.available_primary_key();
-  quali_tbl.emplace(payer,
-                    [&](auto& q)
-                    {
-                      q.id = quali_id;
-                      q.content = content;
-                      q.account_id = account_id;
-                    });
-}
-
-
-void force::editquali(uint32_t quali_id, content content, uint32_t account_id,
-                      eosio::name payer, vaccount::sig sig) {
-  quali_table quali_table(_self, _self.value);
-  auto& quali = quali_table.get(quali_id, "qualification does not exist");
-
-  editquali_params params = {20, quali_id, content};
-  std::vector<char> msg_bytes = pack(params);
-  require_vaccount(account_id, pack(params), sig);
-
-  quali_table.modify(quali, payer, [&] (auto& q) { q.content = content; });
-}
-
-void force::assignquali(uint32_t quali_id, uint32_t user_id, std::string value,
-                        eosio::name payer, vaccount::sig sig) {
-  quali_table quali_tbl(_self, _self.value);
-  auto quali = quali_tbl.get(quali_id, "qualification not found");
-  assignquali_params params = {19, quali_id, user_id, value};
-  require_vaccount(quali.account_id, pack(params), sig);
-
-  user_quali_table user_quali_tbl(_self, _self.value);
-  user_quali_tbl.emplace(payer,
-                         [&](auto& q)
-                         {
-                           q.account_id = user_id;
-                           q.quali_id = quali_id;
-                           q.value.emplace(value);
-                         });
-}
-
-void force::uassignquali(uint32_t quali_id, uint32_t user_id, eosio::name payer, vaccount::sig sig) {
-  quali_table quali_tbl(_self, _self.value);
-  auto quali = quali_tbl.get(quali_id, "qualification not found");
-  rmbatch_params params = {20, quali_id, user_id};
-  require_vaccount(quali.account_id, pack(params), sig);
-
-  uint64_t user_quali_key = (uint64_t{user_id} << 32) | quali_id;
-  user_quali_table user_quali_tbl(_self, _self.value);
-  auto user_quali = user_quali_tbl.find(user_quali_key);
-  eosio::check(user_quali != user_quali_tbl.end(), "user does not have quali");
-  user_quali_tbl.erase(user_quali);
-}
-
 void force::reservetask(uint32_t campaign_id,
                         uint32_t account_id,
                         std::optional<std::vector<uint64_t>> quali_assets,

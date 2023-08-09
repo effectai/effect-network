@@ -143,33 +143,6 @@ public:
                    eosio::name payer,
                    vaccount::sig sig);
 
-  [[eosio::action]]
-  void mkquali(content content,
-               uint32_t account_id,
-               eosio::name payer,
-               vaccount::sig sig);
-
-  [[eosio::action]]
-  void editquali(uint32_t quali_id,
-                 content content,
-                 uint32_t account_id,
-                 eosio::name payer,
-                 vaccount::sig sig);
-
-
-  [[eosio::action]]
-  void assignquali(uint32_t quali_id,
-                   uint32_t user_id,
-                   std::string value,
-                   eosio::name payer,
-                   vaccount::sig sig);
-
-  [[eosio::action]]
-  void uassignquali(uint32_t quali_id,
-                    uint32_t user_id,
-                    eosio::name payer,
-                    vaccount::sig sig);
-
   [[eosio::on_notify("*::vtransfer")]]
   void vtransfer_handler(uint64_t from_id,
                          uint64_t to_id,
@@ -256,20 +229,6 @@ private:
     EOSLIB_SERIALIZE(rmcampaign_params, (mark)(campaign_id));
   };
 
-  struct mkquali_params {
-    uint8_t mark;
-    uint32_t account_id;
-    content content;
-    EOSLIB_SERIALIZE(mkquali_params, (mark)(account_id)(content));
-  };
-
-  struct editquali_params {
-    uint8_t mark;
-    uint32_t quali_id;
-    content content;
-    EOSLIB_SERIALIZE(editquali_params, (mark)(quali_id)(content));
-  };
-
   struct mkbatch_params {
     uint8_t mark;
     uint32_t id;
@@ -296,20 +255,6 @@ private:
     uint32_t id;
     uint32_t campaign_id;
     EOSLIB_SERIALIZE(rmbatch_params, (mark)(id)(campaign_id));
-  };
-
-  struct assignquali_params {
-    uint8_t mark;
-    uint32_t id;
-    uint32_t campaign_id;
-    std::string value;
-    EOSLIB_SERIALIZE(assignquali_params, (mark)(id)(campaign_id)(value));
-  };
-
-  struct joinbatch_params {
-    uint8_t mark;
-    uint64_t batch_id;
-    EOSLIB_SERIALIZE(joinbatch_params, (mark)(batch_id));
   };
 
   struct payout_params {
@@ -422,23 +367,6 @@ private:
                      (data)(paid)(submitted_on))
   };
 
-  struct [[eosio::table]] quali {
-    uint32_t id;
-    content content;
-    uint32_t account_id;
-
-    uint64_t primary_key() const { return uint64_t{id}; }
-    uint64_t by_account() const { return (uint64_t) account_id; }
-  };
-
-  struct [[eosio::table]] userquali {
-    uint32_t account_id;
-    uint32_t quali_id;
-    eosio::binary_extension<std::string> value;
-
-    uint64_t primary_key() const { return (uint64_t{account_id} << 32) | quali_id; }
-  };
-
   inline void require_vaccount(uint32_t acc_id, std::vector<char> msg, vaccount::sig sig) {
     eosio::name vacc_contract = _config.get().vaccount_contract;
     vaccount::account_table acc_tbl(vacc_contract, vacc_contract.value);
@@ -476,10 +404,6 @@ private:
                       indexed_by<"accbatch"_n, const_mem_fun<payment, uint128_t, &payment::by_account_batch>>,
                       indexed_by<"acc"_n, const_mem_fun<payment, uint64_t, &payment::by_account>>>
   payment_table;
-
-  typedef multi_index<"quali"_n, quali,
-                      indexed_by<"acc"_n, const_mem_fun<quali, uint64_t, &quali::by_account>>> quali_table;
-  typedef multi_index<"userquali"_n, userquali> user_quali_table;
 
   const eosio::name settings_pk = "settings"_n;
 

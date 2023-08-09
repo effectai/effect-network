@@ -223,31 +223,6 @@
      (.push 8) (.pushUint32 id) (.pushUint32 camp-id) (.push 0) (.pushString content)
      (.pushUint8ArrayChecked (vacc/hex->bytes root) 32))))
 
-(defn pack-mkquali-params [acc-id content]
-  (.asUint8Array
-   (doto (new (.-SerialBuffer Serialize))
-     (.push 18)  (.pushUint32 acc-id) (.push 0) (.pushString content))))
-
-(defn pack-editquali-params [acc-id content]
-  (.asUint8Array
-   (doto (new (.-SerialBuffer Serialize))
-     (.push 20)  (.pushUint32 acc-id) (.push 0) (.pushString content))))
-
-(defn pack-mkquali-params [acc-id content]
-  (.asUint8Array
-   (doto (new (.-SerialBuffer Serialize))
-     (.push 18)  (.pushUint32 acc-id) (.push 0) (.pushString content))))
-
-(defn pack-assignquali-params [id user-id value]
-  (.asUint8Array
-   (doto (new (.-SerialBuffer Serialize))
-     (.push 19) (.pushUint32 id) (.pushUint32 user-id) (.pushString value))))
-
-(defn pack-uassignquali-params [id user-id]
-  (.asUint8Array
-   (doto (new (.-SerialBuffer Serialize))
-     (.push 20) (.pushUint32 id) (.pushUint32 user-id))))
-
 (defn pack-rmbatch-params [id camp-id]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize))
@@ -573,96 +548,6 @@
       (<p-should-succeed!
        (publish-batch acc-4 3 (get-composite-key 0 5) 3
                       (sign-params (pack-reopenbatch-params (get-composite-key 0 5))))))))
-
-(async-deftest mkquali
-  (let [r (<p! (eos/get-table-rows force-acc force-acc "quali"))]
-    (is (zero? (count r))))
-  (testing "can make qualification"
-    (<p-should-succeed! (tx-as acc-2 force-acc "mkquali"
-                               {:content {:field_0 0 :field_1 vacc/hash160-1}
-                                :account_id 0
-                                :payer acc-2
-                                :sig (sign-params (pack-mkquali-params 0 vacc/hash160-1))}))
-    (<p-should-succeed! (tx-as acc-2 force-acc "mkquali"
-                               {:content {:field_0 0 :field_1 vacc/hash160-2}
-                                :account_id 0
-                                :payer acc-2
-                                :sig (sign-params (pack-mkquali-params 0 vacc/hash160-2))})))
-  (let [r (<p! (eos/get-table-rows force-acc force-acc "quali"))]
-    (is (= 2 (count r)))))
-
-(async-deftest editquali
-  (testing "only owner can edit"
-    (<p-should-fail-with! (tx-as acc-2 force-acc "editquali"
-                                 {:content {:field_0 0 :field_1 vacc/hash160-2}
-                                  :account_id 1
-                                  :quali_id 0
-                                  :payer acc-2
-                                  :sig nil})
-                          "" (str "missing authority of " acc-3)))
-  (testing "can edit qualfication"
-    (let [r (<p! (eos/get-table-rows force-acc force-acc "quali"))]
-      (is (get-in r [0 "content" "field_1"]  vacc/hash160-1)))
-    (<p-should-succeed! (tx-as acc-3 force-acc "editquali"
-                               {:content {:field_0 0 :field_1 vacc/hash160-2}
-                                :account_id 0
-                                :quali_id 0
-                                :payer acc-3
-                                :sig (sign-params (pack-editquali-params 0 vacc/hash160-2))}))
-    (let [r (<p! (eos/get-table-rows force-acc force-acc "quali"))]
-      (is (get-in r [0 "content" "field_1"]  vacc/hash160-2)))))
-
-(async-deftest assignquali
-  (testing "owner can assign quali"
-    (<p-should-fail-with!
-     (tx-as acc-2 force-acc "assignquali"
-            {:quali_id 0
-             :user_id  0
-             :value    ""
-             :payer    acc-2
-             :sig      nil})
-     "only owner" "abort() called")
-    (<p-should-succeed!
-     (tx-as acc-2 force-acc "assignquali"
-            {:quali_id 0
-             :user_id  0
-             :value    "testvalue"
-             :payer    acc-2
-             :sig      (sign-params (pack-assignquali-params 0 0 "testvalue"))}))
-    (let [res (<p! (eos/get-table-rows force-acc force-acc "userquali"))]
-      (is (get-in res [0 "value"] "testvalue")))
-    (<p-should-succeed!
-     (tx-as acc-2 force-acc
-            "assignquali"
-            {:quali_id 0
-             :user_id  1
-             :payer    acc-2
-             :value    ""
-             :sig      (sign-params (pack-assignquali-params 0 1 ""))}))
-    (<p-should-succeed!
-     (tx-as acc-2 force-acc
-            "assignquali"
-            {:quali_id 0
-             :user_id  4
-             :payer    acc-2
-             :value    ""
-             :sig      (sign-params (pack-assignquali-params 0 4 ""))}))))
-
-(async-deftest uassignquali
-  (testing "owner can unassign quali"
-    (<p-should-succeed!
-     (tx-as acc-2 force-acc "uassignquali"
-            {:quali_id 0
-             :user_id  0
-             :payer    acc-2
-             :sig      (sign-params (pack-uassignquali-params 0 0))}))
-    (<p! (tx-as acc-2 force-acc
-                "assignquali"
-                {:quali_id 0
-                 :user_id  0
-                 :payer    acc-2
-                 :value    ""
-                 :sig      (sign-params (pack-assignquali-params 0 0 ""))}))))
 
 (defn sha256 [data]
   (vacc/bytes->hex (.digest (.update (.hash ec) data))))
