@@ -165,24 +165,13 @@
    (<p-should-succeed! (tx-as-owner force-acc force-acc "init" {:vaccount_contract vacc-acc
                                                                 :force_vaccount_id force-vacc-id
                                                                 :payout_delay_sec 1
-                                                                :release_task_delay_sec 0})))
+                                                                :release_task_delay_sec 0
+                                                                :fee_contract fee-acc
+                                                                :fee_percentage 0.1})))
 
- (testing "can migrate"
-   (<p-should-succeed!
-    (tx-as force-acc force-acc "migrate" {:payer force-acc :fee_contract fee-acc
-                                          :fee_percentage 0.1})))
 
- (testing "can migrate as other account"
-   (<p-should-fail-with!
-    (tx-as owner-acc force-acc "migrate" {:payer force-acc :fee_contract fee-acc
-                                          :fee_percentage 0.2})
-    "" (str "missing authority of " force-acc)))
 
- (testing "can not migrate twice"
-   (<p-should-fail-with!
-    (tx-as force-acc force-acc "migrate" {:payer force-acc :fee_contract fee-acc
-                                          :fee_percentage 0.2})
-    "" "already migrated")))
+ )
 
 (defn get-composite-key-hex [id-1 id-2]
   (vacc/bytes->hex

@@ -1,12 +1,22 @@
 #include "force.hpp"
 
-void force::init(eosio::name vaccount_contract, uint32_t force_vaccount_id,
-                 uint32_t payout_delay_sec, uint32_t release_task_delay_sec) {
+void force::init(eosio::name vaccount_contract,
+                 uint32_t force_vaccount_id,
+                 uint32_t payout_delay_sec,
+                 uint32_t release_task_delay_sec,
+                 eosio::name fee_contract,
+                 float fee_percentage) {
   eosio::require_auth(_self);
-  _config.set(config{vaccount_contract,
-                     force_vaccount_id,
-                     payout_delay_sec,
-                     release_task_delay_sec}, _self);
+  _settings.emplace(_self,
+                    [&](auto& s)
+                    {
+                      s.vaccount_contract = vaccount_contract;
+                      s.force_vaccount_id = force_vaccount_id;
+                      s.payout_delay_sec = payout_delay_sec;
+                      s.release_task_delay_sec = release_task_delay_sec;
+                      s.fee_contract = fee_contract;
+                      s.fee_percentage = fee_percentage;
+                    });
 }
 
 void force::mkcampaign(vaccount::vaddress owner,

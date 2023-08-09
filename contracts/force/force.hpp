@@ -52,14 +52,16 @@ public:
   };
 
   force(eosio::name receiver, eosio::name code, eosio::datastream<const char*> ds) :
-    eosio::contract(receiver, code, ds), _config(_self, _self.value), _settings(_self, _self.value)
+    eosio::contract(receiver, code, ds), _settings(_self, _self.value)
   {};
 
   [[eosio::action]]
   void init(eosio::name vaccount_contract,
             uint32_t force_vaccount_id,
             uint32_t payout_delay_sec,
-            uint32_t release_task_delay_sec);
+            uint32_t release_task_delay_sec,
+            eosio::name fee_contract,
+            float fee_percentage);
 
   [[eosio::action]]
   void mkcampaign(vaccount::vaddress owner,
@@ -161,26 +163,6 @@ public:
   //   cleanTable<batchjoin_table>(_self, _self.value, 100);
   // };
 
-  [[eosio::action]]
-  void migrate(eosio::name payer, eosio::name fee_contract, float fee_percentage) {
-    require_auth(_self);
-    auto c = _config.get();
-    auto itr = _settings.find(settings_pk.value);
-
-    eosio::check(itr == _settings.end(), "already migrated");
-
-    _settings.emplace(payer,
-                      [&](auto& s)
-                      {
-                        s.vaccount_contract = c.vaccount_contract;
-                        s.force_vaccount_id = c.force_vaccount_id;
-                        s.payout_delay_sec = c.payout_delay_sec;
-                        s.release_task_delay_sec = c.release_task_delay_sec;
-                        s.fee_contract = fee_contract;
-                        s.fee_percentage = fee_percentage;
-                      });
-  }
-
 private:
   inline bool has_expired(time_point_sec base_time, uint32_t delay) {
     return time_point_sec(now()) >= (base_time + delay);
@@ -189,8 +171,8 @@ private:
   inline bool past_delay(time_point_sec base_time, std::string type_delay) {
     auto delay = NULL;
 
-    if (type_delay == "payout") delay = _config.get().payout_delay_sec;
-    else if (type_delay == "release_task") delay = _config.get().release_task_delay_sec;
+    if (type_delay == "payout") delay = get_settings().payout_delay_sec;
+    else if (type_delay == "release_task") delay = get_settings().release_task_delay_sec;
     return time_point_sec(now()) >= (base_time + delay);
   }
 
@@ -368,20 +350,11 @@ private:
   };
 
   inline void require_vaccount(uint32_t acc_id, std::vector<char> msg, vaccount::sig sig) {
-    eosio::name vacc_contract = _config.get().vaccount_contract;
+    eosio::name vacc_contract = get_settings().vaccount_contract;
     vaccount::account_table acc_tbl(vacc_contract, vacc_contract.value);
     vaccount::account acc = acc_tbl.get((uint64_t) acc_id, "account row not found");
     vaccount::require_auth(msg, acc.address, sig);
   };
-
-  struct [[eosio::table]] config {
-    eosio::name vaccount_contract;
-    uint32_t force_vaccount_id;
-    uint32_t payout_delay_sec;
-    uint32_t release_task_delay_sec;
-  };
-
-  typedef singleton<"config"_n, config> config_table;
 
   typedef multi_index<"campaign"_n, campaign> campaign_table;
   typedef multi_index<"batch"_n, batch> batch_table;
@@ -419,7 +392,6 @@ private:
 
   typedef multi_index<"settings"_n, settings> settings_table;
   settings_table _settings;
-  config_table _config;
 
   settings get_settings() {
     auto itr = _settings.find(settings_pk.value);
