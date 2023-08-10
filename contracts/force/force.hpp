@@ -90,7 +90,6 @@ public:
   void mkbatch(uint32_t id,
                uint32_t campaign_id,
                content content,
-               checksum256 task_merkle_root,
                uint32_t repetitions,
                eosio::name payer,
                vaccount::sig sig);
@@ -216,8 +215,7 @@ private:
     uint32_t id;
     uint32_t campaign_id;
     content content;
-    checksum256 task_merkle_root;
-    EOSLIB_SERIALIZE(mkbatch_params, (mark)(id)(campaign_id)(content)(task_merkle_root));
+    EOSLIB_SERIALIZE(mkbatch_params, (mark)(id)(campaign_id)(content));
   };
 
   struct closebatch_params {
@@ -273,7 +271,6 @@ private:
     uint32_t id;
     uint32_t campaign_id;
     content content;
-    checksum256 task_merkle_root;
     eosio::extended_asset balance;
     uint32_t repetitions;
     uint32_t tasks_done;

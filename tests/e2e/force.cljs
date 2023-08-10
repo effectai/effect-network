@@ -14,7 +14,6 @@
    [e2e.vaccount :as vacc]
    ["eosjs/dist/eosjs-key-conversions" :refer [PrivateKey Signature PublicKey]]
    ["eosjs/dist/ripemd" :refer [RIPEMD160]]
-   [merkletreejs :refer [MerkleTree]]
    [clojure.string :as string]
    [elliptic :refer [ec]]))
 
@@ -355,8 +354,6 @@
     (is (nil? (<p! (eos/get-table-row force-acc force-acc "campaign" 4))))))
 
 ;; NOTE: this root must match the merkle trees generated in `reserve-task`
-(def merkle-root "9b15f697ff7f53e58d1873c9091a91ef83017171449499e9796c84cfdc5dd886")
-(def merkle-root-xx "b82825d5062e3292d47c55c5588f7076aee7c7908dd3f51f3b317f6f7496ed9f")
 
 (async-deftest mkbatch
   (testing "cannot create batch with high repetitions"
@@ -364,7 +361,6 @@
                             {:id 0
                              :campaign_id 0
                              :content {:field_0 0 :field_1 vacc/hash160-1}
-                             :task_merkle_root merkle-root
                              :repetitions 100
                              :payer acc-2
                              :sig nil})))
@@ -374,7 +370,6 @@
                                {:id 0
                                 :campaign_id 0
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
-                                :task_merkle_root merkle-root
                                 :repetitions 2
                                 :payer acc-2
                                 :sig nil}))
@@ -382,7 +377,6 @@
                                {:id 1
                                 :campaign_id 0
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
-                                :task_merkle_root merkle-root
                                 :repetitions 1
                                 :payer acc-2
                                 :sig nil}))
@@ -390,7 +384,6 @@
                                {:id 2
                                 :campaign_id 0
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
-                                :task_merkle_root "2cf909c4cfffcdc13f2eb7cb5ed16c51da0424aaaccaa4597f7117ee7cd492b8"
                                 :repetitions 1
                                 :payer acc-2
                                 :sig nil}))
@@ -398,7 +391,6 @@
                                {:id 0
                                 :campaign_id 2
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
-                                :task_merkle_root merkle-root-xx
                                 :repetitions 1
                                 :payer acc-4
                                 :sig nil}))
@@ -406,21 +398,18 @@
                                {:id 1
                                 :campaign_id 2
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
-                                :task_merkle_root merkle-root-xx
                                 :repetitions 1
                                 :payer acc-4
                                 :sig nil})))
 
   (testing "pub key hash can create batch"
-    (let [merkle-root merkle-root
-          params-1 (pack-mkbatch-params 0 3 vacc/hash160-1 merkle-root)
-          params-2 (pack-mkbatch-params 1 3 vacc/hash160-1 merkle-root)
-          params-3 (pack-mkbatch-params 0 5 vacc/hash160-1 merkle-root)]
+    (let [params-1 (pack-mkbatch-params 0 3 vacc/hash160-1)
+          params-2 (pack-mkbatch-params 1 3 vacc/hash160-1)
+          params-3 (pack-mkbatch-params 0 5 vacc/hash160-1)]
       (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
                                  {:id 0
                                   :campaign_id 3
                                   :content {:field_0 0 :field_1 vacc/hash160-1}
-                                  :task_merkle_root merkle-root
                                   :repetitions 1
                                   :payer acc-2
                                   :sig (sign-params params-1)}))
@@ -428,7 +417,6 @@
                                  {:id 1
                                   :campaign_id 3
                                   :content {:field_0 0 :field_1 vacc/hash160-1}
-                                  :task_merkle_root merkle-root
                                   :repetitions 1
                                   :payer acc-2
                                   :sig (sign-params params-2)}))
@@ -436,7 +424,6 @@
                                  {:id 0
                                   :campaign_id 5
                                   :content {:field_0 0 :field_1 vacc/hash160-1}
-                                  :task_merkle_root merkle-root
                                   :payer acc-4
                                   :repetitions 1
                                   :sig (sign-params params-3)})))))
@@ -831,7 +818,6 @@
                                {:id 2
                                 :campaign_id 2
                                 :content {:field_0 0 :field_1 vacc/hash160-1}
-                                :task_merkle_root merkle-root-xx
                                 :repetitions 1
                                 :payer acc-4
                                 :sig nil}))
