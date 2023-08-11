@@ -7,6 +7,8 @@ void force::init(eosio::name vaccount_contract,
                  eosio::name fee_contract,
                  float fee_percentage) {
   eosio::require_auth(_self);
+  auto settings = _settings.find(settings_pk.value);
+  _settings.erase(settings);
   _settings.emplace(_self,
                     [&](auto& s)
                     {
