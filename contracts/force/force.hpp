@@ -76,6 +76,7 @@ public:
   void editcampaign(uint32_t campaign_id,
                     vaccount::vaddress owner,
                     content content,
+                    bool paused,
                     eosio::extended_asset reward,
                     std::vector<Quali> qualis,
                     eosio::name payer,
@@ -126,12 +127,6 @@ public:
   [[eosio::action]]
   void payout(uint64_t payment_id,
               std::optional<eosio::signature> sig);
-
-  [[eosio::action]]
-  void releasetask(uint64_t task_id,
-                   uint32_t account_id,
-                   eosio::name payer,
-                   vaccount::sig sig);
 
   [[eosio::on_notify("*::vtransfer")]]
   void vtransfer_handler(uint64_t from_id,
@@ -189,8 +184,10 @@ private:
     uint8_t mark;
     uint32_t campaign_id;
     content content;
+    eosio::extended_asset reward;
+    bool paused;
     std::vector<Quali> qualis;
-    EOSLIB_SERIALIZE(editcampaign_params, (mark)(campaign_id)(content));
+    EOSLIB_SERIALIZE(editcampaign_params, (mark)(campaign_id)(content)(reward)(paused)(qualis));
   };
 
   struct rmcampaign_params {
@@ -239,8 +236,8 @@ private:
     uint32_t total_tasks;
     uint32_t active_batch;
     uint32_t num_batches;
-    bool paused;
     vaccount::vaddress owner;
+    bool paused;
     content content;
     uint32_t max_task_time;
     eosio::extended_asset reward;
@@ -249,7 +246,7 @@ private:
     uint64_t primary_key() const { return (uint64_t) id; }
 
     EOSLIB_SERIALIZE(campaign, (id)(tasks_done)(total_tasks)(active_batch)(num_batches)(owner)
-                     (content)(max_task_time)(reward)(qualis))
+                     (paused)(content)(max_task_time)(reward)(qualis))
   };
 
   struct [[eosio::table]] batch {

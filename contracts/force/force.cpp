@@ -46,6 +46,7 @@ void force::mkcampaign(vaccount::vaddress owner,
                      c.owner = owner;
                      c.max_task_time = max_task_time;
                      c.reward = reward;
+                     c.paused = false;
                      c.qualis = qualis;
                      c.total_tasks = 0;
                    });
@@ -54,6 +55,7 @@ void force::mkcampaign(vaccount::vaddress owner,
 void force::editcampaign(uint32_t campaign_id,
                          vaccount::vaddress owner,
                          content content,
+                         bool paused,
                          eosio::extended_asset reward,
                          std::vector<Quali> qualis,
                          eosio::name payer,
@@ -61,7 +63,7 @@ void force::editcampaign(uint32_t campaign_id,
   campaign_table camp_tbl(_self, _self.value);
   auto& camp = camp_tbl.get(campaign_id, "campaign does not exist");
 
-  editcampaign_params params = {10, campaign_id, content};
+  editcampaign_params params = {10, campaign_id, content, reward, paused, qualis};
   std::vector<char> msg_bytes = pack(params);
   vaccount::require_auth(msg_bytes, owner, sig);
 
@@ -135,6 +137,7 @@ void force::rmbatch(uint32_t id, uint32_t campaign_id, vaccount::sig sig) {
   vaccount::require_auth(msg_bytes, camp->owner, sig);
 
   uint32_t batch_tasks_done = (camp->tasks_done - batch->start_task_idx);
+
   if (batch->id > camp->active_batch) {
     // if the batch has not started, we should empty it, the row
     // can only be erased when the campaign caught up
@@ -144,10 +147,16 @@ void force::rmbatch(uint32_t id, uint32_t campaign_id, vaccount::sig sig) {
     batch_tbl.erase(batch);
   } else if (batch->id == camp->active_batch) {
     // if its the active batch, move onward
-    batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.num_tasks = batch_tasks_done; });
-    camp_tbl.modify(camp, eosio::same_payer, [&](auto& c) { c.active_batch += 1; });
+    // batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.num_tasks = batch_tasks_done; });
+    uint32_t batch_tasks_remaining = batch->num_tasks - batch_tasks_done;
+    camp_tbl.modify(camp, eosio::same_payer,
+                    [&](auto& c)
+                    {
+                      c.active_batch += 1;
+                      c.total_tasks -= batch_tasks_remaining;
+                    });
   } else {
-    // if the batch is in the past, we can erease it
+    // if the batch is in the past, we can erase it
     batch_tbl.erase(batch);
   }
 
@@ -238,6 +247,8 @@ void force::reservetask(uint32_t campaign_id,
                         vaccount::sig sig) {
   campaign_table campaign_tbl(_self, _self.value);
   auto& campaign = campaign_tbl.get(campaign_id, "campaign not found");
+
+  eosio::check(!campaign.paused, "campaign is paused");
 
   uint32_t batch_id = campaign.active_batch;
   uint64_t batch_pk = (uint64_t{campaign_id} << 32) | batch_id;
@@ -523,39 +534,6 @@ void force::submittask(uint32_t campaign_id,
                          });
     }
   }
-}
-
-void force::releasetask(uint64_t task_id, uint32_t account_id,
-                        eosio::name payer, vaccount::sig sig) {
-  submission_table submission_tbl(_self, _self.value);
-  batch_table batch_tbl(_self, _self.value);
-  campaign_table campaign_tbl(_self, _self.value);
-  auto vacc_contract = get_settings().vaccount_contract;
-
-  vaccount::account_table acc_tbl(vacc_contract, vacc_contract.value);
-  vaccount::account acc = acc_tbl.get((uint64_t) account_id, "account row not found");
-
-  auto& sub = submission_tbl.get(task_id, "reservation not found");
-
-  auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
-  auto& camp = campaign_tbl.get(batch.campaign_id, "campaign not found");
-
-  eosio::check(sub.account_id.has_value(), "cannot release already released task.");
-  eosio::check(!sub.data.has_value(), "cannot release task with data.");
-
-  task_params params = {14, task_id, account_id};
-  std::vector<char> msg_bytes = pack(params);
-
-  if (sub.account_id == account_id) {
-    require_vaccount(account_id, msg_bytes, sig);
-  }
-  else if (acc.address == camp.owner) {
-    vaccount::require_auth(msg_bytes, acc.address, sig);
-  } else {
-    eosio::check(past_delay(sub.submitted_on, "release_task"), "cannot release task before delay.");
-  }
-
-  submission_tbl.modify(sub, eosio::same_payer, [&](auto& s) { s.account_id.reset(); });
 }
 
 void force::vtransfer_handler(uint64_t from_id, uint64_t to_id, extended_asset quantity,
