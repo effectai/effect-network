@@ -205,11 +205,10 @@
    (doto (new (.-SerialBuffer Serialize))
      (.push mark) (.pushNumberAsUint64 task-id)(.pushUint32 acc-id))))
 
-(defn pack-mkbatch-params [id camp-id content root]
+(defn pack-mkbatch-params [id camp-id content]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize))
-     (.push 8) (.pushUint32 id) (.pushUint32 camp-id) (.push 0) (.pushString content)
-     (.pushUint8ArrayChecked (vacc/hex->bytes root) 32))))
+     (.push 8) (.pushUint32 id) (.pushUint32 camp-id) (.push 0) (.pushString content))))
 
 (defn pack-rmbatch-params [id camp-id]
   (.asUint8Array
