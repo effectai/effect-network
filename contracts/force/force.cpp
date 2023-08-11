@@ -41,6 +41,7 @@ void force::mkcampaign(vaccount::vaddress owner,
                      c.id = camp_id;
                      c.tasks_done = 0;
                      c.active_batch = 0;
+                     c.num_batches = 0;
                      c.content = content;
                      c.owner = owner;
                      c.max_task_time = max_task_time;
@@ -93,11 +94,13 @@ void force::mkbatch(uint32_t id,
                     eosio::name payer,
                     vaccount::sig sig) {
   campaign_table camp_tbl(_self, _self.value);
-  auto& camp = camp_tbl.get(campaign_id, "campaign not found");
+  auto camp = camp_tbl.require_find(campaign_id, "campaign not found");
+
+  eosio::check(id == camp->num_batches, "batch id must be sequential");
 
   mkbatch_params params = {8, id, campaign_id, content};
   std::vector<char> msg_bytes = pack(params);
-  vaccount::require_auth(msg_bytes, camp.owner, sig);
+  vaccount::require_auth(msg_bytes, camp->owner, sig);
 
   eosio::check(repetitions < force::MAX_REPETITIONS, "too many repetitions");
   batch_table batch_tbl(_self, _self.value);
@@ -107,11 +110,12 @@ void force::mkbatch(uint32_t id,
                       b.campaign_id = campaign_id;
                       b.id = id;
                       b.content = content;
-                      b.balance = {0, camp.reward.get_extended_symbol()};
+                      b.balance = {0, camp->reward.get_extended_symbol()};
                       b.repetitions = repetitions;
-                      b.reward.emplace(camp.reward);
+                      b.reward = camp->reward;
                       b.num_tasks = 0;
                     });
+  camp_tbl.modify(camp, eosio::same_payer, [&](auto& c) { c.num_batches += 1; });
 }
 
 void force::rmbatch(uint32_t id, uint32_t campaign_id, vaccount::sig sig) {
@@ -120,18 +124,34 @@ void force::rmbatch(uint32_t id, uint32_t campaign_id, vaccount::sig sig) {
 
   uint64_t batch_pk =(uint64_t{campaign_id} << 32) | id;
 
-  auto& camp = camp_tbl.get(campaign_id, "campaign not found");
+  auto camp = camp_tbl.require_find(campaign_id, "campaign not found");
 
-  auto batch_itr = batch_tbl.find(batch_pk);
-  eosio::check(batch_itr != batch_tbl.end(), "batch does not exist");
+  auto batch = batch_tbl.require_find(batch_pk, "batch does not exist");
 
   rmbatch_params params = {12, id, campaign_id};
 
   std::vector<char> msg_bytes = pack(params);
   printhex(&msg_bytes[0], msg_bytes.size());
-  vaccount::require_auth(msg_bytes, camp.owner, sig);
+  vaccount::require_auth(msg_bytes, camp->owner, sig);
 
-  batch_tbl.erase(batch_itr);
+  uint32_t batch_tasks_done = (camp->tasks_done - batch->start_task_idx);
+  if (batch->id > camp->active_batch) {
+    // if the batch has not started, we should empty it, the row
+    // can only be erased when the campaign caught up
+    eosio::check(camp->num_batches == id, "can only remove active or last batch");
+    camp_tbl.modify(camp, same_payer,
+                    [&](auto& c) { c.num_batches -= 1; c.total_tasks -= batch->num_tasks; });
+    batch_tbl.erase(batch);
+  } else if (batch->id == camp->active_batch) {
+    // if its the active batch, move onward
+    batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.num_tasks = batch_tasks_done; });
+    camp_tbl.modify(camp, eosio::same_payer, [&](auto& c) { c.active_batch += 1; });
+  } else {
+    // if the batch is in the past, we can erease it
+    batch_tbl.erase(batch);
+  }
+
+  // TODO: refund remaining balance
 }
 
 void force::cleartasks(uint32_t batch_id, uint32_t campaign_id) {
@@ -168,10 +188,10 @@ void force::publishbatch(uint64_t batch_id, uint32_t num_tasks, vaccount::sig si
 
   settings settings = get_settings();
 
-  reopenbatch_params params = {17, batch_id};
+  publishbatch_params params = {17, batch_id};
   vaccount::require_auth(pack(params), camp.owner, sig);
 
-  eosio::extended_asset task_reward = batch.reward.value();
+  eosio::extended_asset task_reward = batch.reward;
   eosio::extended_asset batch_fee(task_reward.quantity.amount * settings.fee_percentage *
                                   num_tasks * batch.repetitions,
                                   task_reward.get_extended_symbol());
@@ -476,7 +496,7 @@ void force::submittask(uint32_t campaign_id,
   submittask_params params = {5, campaign_id, task_idx, data};
   require_vaccount(account_id, pack(params), sig);
 
-  if (batch.reward.value().quantity.amount > 0) {
+  if (batch.reward.quantity.amount > 0) {
     uint64_t payment_id = payment_tbl.available_primary_key();
 
     uint128_t payment_sk = (uint128_t{res->batch_id} << 64) | (uint64_t{account_id} << 32);
@@ -490,7 +510,7 @@ void force::submittask(uint32_t campaign_id,
                             p.id = payment_id;
                             p.account_id = account_id;
                             p.batch_id = res->batch_id;
-                            p.pending = batch.reward.value();
+                            p.pending = batch.reward;
                             p.last_submission_time = time_point_sec(now());
                           });
     } else {
@@ -498,7 +518,7 @@ void force::submittask(uint32_t campaign_id,
                          payer,
                          [&](auto& p)
                          {
-                           p.pending += batch.reward.value();
+                           p.pending += batch.reward;
                            p.last_submission_time = time_point_sec(now());
                          });
     }
@@ -536,49 +556,6 @@ void force::releasetask(uint64_t task_id, uint32_t account_id,
   }
 
   submission_tbl.modify(sub, eosio::same_payer, [&](auto& s) { s.account_id.reset(); });
-}
-
-void force::reclaimtask(uint64_t task_id, uint32_t account_id,
-                        eosio::name payer, vaccount::sig sig) {
-  submission_table submission_tbl(_self, _self.value);
-  batch_table batch_tbl(_self, _self.value);
-
-  auto& sub = submission_tbl.get(task_id, "reservation not found");
-  auto& batch = batch_tbl.get(sub.batch_id, "batch not found");
-
-  eosio::check(batch.tasks_done >= 0 && batch.num_tasks > 0,
-               "cannot reclaim task on paused batch.");
-
-  task_params params = {15, task_id, account_id};
-  require_vaccount(account_id, pack(params), sig);
-
-  eosio::check(!sub.account_id.has_value(), "task already reserved");
-  eosio::check(!sub.data.has_value(), "task already submitted");
-  submission_tbl.modify(sub,
-                        payer,
-                        [&](auto& s)
-                        {
-                          s.account_id = account_id;
-                          s.submitted_on = time_point_sec(now());
-                        });
-}
-
-void force::closebatch(uint64_t batch_id, vaccount::vaddress owner, vaccount::sig sig) {
-  batch_table batch_tbl(_self, _self.value);
-  campaign_table camp_tbl(_self, _self.value);
-
-  auto& batch = batch_tbl.get(batch_id, "batch not found");
-  auto& camp = camp_tbl.get(batch.campaign_id, "campaign not found");
-
-  closebatch_params params = {16, batch_id};
-
-  eosio::check(camp.owner == owner, "Only campaign owner can pause batch.");
-  vaccount::require_auth(pack(params), owner, sig);
-  eosio::check(batch.tasks_done >= 0 && batch.num_tasks > 0 &&
-               batch.tasks_done < batch.num_tasks * batch.repetitions,
-               "can only pause batches with active tasks.");
-
-  batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.num_tasks = 0; });
 }
 
 void force::vtransfer_handler(uint64_t from_id, uint64_t to_id, extended_asset quantity,

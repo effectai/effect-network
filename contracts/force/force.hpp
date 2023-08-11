@@ -109,11 +109,6 @@ public:
                   uint32_t campaign_id);
 
   [[eosio::action]]
-  void closebatch(uint64_t batch_id,
-                  vaccount::vaddress owner,
-                  vaccount::sig sig);
-
-  [[eosio::action]]
   void reservetask(uint32_t campaign_id,
                    uint32_t account_id,
                    std::optional<std::vector<uint64_t>> quali_assets,
@@ -134,12 +129,6 @@ public:
 
   [[eosio::action]]
   void releasetask(uint64_t task_id,
-                   uint32_t account_id,
-                   eosio::name payer,
-                   vaccount::sig sig);
-
-  [[eosio::action]]
-  void reclaimtask(uint64_t task_id,
                    uint32_t account_id,
                    eosio::name payer,
                    vaccount::sig sig);
@@ -218,16 +207,10 @@ private:
     EOSLIB_SERIALIZE(mkbatch_params, (mark)(id)(campaign_id)(content));
   };
 
-  struct closebatch_params {
+  struct publishbatch_params {
     uint8_t mark;
-    uint64_t id;
-    EOSLIB_SERIALIZE(closebatch_params, (mark)(id));
-  };
-
-  struct reopenbatch_params {
-    uint8_t mark;
-    uint64_t id;
-    EOSLIB_SERIALIZE(reopenbatch_params, (mark)(id));
+    uint64_t batch_id;
+    EOSLIB_SERIALIZE(publishbatch_params, (mark)(batch_id));
   };
 
   struct rmbatch_params {
@@ -255,6 +238,8 @@ private:
     uint32_t tasks_done;
     uint32_t total_tasks;
     uint32_t active_batch;
+    uint32_t num_batches;
+    bool paused;
     vaccount::vaddress owner;
     content content;
     uint32_t max_task_time;
@@ -263,8 +248,8 @@ private:
 
     uint64_t primary_key() const { return (uint64_t) id; }
 
-    EOSLIB_SERIALIZE(campaign, (id)(tasks_done)(total_tasks)(active_batch)(owner)(content)
-                     (max_task_time)(reward)(qualis))
+    EOSLIB_SERIALIZE(campaign, (id)(tasks_done)(total_tasks)(active_batch)(num_batches)(owner)
+                     (content)(max_task_time)(reward)(qualis))
   };
 
   struct [[eosio::table]] batch {
@@ -276,7 +261,7 @@ private:
     uint32_t tasks_done;
     uint32_t num_tasks;
     uint32_t start_task_idx;
-    eosio::binary_extension<eosio::extended_asset> reward;
+    eosio::extended_asset reward;
 
     uint64_t primary_key() const { return (uint64_t{campaign_id} << 32) | id; }
   };
