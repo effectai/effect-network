@@ -342,6 +342,8 @@ void force::reservetask(uint32_t campaign_id,
   // reserve suitable task idx to the user
   uint32_t task_idx = std::max(campaign.tasks_done, user_next_task_idx);
 
+  submission_table submission_tbl(_self, _self.value);
+
   // check if there is an earlier expired reservatoin to claim instead
   auto by_camp = reservation_tbl.get_index<"camp"_n>();
   auto by_camp_itr = by_camp.find(campaign_id);
@@ -353,7 +355,8 @@ void force::reservetask(uint32_t campaign_id,
       // omitting so would let him do this repetition twice.
       task_idx >= by_camp_itr->task_idx) {
     auto& res = *by_camp_itr;
-    uint64_t bump_id = reservation_tbl.available_primary_key();
+    uint64_t bump_id = std::max(reservation_tbl.available_primary_key(),
+                                submission_tbl.available_primary_key());
 
     // we must re-insert the reservation in order to bump the id
     reservation_tbl.erase(res);
@@ -429,7 +432,9 @@ void force::reservetask(uint32_t campaign_id,
     }
   }
 
-  uint64_t reservation_id = reservation_tbl.available_primary_key();
+  uint64_t reservation_id = std::max(reservation_tbl.available_primary_key(),
+                                     submission_tbl.available_primary_key());
+
   reservation_tbl.emplace(payer,
                           [&](auto& r)
                           {
