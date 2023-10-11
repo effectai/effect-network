@@ -32,7 +32,7 @@
     :proposals {:account "efxproposals"
                 :path    "contracts/proposals"
                 :hash    nil}
-    :force     {:account "efxforce1112"
+    :force     {:account "effecttasks2"
                 :path    "contracts/force"
                 :hash    nil}
     :vaccount  {:account "efxaccount11"
@@ -473,13 +473,8 @@
       (do-cleos net "push" "action"
                 (-> deployment net :force :account)
                 "init"
-                (str "[" (-> deployment net :vaccount :account)  ", 0, 1800, 1800]")
-                "-p"
-                (-> deployment net :force :account))
-      (do-cleos net "push" "action"
-                (-> deployment net :force :account)
-                "migrate"
-                (str "[" (-> deployment net :force :account) ", " (-> deployment net :feepool :account) ", 0.1]")
+                (str "[" (-> deployment net :vaccount :account)  ", 11, 1800, 1800, "
+                     (-> deployment net :feepool :account) ", 0.1]")
                 "-p"
                 (-> deployment net :force :account))
       (do-cleos net "set" "account" "permission"
