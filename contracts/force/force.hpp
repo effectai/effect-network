@@ -136,15 +136,28 @@ public:
                          vaccount::sig sig,
                          std::optional<extended_asset> fee);
 
-  // [[eosio::action]]
-  // void clean() {
-  //   require_auth(_self);
-  //   cleanTable<submission_table>(_self, _self.value, 100);
-  //   cleanTable<batch_table>(_self, _self.value, 100);
-  //   cleanTable<campaign_table>(_self, _self.value, 100);
-  //   cleanTable<payment_table>(_self, _self.value, 100);
-  //   cleanTable<batchjoin_table>(_self, _self.value, 100);
-  // };
+  template <typename T>
+  void cleanTable(name code, uint64_t account, const uint32_t batchSize){
+    T db(code, account);
+    uint32_t counter = 0;
+    auto itr = db.begin();
+    while (itr != db.end() && counter++ < batchSize) {
+      itr = db.erase(itr);
+    }
+  }
+
+  [[eosio::action]]
+  void clean() {
+    require_auth(_self);
+    cleanTable<repsdone_table>(_self, _self.value, 100);
+    cleanTable<acctaskidx_table>(_self, _self.value, 100);
+    cleanTable<submission_table>(_self, _self.value, 100);
+    cleanTable<reservation_table>(_self, _self.value, 100);
+    cleanTable<batch_table>(_self, _self.value, 100);
+    cleanTable<campaign_table>(_self, _self.value, 100);
+    cleanTable<payment_table>(_self, _self.value, 100);
+  };
+
 
 private:
   inline bool has_expired(time_point_sec base_time, uint32_t delay) {
