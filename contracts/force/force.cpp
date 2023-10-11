@@ -336,7 +336,7 @@ void force::reservetask(uint32_t campaign_id,
   require_vaccount(account_id, pack(params), sig);
 
 
-  eosio::check(!user_last_task_check || campaign.total_tasks > user_last_task.value,
+  eosio::check(!user_last_task_check || campaign.total_tasks > user_last_task.value - 1,
                "no more tasks for you");
 
   // reserve suitable task idx to the user
@@ -344,7 +344,7 @@ void force::reservetask(uint32_t campaign_id,
 
   submission_table submission_tbl(_self, _self.value);
 
-  // check if there is an earlier expired reservatoin to claim instead
+  // check if there is an earlier expired reservation to claim instead
   auto by_camp = reservation_tbl.get_index<"camp"_n>();
   auto by_camp_itr = by_camp.find(campaign_id);
   if (by_camp_itr != by_camp.end() &&
