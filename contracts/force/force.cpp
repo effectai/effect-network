@@ -317,9 +317,9 @@ void force::reservetask(uint32_t campaign_id,
 
   // find the last task idx the user completed in the campaign
   acctaskidx_table acctaskidx_tbl(_self, _self.value);
-  auto user_last_task_check = (acctaskidx_tbl.find(acccamp_pk) == acctaskidx_tbl.end());
+  auto user_has_last_task = (acctaskidx_tbl.find(acccamp_pk) != acctaskidx_tbl.end());
 
-  if (user_last_task_check) {
+  if (!user_has_last_task) {
     acctaskidx_tbl.emplace(payer,
                            [&](auto& i)
                            {
@@ -330,13 +330,12 @@ void force::reservetask(uint32_t campaign_id,
   }
 
   auto& user_last_task = acctaskidx_tbl.get(acccamp_pk);
-  uint32_t user_next_task_idx = user_last_task_check ? 0 : user_last_task.value + 1;
+  uint32_t user_next_task_idx = !user_has_last_task ? 0 : user_last_task.value + 1;
 
   reservetask_params params = {6, user_next_task_idx, campaign_id};
   require_vaccount(account_id, pack(params), sig);
 
-
-  eosio::check(!user_last_task_check || campaign.total_tasks > user_last_task.value - 1,
+  eosio::check(!user_has_last_task || campaign.total_tasks > user_last_task.value,
                "no more tasks for you");
 
   // reserve suitable task idx to the user
