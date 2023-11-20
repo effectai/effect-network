@@ -162,6 +162,41 @@
       json/encode
       (spit filename)))
 
+(defn create-n-cycles
+  "Creates an action vector that adds `n` consecutive cycle."
+  [net n out-file-name]
+  (let [net (keyword net)
+
+        last-cycle (get-last-cycle net)
+
+        config (get-proposal-config net)
+
+        increase-time #(-> %
+                           java.time.LocalDateTime/parse
+                           (.plusSeconds (:cycle_duration_sec config))
+                           .toString)
+
+        cycle-start-times
+        (loop [i          0
+               start-time (increase-time (:start_time last-cycle))
+               times      []]
+          (if (< i (Integer/parseInt n))
+            (recur (inc i)
+                   (increase-time start-time)
+                   (conj times start-time ))
+            times))
+
+        new-cycle-actions
+        (map (partial create-cycle-action (keyword net)) cycle-start-times)]
+    (create-tx-json
+     (cons
+      {:account       "effecttokens"
+       :name          "open"
+       :data          {:owner "x.efx" :symbol "4,EFX" :ram_payer "x.efx"}
+       :authorization [{:actor "x.efx" :permission "active"}]}
+      new-cycle-actions)
+     out-file-name)))
+
 (defn process-cycle [id]
   (try
     (let [net   :mainnet
