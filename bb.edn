@@ -6,4 +6,5 @@
          init             effect/init
          process-cycle    effect/process-cycle
          deploy-mainnet   effect/msig-deploy
-         atp              effect/make-atp}}
+         atp              effect/make-atp
+         create-n-cycles  effect/create-n-cycles}}
