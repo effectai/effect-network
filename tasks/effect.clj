@@ -21,7 +21,7 @@
 (declare do-cleos)
 
 (def powerup {:jungle4 #(do-cleos :jungle4 "push" "action" "eosio" "powerup"
-                                  (str "[\"" payer "\", \"" %1 "\", 1, 100000000000, 100000000000, \"1.0000 EOS\"]")
+                                  (str "[\"" payer "\", \"" %1 "\", 1, 50000000000, 50000000000, \"1.0000 EOS\"]")
                                   "-p" payer)})
 
 (def deployment
