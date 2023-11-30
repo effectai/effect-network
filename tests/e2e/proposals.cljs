@@ -492,7 +492,25 @@
     (<p! (change-voting-duration 2 1))
     (<p! (wait 500))
     (<p! (eos/transact prop-acc "cycleupdate" {}))
-    (<p! (eos-tx-owner prop-acc "processcycle" {:account owner-acc :id 5}))
+
+    ;; TODO: write macro for before/after balance checks, this is getting tedious
+    (let [treasury-rows (<p! (eos/get-table-rows token-acc "treasury.efx" "accounts"))
+          treasury-before (or (get-in treasury-rows [0 "balance"]) "0.0000 EFX")
+          fees-rows (<p! (eos/get-table-rows token-acc "feepool.efx" "accounts"))
+          fees-before (or (get-in fees-rows [0 "balance"]) "0.0000 EFX")]
+
+      (<p! (eos-tx-owner prop-acc "processcycle" {:account owner-acc :id 5}))
+
+      (let [treasury-rows (<p! (eos/get-table-rows token-acc "treasury.efx" "accounts"))
+            fees-rows (<p! (eos/get-table-rows token-acc "feepool.efx" "accounts"))
+
+            treasury-after (get-in treasury-rows [0 "balance"])
+            fees-after (get-in fees-rows [0 "balance"])
+
+            treasury-amount-after (+ (parse-efx-amount treasury-before) (* 325600.0 0.7))
+            fees-amount-after (+ (parse-efx-amount fees-before) (* 325600.0 0.3))]
+        (is (= (Math/floor (parse-efx-amount treasury-after)) (Math/floor treasury-amount-after)))
+        (is (= (Math/floor (parse-efx-amount fees-after)) (Math/floor fees-amount-after)))))
 
     ;; replace the msig with a different transaction
     (<p! (eos/transact "eosio.msig" "cancel" {:proposer      acc-2
