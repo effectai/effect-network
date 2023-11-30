@@ -50,7 +50,7 @@
    :mainnet
    {:proposals {:account "daoproposals"
                 :path    "contracts/proposals"
-                :hash    "d4ab62fdfec73e954577b0500b2c625d5991c0cee4fb39f25e31e07605c96093"}
+                :hash    "0700e7ebd28ccc402b1209bd23840c9243cc70d402f9c5cbd52726442f16d431"}
     :dao       {:account "theeffectdao"
                 :path    "contracts/dao"
                 :hash    "22814f2c83433da8e929533e4b46bb3be95bc8826c4e4bcc62242f05b4cd2744"}
