@@ -1,6 +1,9 @@
 (ns e2e.proposals
   (:require [eos-cljs.core :as eos]
             [eosjs :refer [Api JsonRpc RpcError Serialize]]
+            [goog.string :as gstring]
+            [clojure.string :as string]
+            cljs.reader
             [eos-cljs.node-api :refer [deploy-file]]
             [e2e.util :as util :refer [p-all wait]]
             [cljs.test :refer-macros [deftest is testing run-tests async
@@ -52,7 +55,9 @@
         (try
           (<p! (p-all (eos/create-account owner-acc prop-acc)
                       (eos/create-account owner-acc acc-3)
-                      (eos/create-account owner-acc acc-2)))
+                      (eos/create-account owner-acc acc-2)
+                      (eos/create-account owner-acc "treasury.efx")
+                      (eos/create-account owner-acc "feepool.efx")))
 
           (<p! (eos/update-auth
                 prop-acc "dao" "active"
@@ -300,9 +305,9 @@
 
   (let [rows (<p! (eos/get-table-rows prop-acc prop-acc "proposal"))
         r (->> rows (filter #(= (% "id") 0)) first)]
-    (is (= (get-in r ["vote_counts" 0 "value"]) 0))
-    (is (= (get-in r ["vote_counts" 1 "value"]) 24042))
-    (is (= (get-in r ["vote_counts" 2 "value"]) 37276)))
+    (is (= (get-in r ["vote_counts" 0 "second"]) 0))
+    (is (= (get-in r ["vote_counts" 1 "second"]) 24042))
+    (is (= (get-in r ["vote_counts" 2 "second"]) 37276)))
 
   (<p! (eos/wait-block (js/Promise.resolve 42) 2))
 
@@ -322,15 +327,36 @@
                      {:account owner-acc :agreedterms hash1}
                      [{:actor owner-acc :permission "active"}])))
 
+(defn efx-quant [n]
+  (str (gstring/format "%.4f" n) " EFX"))
+
+(defn parse-efx-amount [asset-str]
+  (-> asset-str (string/replace #" EFX$" "") cljs.reader/read-string))
+
 (async-deftest process-cycle
-  (<p-should-fail-with!
-   (eos-tx-owner prop-acc "processcycle" {:account owner-acc :id 2})
-   "cycle needs to be in the past"
-   "cycle is not in the past")
-  (<p! (eos/transact prop-acc "update" (assoc prop-config :cycle_duration_sec 1)))
-  (<p! (eos/transact prop-acc "cycleupdate" {}))
-  (<p-should-succeed! (eos-tx-owner prop-acc "processcycle" {:account owner-acc :id 2})
-                      "can finalize cycle"))
+  (let [treasury-rows (<p! (eos/get-table-rows token-acc "treasury.efx" "accounts"))
+        treasury-before (or (get-in treasury-rows [0 "balance"]) "0.0000 EFX")
+        fees-rows (<p! (eos/get-table-rows token-acc "feepool.efx" "accounts"))
+        fees-before (or (get-in fees-rows [0 "balance"]) "0.0000 EFX")]
+    (<p-should-fail-with!
+     (eos-tx-owner prop-acc "processcycle" {:account owner-acc :id 2})
+     "cycle needs to be in the past"
+     "cycle is not in the past")
+    (<p! (eos/transact prop-acc "update" (assoc prop-config :cycle_duration_sec 1)))
+    (<p! (eos/transact prop-acc "cycleupdate" {}))
+    (testing "can process cycle"
+      (<p-should-succeed! (eos-tx-owner prop-acc "processcycle" {:account owner-acc :id 2})
+                          "can finalize cycle")
+      (let [treasury-rows (<p! (eos/get-table-rows token-acc "treasury.efx" "accounts"))
+            fees-rows (<p! (eos/get-table-rows token-acc "feepool.efx" "accounts"))
+
+            treasury-after (get-in treasury-rows [0 "balance"])
+            fees-after (get-in fees-rows [0 "balance"])
+
+            treasury-amount-after (+ (parse-efx-amount treasury-before) (* 100.1 0.7))
+            fees-amount-after (+ (parse-efx-amount fees-before) (* 100.1 0.3))]
+        (is (= treasury-after (efx-quant treasury-amount-after)))
+        (is (= fees-after (efx-quant fees-amount-after)))))))
 
 (async-deftest execute-proposal
   (<p-should-succeed! (eos/transact prop-acc "executeprop" {:id 1})

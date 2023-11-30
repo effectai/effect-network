@@ -19,6 +19,10 @@ public:
   using contract::contract;
 
   inline static const std::string RESERVATION_MEMO = "proposal";
+  inline static const double RECYCLE_FEE_PERC = 0.3;
+  inline static const double RECYCLE_REFUND_PERC = 0.7;
+  inline static const eosio::name RECYCLE_FEE_ACC = "feepool.efx"_n;
+  inline static const eosio::name RECYCLE_REFUND_ACC = "treasury.efx"_n;
 
   enum ProposalState {
     Pending = 0,

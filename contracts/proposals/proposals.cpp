@@ -237,6 +237,41 @@ void proposals::processcycle(eosio::name account, uint64_t id) {
                      c.state.emplace(proposals::CycleFinalized);
                      c.total_vote_weight.emplace(total_votes);
                    });
+
+  // recycle cycle funds
+  for (auto const& s : spent) {
+    eosio::extended_symbol sym = s.first;
+    eosio::extended_asset spent = s.second;
+    eosio::extended_asset budget = budget_map[sym];
+    eosio::extended_asset leftover = budget - spent;
+
+    if (leftover.quantity.amount > 0 && total_votes > 0) {
+      eosio::extended_asset
+        recycle_fee(leftover.quantity.amount * RECYCLE_FEE_PERC,
+                    leftover.get_extended_symbol());
+      eosio::extended_asset
+        recycle_refund(leftover.quantity.amount * RECYCLE_REFUND_PERC,
+                       leftover.get_extended_symbol());
+
+      action(permission_level{_self, "dao"_n},
+             recycle_fee.contract,
+             "transfer"_n,
+             std::make_tuple(_self,
+                             RECYCLE_FEE_ACC,
+                             recycle_fee.quantity,
+                             "recycle " + std::to_string(id)))
+        .send();
+
+      action(permission_level{_self, "dao"_n},
+             recycle_refund.contract,
+             "transfer"_n,
+             std::make_tuple(_self,
+                             RECYCLE_REFUND_ACC,
+                             recycle_refund.quantity,
+                             "recycle " + std::to_string(id)))
+        .send();
+    }
+  }
 }
 
 void proposals::updateprop(uint64_t id,
