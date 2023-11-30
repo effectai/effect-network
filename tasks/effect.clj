@@ -360,53 +360,22 @@
                    (json/decode true)
                    :actions)
           perms [{:actor account :permission "active"}]
-          tx (make-msig-tx acts 42)]
+          tx (make-msig-tx acts 42)
+          file-name "/tmp/setcodetx.json"]
+      (spit file-name tx)
       (let [res
-            (do-cleos net "multisig" "propose_trx" "test"  (json/encode perms)
-                      tx payer "-p" payer)]
-        (prn "done?")))
+            (do-cleos net "multisig"
+                      "propose_trx"
+                      "setcode"
+                      (json/encode perms)
+                      file-name
+                      payer "-p" payer)]
+        (prn "done")))
     (catch Exception e (prn e))))
 
 (defn deploy-account
   [net account path]
-  (let [res (try (cleos net "set" "contract" account path)
-                 (catch Exception e
-                   (:proc (ex-data e))))]
-    (cond
-      (string/includes? (:err res) "insufficient ram")
-      (let [needed (get-needed-ram-from-error (:err res))]
-        (println (compose [:red "[◯] Account is missing " [:bold needed]
-                           " bytes of RAM"]))
-        (println (compose [:bright-yellow "[❯] Buying ram for " payer]))
-        (let [[status msg] (buy-ram net account needed)]
-          (if status
-            (do
-              (println (compose [:green "[❯] RAM bought, deploying again"]))
-              (deploy-account net account path))
-            (throw (Exception. msg)))))
-
-      (string/includes? (:err res) "new code is the same as the existing code")
-      (println (compose [:green "[✔] On-chain code matches local code"]))
-
-      (string/includes? (:err res) "usage limit imposed")
-      (if (get powerup net)
-        (do
-          (println (compose [:bright-red "[◯] Not enough resources, doing powerup"]))
-          (println (compose [:bright-yellow "[❯] Powering up " account]))
-          (let [res ((get powerup net) account)]
-            (deploy-account net account path)))
-        (do
-          (println (compose [:bright-red "[✖] Not enough resources, needs powerup:\n" (:err res)]))))
-
-      (zero? (:exit res))
-      (do
-        (println (compose [:green "[✔] " (get-executed-tx-from-err (:err res))])))
-
-      (:err res)
-      (println (compose [:bright-red "[✖] Error: " (:err res)]))
-
-      :else
-      (println "ERROR" res))))
+  (msig-deploy net account path))
 
 (defn deploy [net]
   (unlock)
