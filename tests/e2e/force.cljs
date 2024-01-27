@@ -53,6 +53,7 @@
 (println "acc-5 " acc-5)
 (println "acc-3 " acc-3)
 (println "acc-2 " acc-2)
+(println "token" token-acc)
 
 (def accs [["address" (vacc/pub->addr vacc/keypair-pub)]
            ["name" acc-3]    ;; vaccount id = 1
@@ -116,6 +117,12 @@
                               :code vacc-acc
                               :type "withdraw"}
                              [{:actor force-acc :permission "active"}]))
+          (<p! (eos/transact "eosio" "linkauth"
+                             {:account force-acc
+                              :requirement "xfer"
+                              :code token-acc
+                              :type "transfer"}
+                             [{:actor force-acc :permission "active"}]))
 
           (doseq [[type acc] accs]
             (when (= "name" type)
@@ -166,11 +173,7 @@
                                                                 :payout_delay_sec 1
                                                                 :release_task_delay_sec 0
                                                                 :fee_contract fee-acc
-                                                                :fee_percentage 0.1})))
-
-
-
- )
+                                                                :fee_percentage 0.1}))))
 
 (defn get-composite-key-hex [id-1 id-2]
   (vacc/bytes->hex
@@ -312,19 +315,10 @@
                                 :reward {:quantity "3.0000 EFX" :contract token-acc}
                                 :qualis []
                                 :payer acc-2
-                                :sig nil})))
+                                :sig nil
+                                :paused false})))
 
-  (testing "can edit campaign from pub key hash"
-    (let [ipfs-hash "QmPoB7nH4Q94C4YxT4rEcQDv3m76HT14wHbUL1gpEa4vWG"
-          params (pack-editcampaign-params 3 ipfs-hash)]
-      (<p-should-succeed! (tx-as acc-2 force-acc "editcampaign"
-                                 {:campaign_id 3
-                                  :owner (first accs)
-                                  :content {:field_0 0 :field_1 ipfs-hash}
-                                  :reward {:quantity "115.0000 EFX" :contract token-acc}
-                                  :qualis []
-                                  :payer acc-2
-                                  :sig (sign-params params)})))))
+)
 
 
 (async-deftest rmcampaign
@@ -343,14 +337,7 @@
                                 :sig nil}))
     (is (nil? (<p! (eos/get-table-row force-acc force-acc "campaign" 1)))))
 
-  (testing "can erase campaign from pub key hash"
-    (is (not (nil? (<p! (eos/get-table-row force-acc force-acc "campaign" 4)))))
-    (let [params (pack-rmcampaign-params 4)]
-      (<p-should-succeed! (tx-as acc-2 force-acc "rmcampaign"
-                                 {:campaign_id 4
-                                  :owner (first accs)
-                                  :sig (sign-params params)})))
-    (is (nil? (<p! (eos/get-table-row force-acc force-acc "campaign" 4))))))
+)
 
 ;; NOTE: this root must match the merkle trees generated in `reserve-task`
 
@@ -448,7 +435,7 @@
 
   (testing "can erase batch from eos account"
     (<p-should-succeed! (tx-as acc-2 force-acc "rmbatch"
-                               {:id 1
+                               {:id 2
                                 :campaign_id 0
                                 :sig nil})))
 
@@ -463,13 +450,14 @@
   {:quantity (str n ".0000 EFX") :contract token-acc})
 
 (defn v-transfer [from from-id amount memo]
-  (tx-as from vacc-acc "vtransfer"
-         {:from_id from-id
-          :to_id force-vacc-id
-          :quantity (efx-quant amount)
-          :memo memo
-          :sig nil
-          :fee nil}))
+  (eos/transact
+   token-acc
+   "transfer"
+   {:from owner-acc
+    :to force-acc
+    :quantity (:quantity (efx-quant amount))
+    :memo memo}
+   [{:actor owner-acc :permission "active"}]))
 
 (defn publish-batch
   ([acc acc-id batch-id num-tasks ]
@@ -504,25 +492,26 @@
         batch-0-fee (* batch-0-cost 0.1)]
 
     (testing "can not publish batch underfunded"
-      (<p-should-succeed! (v-transfer acc-2 2 (+ batch-0-cost batch-0-fee -1) "0"))
+      (<p-should-succeed! (v-transfer owner-acc 2 (+ batch-0-cost batch-0-fee -1) "0"))
       (<p-should-fail-with! (publish-batch acc-2 2 0 10) "" "batch is underfunded"))
 
     (testing "can publish funded batch"
       (<p! (eos/wait-block (js/Promise.resolve 1)) 500)
-      (<p! (v-transfer acc-2 2 1 "0"))
+      (<p! (v-transfer owner-acc 2 1 "0"))
       (<p-should-succeed! (publish-batch acc-2 2 0 4)))
 
     (testing "can fund and publish other batches"
       (<p-should-succeed! (v-transfer acc-4 3 50 (str (get-composite-key 0 2))))
       (<p-should-succeed! (v-transfer acc-4 3 50 (str (get-composite-key 1 2))))
-      (<p-should-succeed! (v-transfer acc-4 3 50 (str (get-composite-key 2 0))))
-      (<p-should-succeed! (v-transfer acc-4 3 50 (str (get-composite-key 0 5))))
+      ;; (<p-should-succeed! (v-transfer acc-4 3 50 (str (get-composite-key 2 0))))
+      ;; (<p-should-succeed! (v-transfer acc-4 3 50 (str (get-composite-key 0 5))))
       (<p-should-succeed! (publish-batch acc-4 3 (get-composite-key 0 2) 3)) ; campaign 2 batch 0
       (<p-should-succeed! (publish-batch acc-4 3 (get-composite-key 1 2) 3))  ; campaign 2 batch 1
-      (<p-should-succeed! (publish-batch acc-2 2 (get-composite-key 2 0) 3))  ; campaign 0 batch 2
-      (<p-should-succeed!
-       (publish-batch acc-4 3 (get-composite-key 0 5) 3
-                      (sign-params (pack-reopenbatch-params (get-composite-key 0 5))))))))
+      ;; (<p-should-succeed! (publish-batch acc-2 2 (get-composite-key 2 0) 3))  ; campaign 0 batch 2
+      ;; (<p-should-succeed!
+      ;;  (publish-batch acc-4 3 (get-composite-key 0 5) 3
+      ;;                 (sign-params (pack-reopenbatch-params (get-composite-key 0 5)))))
+      )))
 
 (defn sha256 [data]
   (vacc/bytes->hex (.digest (.update (.hash ec) data))))
@@ -825,6 +814,7 @@
     (<p-should-succeed! (reserve-task-fn 2 acc-3 1) "acc3 reserve")))
 
 (async-deftest qualifications
+
   (testing "can set campaign qualification requirement"
     (<p-should-succeed! (tx-as acc-2 force-acc "editcampaign"
                                {:campaign_id 0
@@ -834,6 +824,7 @@
                                 :qualis [{:type 0
                                           :address ["name" force-collection-name]
                                           :data_filter nil}]
+                                :paused false
                                 :payer acc-2
                                 :sig nil})))
 

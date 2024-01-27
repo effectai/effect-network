@@ -8,7 +8,7 @@ void force::init(eosio::name vaccount_contract,
                  float fee_percentage) {
   eosio::require_auth(_self);
   auto settings = _settings.find(settings_pk.value);
-  _settings.erase(settings);
+  // _settings.erase(settings);
   _settings.emplace(_self,
                     [&](auto& s)
                     {
@@ -141,7 +141,7 @@ void force::rmbatch(uint32_t id, uint32_t campaign_id, vaccount::sig sig) {
   if (batch->id > camp->active_batch) {
     // if the batch has not started, we should empty it, the row
     // can only be erased when the campaign caught up
-    eosio::check(camp->num_batches == id, "can only remove active or last batch");
+    eosio::check(camp->num_batches == (id + 1), "can only remove active or last batch");
     camp_tbl.modify(camp, same_payer,
                     [&](auto& c) { c.num_batches -= 1; c.total_tasks -= batch->num_tasks; });
     batch_tbl.erase(batch);
@@ -228,14 +228,12 @@ void force::publishbatch(uint64_t batch_id, uint32_t num_tasks, vaccount::sig si
 
   if (batch_fee.quantity.amount > 0) {
     action(permission_level{_self, "xfer"_n},
-           settings.vaccount_contract,
-           "withdraw"_n,
-           std::make_tuple((uint64_t) settings.force_vaccount_id,
+	   batch.balance.contract,
+           "transfer"_n,
+           std::make_tuple(_self,
                            settings.fee_contract,
                            batch_fee,
-                           std::string("batch " + std::to_string(batch_id)),
-                           NULL,
-                           NULL))
+                           std::string("batch " + std::to_string(batch_id))))
       .send();
   }
 }
@@ -540,11 +538,15 @@ void force::submittask(uint32_t campaign_id,
   }
 }
 
-void force::vtransfer_handler(uint64_t from_id, uint64_t to_id, extended_asset quantity,
-                              std::string memo, vaccount::sig sig,
-                              std::optional<extended_asset> fee) {
-  uint64_t batch_id = std::stoull(memo);
-  batch_table batch_tbl(_self, _self.value);
-  auto& batch = batch_tbl.get(batch_id, "batch not found");
-  batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.balance += quantity; });
+void force::transfer_handler(eosio::name from,
+			     eosio::name to,
+			     eosio::asset quantity,
+			     std::string memo) {
+  if (to == get_self()) {
+    eosio::extended_asset sym(quantity, get_first_receiver());
+    uint64_t batch_id = std::stoull(memo);
+    batch_table batch_tbl(_self, _self.value);
+    auto& batch = batch_tbl.get(batch_id, "batch not found");
+    batch_tbl.modify(batch, eosio::same_payer, [&](auto& b) { b.balance += sym; });
+  }
 }

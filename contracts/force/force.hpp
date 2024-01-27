@@ -128,13 +128,11 @@ public:
   void payout(uint64_t payment_id,
               std::optional<eosio::signature> sig);
 
-  [[eosio::on_notify("*::vtransfer")]]
-  void vtransfer_handler(uint64_t from_id,
-                         uint64_t to_id,
-                         extended_asset quantity,
-                         std::string memo,
-                         vaccount::sig sig,
-                         std::optional<extended_asset> fee);
+  [[eosio::on_notify("*::transfer")]]
+  void transfer_handler(eosio::name from_id,
+			eosio::name to_id,
+			eosio::asset quantity,
+			std::string memo);
 
   template <typename T>
   void cleanTable(name code, uint64_t account, const uint32_t batchSize){
