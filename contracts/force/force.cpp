@@ -232,7 +232,7 @@ void force::publishbatch(uint64_t batch_id, uint32_t num_tasks, vaccount::sig si
            "transfer"_n,
            std::make_tuple(_self,
                            settings.fee_contract,
-                           batch_fee,
+                           batch_fee.quantity,
                            std::string("batch " + std::to_string(batch_id))))
       .send();
   }

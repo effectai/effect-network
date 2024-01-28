@@ -525,8 +525,8 @@
                 (-> deployment net :force :account))
       (do-cleos net "set" "action" "permission"
                 (-> deployment net :force :account)
-                (-> deployment net :vaccount :account)
-                "vtransfer"
+                (-> deployment net :token :account)
+                "transfer"
                 "xfer"
                 "-p"
                 (-> deployment net :force :account))
