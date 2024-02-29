@@ -567,3 +567,20 @@
                    (str "'" tx "'")
                    proposer "-p" proposer))
       (catch Exception e (prn e)))))
+
+(defn fix-feepool []
+  (let [fee-amount (* 0.3 326000)
+        act
+        [(transfer-efx-action "daoproposals" fee-amount  "feepool.efx")
+         (transfer-efx-action "daoproposals" (* 0.7 326000) "treasury.efx")
+         {:account "feepool.efx"
+          :name "setbalance"
+          :data {:cycle_id 80 :amount (string/replace (str (format "%.4f" fee-amount)) #"\." "")}
+          :authorization [{:actor "feepool.efx" :permission "active"}]}
+         {:account "feepool.efx"
+          :name "setbalance"
+          :data {:cycle_id 81 :amount "0"}
+          :authorization [{:actor "feepool.efx" :permission "active"}]}]]
+        (create-tx-json
+         act
+         "fixfeepool.json")))
