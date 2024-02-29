@@ -12,8 +12,8 @@ ATPs are proposals that execute arbitrary EOS transaction authorized
 by the DAO once accepted. They are a very powerful tool in the
 decentralization of Effect Network.
 
-The transaction attached to an ATP is are regular eosio.msig
-transactions that carry the authority of `daoproposals@dao`.
+The transaction attached to an ATP is a regular `eosio.msig`
+transactions that carries the authority of `daoproposals@dao`.
 
 There are 2 steps needed to create an ATP:
 
@@ -38,7 +38,7 @@ In the login dropdown, switch the toggle to activate "Multisig Mode"
 
 Go to "Wallet" and and enter the fields for sending the NFX tokens.
 Make sure to switch to "Use custom token" as your account might not
-own the tokens you wist to send. Then click the "Transfer" button.
+own the tokens you wish to send. Then click the "Transfer" button.
 
 ![Create TX](/assets/images/creating-an-atp--create-tx.png){: .d-block .mx-auto }
 
@@ -55,7 +55,6 @@ In the multisig form, change the following fields:
 
 Take note of the Proposal Name at the bottom. 
 Then add `daoproposals@dao` as a Requested Approver.
-Finally click Propose.
 
 ![Approvers](/assets/images/creating-an-atp--approvers.png){: .d-block .mx-auto }
 
@@ -70,6 +69,8 @@ will be invalid and can not be executed.
 
 To do this, expand "Transaction Settings" and adjust the "expiration"
 field to be sufficiently far in the future.
+
+Finally click Propose.
 
 ![Set Expiration](/assets/images/creating-an-atp--expiration.png){: .d-block .mx-auto }
 
