@@ -8,6 +8,8 @@
 #include <eosio/crypto.hpp>
 #include <eosio/binary_extension.hpp>
 #include "../vaccount/vaccount-shared.hpp"
+#include "../dao/atomicassets-interface.hpp"
+#include "atomicdata.hpp"
 
 using namespace eosio;
 
@@ -27,36 +29,46 @@ public:
 
   typedef std::tuple<uint8_t, std::string> content;
 
-  enum QualiType {
-    Inclusive = 0,
-    Exclusive = 1
+  // assets is uint64_t, templates are uint32_t, collections and schemas are eosio::name
+  typedef std::variant <eosio::name, uint32_t, uint64_t> QUALI_ATOMIC_ADDRESS;
+
+  // this allocates some data for in the future
+  struct QualiDataFilter {
+    uint8_t attr_id;
+    uint8_t filter_type;
+    std::vector<uint8_t> data;
   };
 
-  template <typename T>
-  void cleanTable(name code, uint64_t account, const uint32_t batchSize){
-    T db(code, account);
-    uint32_t counter = 0;
-    auto itr = db.begin();
-    while (itr != db.end() && counter++ < batchSize) {
-      itr = db.erase(itr);
-    }
-  }
+  struct Quali {
+    uint8_t type;
+    QUALI_ATOMIC_ADDRESS address;
+    std::optional<QualiDataFilter> data_filter;
+  };
+
+  enum QualiType {
+    Collection = 0,
+    Template = 1,
+    Asset = 2
+  };
 
   force(eosio::name receiver, eosio::name code, eosio::datastream<const char*> ds) :
-    eosio::contract(receiver, code, ds), _config(_self, _self.value), _settings(_self, _self.value)
+    eosio::contract(receiver, code, ds), _settings(_self, _self.value)
   {};
 
   [[eosio::action]]
   void init(eosio::name vaccount_contract,
             uint32_t force_vaccount_id,
             uint32_t payout_delay_sec,
-            uint32_t release_task_delay_sec);
+            uint32_t release_task_delay_sec,
+            eosio::name fee_contract,
+            float fee_percentage);
 
   [[eosio::action]]
   void mkcampaign(vaccount::vaddress owner,
                   content content,
+                  uint32_t max_task_time,
                   eosio::extended_asset reward,
-                  camp_quali_map qualis,
+                  std::vector<Quali> qualis,
                   eosio::name payer,
                   vaccount::sig sig);
 
@@ -64,8 +76,9 @@ public:
   void editcampaign(uint32_t campaign_id,
                     vaccount::vaddress owner,
                     content content,
+                    bool paused,
                     eosio::extended_asset reward,
-                    camp_quali_map qualis,
+                    std::vector<Quali> qualis,
                     eosio::name payer,
                     vaccount::sig sig);
 
@@ -78,9 +91,7 @@ public:
   void mkbatch(uint32_t id,
                uint32_t campaign_id,
                content content,
-               checksum256 task_merkle_root,
                uint32_t repetitions,
-               std::optional<camp_quali_map> qualis,
                eosio::name payer,
                vaccount::sig sig);
 
@@ -99,25 +110,17 @@ public:
                   uint32_t campaign_id);
 
   [[eosio::action]]
-  void closebatch(uint64_t batch_id,
-                  vaccount::vaddress owner,
-                  vaccount::sig sig);
-
-  [[eosio::action]]
-  void reservetask(std::vector<eosio::checksum256> proof,
-                   std::vector<uint8_t> position,
-                   std::vector<char> data,
-                   uint32_t campaign_id,
-                   uint32_t batch_id,
+  void reservetask(uint32_t campaign_id,
                    uint32_t account_id,
+                   std::optional<std::vector<uint64_t>> quali_assets,
                    eosio::name payer,
                    vaccount::sig sig);
 
   [[eosio::action]]
-  void submittask(uint64_t task_id,
+  void submittask(uint32_t campaign_id,
+                  uint32_t task_idx,
                   std::string data,
                   uint32_t account_id,
-                  uint64_t batch_id,
                   eosio::name payer,
                   vaccount::sig sig);
 
@@ -125,116 +128,61 @@ public:
   void payout(uint64_t payment_id,
               std::optional<eosio::signature> sig);
 
-  [[eosio::action]]
-  void releasetask(uint64_t task_id,
-                   uint32_t account_id,
-                   eosio::name payer,
-                   vaccount::sig sig);
+  [[eosio::on_notify("*::transfer")]]
+  void transfer_handler(eosio::name from_id,
+			eosio::name to_id,
+			eosio::asset quantity,
+			std::string memo);
 
-  [[eosio::action]]
-  void reclaimtask(uint64_t task_id,
-                   uint32_t account_id,
-                   eosio::name payer,
-                   vaccount::sig sig);
-
-  [[eosio::action]]
-  void mkquali(content content,
-               uint32_t account_id,
-               eosio::name payer,
-               vaccount::sig sig);
-
-  [[eosio::action]]
-  void editquali(uint32_t quali_id,
-                 content content,
-                 uint32_t account_id,
-                 eosio::name payer,
-                 vaccount::sig sig);
-
-
-  [[eosio::action]]
-  void assignquali(uint32_t quali_id,
-                   uint32_t user_id,
-                   std::string value,
-                   eosio::name payer,
-                   vaccount::sig sig);
-
-  [[eosio::action]]
-  void uassignquali(uint32_t quali_id,
-                    uint32_t user_id,
-                    eosio::name payer,
-                    vaccount::sig sig);
-
-  [[eosio::on_notify("*::vtransfer")]]
-  void vtransfer_handler(uint64_t from_id,
-                         uint64_t to_id,
-                         extended_asset quantity,
-                         std::string memo,
-                         vaccount::sig sig,
-                         std::optional<extended_asset> fee);
+  template <typename T>
+  void cleanTable(name code, uint64_t account, const uint32_t batchSize){
+    T db(code, account);
+    uint32_t counter = 0;
+    auto itr = db.begin();
+    while (itr != db.end() && counter++ < batchSize) {
+      itr = db.erase(itr);
+    }
+  }
 
   [[eosio::action]]
   void clean() {
     require_auth(_self);
+    cleanTable<repsdone_table>(_self, _self.value, 100);
+    cleanTable<acctaskidx_table>(_self, _self.value, 100);
     cleanTable<submission_table>(_self, _self.value, 100);
+    cleanTable<reservation_table>(_self, _self.value, 100);
     cleanTable<batch_table>(_self, _self.value, 100);
     cleanTable<campaign_table>(_self, _self.value, 100);
     cleanTable<payment_table>(_self, _self.value, 100);
-    cleanTable<batchjoin_table>(_self, _self.value, 100);
   };
 
-  [[eosio::action]]
-  void migrate(eosio::name payer, eosio::name fee_contract, float fee_percentage) {
-    require_auth(_self);
-    auto c = _config.get();
-    auto itr = _settings.find(settings_pk.value);
-
-    eosio::check(itr == _settings.end(), "already migrated");
-
-    _settings.emplace(payer,
-                      [&](auto& s)
-                      {
-                        s.vaccount_contract = c.vaccount_contract;
-                        s.force_vaccount_id = c.force_vaccount_id;
-                        s.payout_delay_sec = c.payout_delay_sec;
-                        s.release_task_delay_sec = c.release_task_delay_sec;
-                        s.fee_contract = fee_contract;
-                        s.fee_percentage = fee_percentage;
-                      });
-  }
 
 private:
+  inline bool has_expired(time_point_sec base_time, uint32_t delay) {
+    return time_point_sec(now()) >= (base_time + delay);
+  }
+
   inline bool past_delay(time_point_sec base_time, std::string type_delay) {
     auto delay = NULL;
 
-    if (type_delay == "payout") delay = _config.get().payout_delay_sec;
-    else if (type_delay == "release_task") delay = _config.get().release_task_delay_sec;
-    return time_point_sec(now()) > (base_time + delay);
+    if (type_delay == "payout") delay = get_settings().payout_delay_sec;
+    else if (type_delay == "release_task") delay = get_settings().release_task_delay_sec;
+    return time_point_sec(now()) >= (base_time + delay);
   }
-
-  // Helper. Assumes we already did require_vaccount on account_id
-  void require_batchjoin(uint32_t account_id,
-                         uint64_t batch_id,
-                         bool try_to_join,
-                         eosio::name payer);
-
-  void require_merkle(std::vector<eosio::checksum256> proof,
-                      std::vector<uint8_t> position,
-                      eosio::checksum256 root,
-                      eosio::checksum256 data);
 
   struct reservetask_params {
     uint8_t mark;
-    checksum256 leaf_hash;
+    uint32_t last_task_done;
     uint32_t campaign_id;
-    uint32_t batch_id;
-    EOSLIB_SERIALIZE(reservetask_params, (mark)(leaf_hash)(campaign_id)(batch_id));
+    EOSLIB_SERIALIZE(reservetask_params, (mark)(last_task_done)(campaign_id));
   };
 
   struct submittask_params {
     uint8_t mark;
-    uint64_t submission_id;
+    uint32_t campaign_id;
+    uint32_t task_idx;
     std::string data;
-    EOSLIB_SERIALIZE(submittask_params, (mark)(submission_id)(data));
+    EOSLIB_SERIALIZE(submittask_params, (mark)(campaign_id)(task_idx)(data));
   };
 
   struct mkcampaign_params {
@@ -247,7 +195,10 @@ private:
     uint8_t mark;
     uint32_t campaign_id;
     content content;
-    EOSLIB_SERIALIZE(editcampaign_params, (mark)(campaign_id)(content));
+    eosio::extended_asset reward;
+    bool paused;
+    std::vector<Quali> qualis;
+    EOSLIB_SERIALIZE(editcampaign_params, (mark)(campaign_id)(content)(reward)(paused)(qualis));
   };
 
   struct rmcampaign_params {
@@ -256,39 +207,18 @@ private:
     EOSLIB_SERIALIZE(rmcampaign_params, (mark)(campaign_id));
   };
 
-  struct mkquali_params {
-    uint8_t mark;
-    uint32_t account_id;
-    content content;
-    EOSLIB_SERIALIZE(mkquali_params, (mark)(account_id)(content));
-  };
-
-  struct editquali_params {
-    uint8_t mark;
-    uint32_t quali_id;
-    content content;
-    EOSLIB_SERIALIZE(editquali_params, (mark)(quali_id)(content));
-  };
-
   struct mkbatch_params {
     uint8_t mark;
     uint32_t id;
     uint32_t campaign_id;
     content content;
-    checksum256 task_merkle_root;
-    EOSLIB_SERIALIZE(mkbatch_params, (mark)(id)(campaign_id)(content)(task_merkle_root));
+    EOSLIB_SERIALIZE(mkbatch_params, (mark)(id)(campaign_id)(content));
   };
 
-  struct closebatch_params {
+  struct publishbatch_params {
     uint8_t mark;
-    uint64_t id;
-    EOSLIB_SERIALIZE(closebatch_params, (mark)(id));
-  };
-
-  struct reopenbatch_params {
-    uint8_t mark;
-    uint64_t id;
-    EOSLIB_SERIALIZE(reopenbatch_params, (mark)(id));
+    uint64_t batch_id;
+    EOSLIB_SERIALIZE(publishbatch_params, (mark)(batch_id));
   };
 
   struct rmbatch_params {
@@ -296,20 +226,6 @@ private:
     uint32_t id;
     uint32_t campaign_id;
     EOSLIB_SERIALIZE(rmbatch_params, (mark)(id)(campaign_id));
-  };
-
-  struct assignquali_params {
-    uint8_t mark;
-    uint32_t id;
-    uint32_t campaign_id;
-    std::string value;
-    EOSLIB_SERIALIZE(assignquali_params, (mark)(id)(campaign_id)(value));
-  };
-
-  struct joinbatch_params {
-    uint8_t mark;
-    uint64_t batch_id;
-    EOSLIB_SERIALIZE(joinbatch_params, (mark)(batch_id));
   };
 
   struct payout_params {
@@ -327,39 +243,49 @@ private:
 
   struct [[eosio::table]] campaign {
     uint32_t id;
+    uint32_t tasks_done;
+    uint32_t total_tasks;
+    uint32_t active_batch;
+    uint32_t num_batches;
     vaccount::vaddress owner;
+    bool paused;
     content content;
+    uint32_t max_task_time;
     eosio::extended_asset reward;
-    eosio::binary_extension<std::map<uint32_t, uint8_t>> qualis;
+    std::vector<Quali> qualis;
 
     uint64_t primary_key() const { return (uint64_t) id; }
 
-    EOSLIB_SERIALIZE(campaign, (id)(owner)(content)(reward)(qualis))
+    EOSLIB_SERIALIZE(campaign, (id)(tasks_done)(total_tasks)(active_batch)(num_batches)(owner)
+                     (paused)(content)(max_task_time)(reward)(qualis))
   };
 
   struct [[eosio::table]] batch {
     uint32_t id;
     uint32_t campaign_id;
     content content;
-    checksum256 task_merkle_root;
     eosio::extended_asset balance;
     uint32_t repetitions;
     uint32_t tasks_done;
     uint32_t num_tasks;
-    eosio::binary_extension<std::map<uint32_t, uint8_t>> qualis;
-    eosio::binary_extension<eosio::extended_asset> reward;
+    uint32_t start_task_idx;
+    eosio::extended_asset reward;
 
     uint64_t primary_key() const { return (uint64_t{campaign_id} << 32) | id; }
-    uint32_t by_campaign() const { return campaign_id; }
   };
 
-  struct [[eosio::table]] batchjoin {
-    // This id is only necessary for uniqueness of primary key
-    uint64_t id;
+  struct [[eosio::table]] acctaskidx {
     uint32_t account_id;
-    uint64_t batch_id;
-    uint64_t primary_key() const { return id; }
-    uint128_t by_account_batch() const { return (uint128_t{batch_id} << 64) | (uint64_t{account_id} << 32); }
+    uint32_t campaign_id;
+    uint32_t value;
+    uint64_t primary_key() const { return (uint64_t{account_id} << 32) | campaign_id; }
+  };
+
+  struct [[eosio::table]] repsdone {
+    uint32_t campaign_id;
+    uint32_t task_idx;
+    uint32_t value;
+    uint64_t primary_key() const { return (uint64_t{campaign_id} << 32) | task_idx; }
   };
 
   struct [[eosio::table]] payment {
@@ -376,69 +302,64 @@ private:
     uint64_t by_account() const { return (uint64_t) account_id; }
   };
 
+  struct [[eosio::table]] reservation {
+    // auto incrementing id to ensure task ordering. the id gets
+    // "bumped" everytime the reservation expires and is refreshed.
+    uint64_t id;
+    uint32_t task_idx;
+    std::optional<uint32_t> account_id;
+    uint64_t batch_id;
+    eosio::time_point_sec reserved_on;
+    uint32_t campaign_id;
+
+    uint64_t primary_key() const { return id; }
+    // index to check if user has a reservation for a
+    // campaign. account_id in the front, so can be used as account
+    // filter
+    uint64_t by_account_campaign() const { return (uint64_t{account_id.value()} << 32) | campaign_id; }
+    uint64_t by_camp() const { return campaign_id; }
+    uint64_t by_account() const { return account_id.value(); }
+  };
+
   struct [[eosio::table]] submission {
     uint64_t id;
+    uint32_t campaign_id;
+    uint32_t task_idx;
     std::optional<uint32_t> account_id;
     std::optional<content> content;
-    checksum256 leaf_hash;
     uint64_t batch_id;
     std::optional<std::string> data;
     bool paid;
     eosio::time_point_sec submitted_on;
 
     uint64_t primary_key() const { return id; }
-    checksum256 by_leaf() const { return leaf_hash; }
     uint64_t by_batch() const { return batch_id; }
 
-    EOSLIB_SERIALIZE(submission, (id)(account_id)(content)(leaf_hash)(batch_id)
+    EOSLIB_SERIALIZE(submission, (id)(campaign_id)(task_idx)(account_id)(content)(batch_id)
                      (data)(paid)(submitted_on))
   };
 
-  struct [[eosio::table]] quali {
-    uint32_t id;
-    content content;
-    uint32_t account_id;
-
-    uint64_t primary_key() const { return uint64_t{id}; }
-    uint64_t by_account() const { return (uint64_t) account_id; }
-  };
-
-  struct [[eosio::table]] userquali {
-    uint32_t account_id;
-    uint32_t quali_id;
-    eosio::binary_extension<std::string> value;
-
-    uint64_t primary_key() const { return (uint64_t{account_id} << 32) | quali_id; }
-  };
-
   inline void require_vaccount(uint32_t acc_id, std::vector<char> msg, vaccount::sig sig) {
-    eosio::name vacc_contract = _config.get().vaccount_contract;
+    eosio::name vacc_contract = get_settings().vaccount_contract;
     vaccount::account_table acc_tbl(vacc_contract, vacc_contract.value);
     vaccount::account acc = acc_tbl.get((uint64_t) acc_id, "account row not found");
     vaccount::require_auth(msg, acc.address, sig);
   };
 
-  struct [[eosio::table]] config {
-    eosio::name vaccount_contract;
-    uint32_t force_vaccount_id;
-    uint32_t payout_delay_sec;
-    uint32_t release_task_delay_sec;
-  };
-
-  typedef singleton<"config"_n, config> config_table;
-
   typedef multi_index<"campaign"_n, campaign> campaign_table;
   typedef multi_index<"batch"_n, batch> batch_table;
+  typedef multi_index<"repsdone"_n, repsdone> repsdone_table;
+  typedef multi_index<"acctaskidx"_n, acctaskidx> acctaskidx_table;
+
   typedef multi_index<
-    "batchjoin"_n,
-    batchjoin,
-    indexed_by<"accbatch"_n,
-               const_mem_fun<batchjoin, uint128_t, &batchjoin::by_account_batch>>>
-  batchjoin_table;
+    "reservation"_n, reservation,
+    indexed_by<"acccamp"_n, const_mem_fun<reservation, uint64_t, &reservation::by_account_campaign>>,
+    indexed_by<"camp"_n, const_mem_fun<reservation, uint64_t, &reservation::by_camp>>,
+    indexed_by<"acc"_n, const_mem_fun<reservation, uint64_t, &reservation::by_account>>>
+  reservation_table;
 
   typedef multi_index<
     "submission"_n, submission,
-    indexed_by<"leaf"_n, const_mem_fun<submission, checksum256, &submission::by_leaf>>,
     indexed_by<"batch"_n, const_mem_fun<submission, uint64_t, &submission::by_batch>>>
   submission_table;
 
@@ -446,11 +367,6 @@ private:
                       indexed_by<"accbatch"_n, const_mem_fun<payment, uint128_t, &payment::by_account_batch>>,
                       indexed_by<"acc"_n, const_mem_fun<payment, uint64_t, &payment::by_account>>>
   payment_table;
-
-  typedef multi_index<"quali"_n, quali,
-                      indexed_by<"acc"_n, const_mem_fun<quali, uint64_t, &quali::by_account>>> quali_table;
-  typedef multi_index<"userquali"_n, userquali> user_quali_table;
-
 
   const eosio::name settings_pk = "settings"_n;
 
@@ -466,7 +382,6 @@ private:
 
   typedef multi_index<"settings"_n, settings> settings_table;
   settings_table _settings;
-  config_table _config;
 
   settings get_settings() {
     auto itr = _settings.find(settings_pk.value);
