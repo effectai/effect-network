@@ -9,7 +9,7 @@
     "eos-cljs": "./eos-cljs",
     "eosjs": "^20.0.3",
     "merkletreejs": "^0.2.24",
-    "node-fetch": "^2.6.1"
+    "node-fetch": "^2.6.7"
   },
   "scripts": {
     "test": "lumo -K -c tests -m e2e.network",
