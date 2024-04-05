@@ -69,8 +69,7 @@ public:
                   uint32_t max_task_time,
                   eosio::extended_asset reward,
                   std::vector<Quali> qualis,
-                  eosio::name payer,
-                  vaccount::sig sig);
+                  eosio::name payer);
 
   [[eosio::action]]
   void editcampaign(uint32_t campaign_id,
@@ -79,31 +78,26 @@ public:
                     bool paused,
                     eosio::extended_asset reward,
                     std::vector<Quali> qualis,
-                    eosio::name payer,
-                    vaccount::sig sig);
+                    eosio::name payer);
 
   [[eosio::action]]
   void rmcampaign(uint32_t campaign_id,
-                  vaccount::vaddress owner,
-                  vaccount::sig sig);
+                  vaccount::vaddress owner);
 
   [[eosio::action]]
   void mkbatch(uint32_t id,
                uint32_t campaign_id,
                content content,
                uint32_t repetitions,
-               eosio::name payer,
-               vaccount::sig sig);
+               eosio::name payer);
 
   [[eosio::action]]
   void publishbatch(uint64_t batch_id,
-                    uint32_t num_tasks,
-                    vaccount::sig sig);
+                    uint32_t num_tasks);
 
   [[eosio::action]]
   void rmbatch(uint32_t id,
-               uint32_t campaign_id,
-               vaccount::sig sig);
+               uint32_t campaign_id);
 
   [[eosio::action]]
   void cleartasks(uint32_t batch_id,
@@ -113,20 +107,17 @@ public:
   void reservetask(uint32_t campaign_id,
                    uint32_t account_id,
                    std::optional<std::vector<uint64_t>> quali_assets,
-                   eosio::name payer,
-                   vaccount::sig sig);
+                   eosio::name payer);
 
   [[eosio::action]]
   void submittask(uint32_t campaign_id,
                   uint32_t task_idx,
                   std::string data,
                   uint32_t account_id,
-                  eosio::name payer,
-                  vaccount::sig sig);
+		  eosio::name payer);
 
   [[eosio::action]]
-  void payout(uint64_t payment_id,
-              std::optional<eosio::signature> sig);
+  void payout(uint64_t payment_id);
 
   [[eosio::on_notify("*::transfer")]]
   void transfer_handler(eosio::name from_id,
@@ -339,11 +330,11 @@ private:
                      (data)(paid)(submitted_on))
   };
 
-  inline void require_vaccount(uint32_t acc_id, std::vector<char> msg, vaccount::sig sig) {
+  inline void require_vaccount(uint32_t acc_id) {
     eosio::name vacc_contract = get_settings().vaccount_contract;
     vaccount::account_table acc_tbl(vacc_contract, vacc_contract.value);
     vaccount::account acc = acc_tbl.get((uint64_t) acc_id, "account row not found");
-    vaccount::require_auth(msg, acc.address, sig);
+    vaccount::require_auth(std::vector<char>(), acc.address, std::nullopt);
   };
 
   typedef multi_index<"campaign"_n, campaign> campaign_table;

@@ -26,14 +26,11 @@ void force::mkcampaign(vaccount::vaddress owner,
                        uint32_t max_task_time,
                        eosio::extended_asset reward,
                        std::vector<Quali> qualis,
-                       eosio::name payer,
-                       vaccount::sig sig) {
+                       eosio::name payer) {
   campaign_table camp_tbl(_self, _self.value);
   uint32_t camp_id = camp_tbl.available_primary_key();
-  // TODO: add owner, reward, and qualis to the params
-  mkcampaign_params params = {9, content};
-  std::vector<char> msg_bytes = pack(params);
-  vaccount::require_auth(msg_bytes, owner, sig);
+
+  vaccount::require_auth(std::vector<char>(), owner, std::nullopt);
 
   camp_tbl.emplace(payer,
                    [&](auto& c)
@@ -58,14 +55,13 @@ void force::editcampaign(uint32_t campaign_id,
                          bool paused,
                          eosio::extended_asset reward,
                          std::vector<Quali> qualis,
-                         eosio::name payer,
-                         vaccount::sig sig) {
+                         eosio::name payer) {
   campaign_table camp_tbl(_self, _self.value);
   auto& camp = camp_tbl.get(campaign_id, "campaign does not exist");
 
   editcampaign_params params = {10, campaign_id, content, reward, paused, qualis};
-  std::vector<char> msg_bytes = pack(params);
-  vaccount::require_auth(msg_bytes, owner, sig);
+
+  vaccount::require_auth(std::vector<char>(), owner, std::nullopt);
 
   camp_tbl.modify(camp,
                   payer,
@@ -77,14 +73,12 @@ void force::editcampaign(uint32_t campaign_id,
                   });
 }
 
-void force::rmcampaign(uint32_t campaign_id, vaccount::vaddress owner, vaccount::sig sig) {
+void force::rmcampaign(uint32_t campaign_id, vaccount::vaddress owner) {
   campaign_table camp_tbl(_self, _self.value);
   auto camp_itr = camp_tbl.find(campaign_id);
   eosio::check(camp_itr != camp_tbl.end(), "campaign does not exist");
 
-  rmcampaign_params params = {11, campaign_id};
-  std::vector<char> msg_bytes = pack(params);
-  vaccount::require_auth(msg_bytes, owner, sig);
+  vaccount::require_auth(std::vector<char>(), owner, std::nullopt);
 
   camp_tbl.erase(camp_itr);
 }
@@ -93,16 +87,13 @@ void force::mkbatch(uint32_t id,
                     uint32_t campaign_id,
                     content content,
                     uint32_t repetitions,
-                    eosio::name payer,
-                    vaccount::sig sig) {
+                    eosio::name payer) {
   campaign_table camp_tbl(_self, _self.value);
   auto camp = camp_tbl.require_find(campaign_id, "campaign not found");
 
   eosio::check(id == camp->num_batches, "batch id must be sequential");
 
-  mkbatch_params params = {8, id, campaign_id, content};
-  std::vector<char> msg_bytes = pack(params);
-  vaccount::require_auth(msg_bytes, camp->owner, sig);
+  vaccount::require_auth(std::vector<char>(), camp->owner, std::nullopt);
 
   eosio::check(repetitions < force::MAX_REPETITIONS, "too many repetitions");
   batch_table batch_tbl(_self, _self.value);
@@ -120,7 +111,7 @@ void force::mkbatch(uint32_t id,
   camp_tbl.modify(camp, eosio::same_payer, [&](auto& c) { c.num_batches += 1; });
 }
 
-void force::rmbatch(uint32_t id, uint32_t campaign_id, vaccount::sig sig) {
+void force::rmbatch(uint32_t id, uint32_t campaign_id) {
   batch_table batch_tbl(_self, _self.value);
   campaign_table camp_tbl(_self, _self.value);
 
@@ -130,11 +121,7 @@ void force::rmbatch(uint32_t id, uint32_t campaign_id, vaccount::sig sig) {
 
   auto batch = batch_tbl.require_find(batch_pk, "batch does not exist");
 
-  rmbatch_params params = {12, id, campaign_id};
-
-  std::vector<char> msg_bytes = pack(params);
-  printhex(&msg_bytes[0], msg_bytes.size());
-  vaccount::require_auth(msg_bytes, camp->owner, sig);
+  vaccount::require_auth(std::vector<char>(), camp->owner, std::nullopt);
 
   uint32_t batch_tasks_done = (camp->tasks_done - batch->start_task_idx);
 
@@ -187,7 +174,7 @@ void force::cleartasks(uint32_t batch_id, uint32_t campaign_id) {
   }
 }
 
-void force::publishbatch(uint64_t batch_id, uint32_t num_tasks, vaccount::sig sig) {
+void force::publishbatch(uint64_t batch_id, uint32_t num_tasks) {
   batch_table batch_tbl(_self, _self.value);
   auto& batch = batch_tbl.get(batch_id, "batch not found");
 
@@ -197,8 +184,7 @@ void force::publishbatch(uint64_t batch_id, uint32_t num_tasks, vaccount::sig si
 
   settings settings = get_settings();
 
-  publishbatch_params params = {17, batch_id};
-  vaccount::require_auth(pack(params), camp.owner, sig);
+  vaccount::require_auth(std::vector<char>(), camp.owner, std::nullopt);
 
   eosio::extended_asset task_reward = batch.reward;
   eosio::extended_asset batch_fee(task_reward.quantity.amount * settings.fee_percentage *
@@ -241,8 +227,7 @@ void force::publishbatch(uint64_t batch_id, uint32_t num_tasks, vaccount::sig si
 void force::reservetask(uint32_t campaign_id,
                         uint32_t account_id,
                         std::optional<std::vector<uint64_t>> quali_assets,
-                        name payer,
-                        vaccount::sig sig) {
+                        name payer) {
   campaign_table campaign_tbl(_self, _self.value);
   auto& campaign = campaign_tbl.get(campaign_id, "campaign not found");
 
@@ -330,8 +315,7 @@ void force::reservetask(uint32_t campaign_id,
   auto& user_last_task = acctaskidx_tbl.get(acccamp_pk);
   uint32_t user_next_task_idx = !user_has_last_task ? 0 : user_last_task.value + 1;
 
-  reservetask_params params = {6, user_next_task_idx, campaign_id};
-  require_vaccount(account_id, pack(params), sig);
+  require_vaccount(account_id);
 
   eosio::check(!user_has_last_task || campaign.total_tasks > user_last_task.value,
                "no more tasks for you");
@@ -350,6 +334,9 @@ void force::reservetask(uint32_t campaign_id,
       // idx. if the user were to steal future indexis, bumping
       // acctaskidx would mean the users misses out on tasks, and
       // omitting so would let him do this repetition twice.
+      //
+      // NOTE: this does allow users to complete reptitions twice,
+      // when they expire?
       task_idx >= by_camp_itr->task_idx) {
     auto& res = *by_camp_itr;
     uint64_t bump_id = std::max(reservation_tbl.available_primary_key(),
@@ -444,13 +431,12 @@ void force::reservetask(uint32_t campaign_id,
                           });
 }
 
-void force::payout(uint64_t payment_id, std::optional<eosio::signature> sig) {
+void force::payout(uint64_t payment_id) {
   payment_table payment_tbl(_self, _self.value);
 
   auto& payment = payment_tbl.get(payment_id, "payment not found");
 
-  payout_params params = {13, payment.account_id};
-  require_vaccount(payment.account_id, pack(params), sig);
+  require_vaccount(payment.account_id);
   eosio::check(past_delay(payment.last_submission_time, "payout"), "not past payout delay");
   eosio::check(payment.pending.quantity.amount > 0, "nothing to payout");
 
@@ -474,7 +460,7 @@ void force::submittask(uint32_t campaign_id,
                        uint32_t task_idx,
                        std::string data,
                        uint32_t account_id,
-                       name payer, vaccount::sig sig) {
+		       eosio::name payer) {
   uint64_t acccamp_pk = (uint64_t{account_id} << 32) | campaign_id;
   reservation_table reservation_tbl(_self, _self.value);
   auto by_acccamp = reservation_tbl.get_index<"acccamp"_n>();
@@ -506,8 +492,7 @@ void force::submittask(uint32_t campaign_id,
 
   auto& batch = batch_tbl.get(res->batch_id);
 
-  submittask_params params = {5, campaign_id, task_idx, data};
-  require_vaccount(account_id, pack(params), sig);
+  require_vaccount(account_id);
 
   if (batch.reward.quantity.amount > 0) {
     uint64_t payment_id = payment_tbl.available_primary_key();
