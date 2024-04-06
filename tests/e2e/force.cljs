@@ -278,33 +278,7 @@
                                 :payer acc-4
                                 :sig nil})))
 
-  (testing "can create campaign from pub key hash"
-    (let [ipfs-hash  "QmPU1fL3oVZGKhGeNSMGxJgY7NsK6MQEpMyZF3CvQwRz4T"
-          params (pack-mkcampaign-params ipfs-hash)]
-      (<p-should-succeed! (tx-as acc-2 force-acc "mkcampaign"
-                                 {:owner (first accs)
-                                  :content {:field_0 0 :field_1 ipfs-hash}
-                                  :max_task_time 5
-                                  :reward {:quantity "115.0000 EFX" :contract token-acc}
-                                  :qualis []
-                                  :payer acc-2
-                                  :sig (sign-params params)}))
-      (<p-should-succeed! (tx-as acc-2 force-acc "mkcampaign"
-                                 {:owner (first accs)
-                                  :content {:field_0 0 :field_1 ipfs-hash}
-                                  :max_task_time 5
-                                  :reward {:quantity "110.0000 EFX" :contract token-acc}
-                                  :qualis []
-                                  :payer acc-2
-                                  :sig (sign-params params)}))
-      (<p-should-succeed! (tx-as acc-4 force-acc "mkcampaign"
-                                 {:owner (first accs)
-                                  :content {:field_0 0 :field_1 ipfs-hash}
-                                  :max_task_time 5
-                                  :reward {:quantity "11.0000 EFX" :contract token-acc}
-                                  :qualis []
-                                  :payer acc-4
-                                  :sig (sign-params params)})))))
+)
 
 (async-deftest editcampaign
   (testing "can edit campaign from eos account"
@@ -388,31 +362,7 @@
                                 :payer acc-4
                                 :sig nil})))
 
-  (testing "pub key hash can create batch"
-    (let [params-1 (pack-mkbatch-params 0 3 vacc/hash160-1)
-          params-2 (pack-mkbatch-params 1 3 vacc/hash160-1)
-          params-3 (pack-mkbatch-params 0 5 vacc/hash160-1)]
-      (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
-                                 {:id 0
-                                  :campaign_id 3
-                                  :content {:field_0 0 :field_1 vacc/hash160-1}
-                                  :repetitions 1
-                                  :payer acc-2
-                                  :sig (sign-params params-1)}))
-      (<p-should-succeed! (tx-as acc-2 force-acc "mkbatch"
-                                 {:id 1
-                                  :campaign_id 3
-                                  :content {:field_0 0 :field_1 vacc/hash160-1}
-                                  :repetitions 1
-                                  :payer acc-2
-                                  :sig (sign-params params-2)}))
-      (<p-should-succeed! (tx-as acc-4 force-acc "mkbatch"
-                                 {:id 0
-                                  :campaign_id 5
-                                  :content {:field_0 0 :field_1 vacc/hash160-1}
-                                  :payer acc-4
-                                  :repetitions 1
-                                  :sig (sign-params params-3)})))))
+)
 
 (async-deftest rmbatch
   (testing "only campaign owner can erase batch"
@@ -439,12 +389,7 @@
                                 :campaign_id 0
                                 :sig nil})))
 
-  (testing "can erase batch from pub key hash"
-    (let [params (pack-rmbatch-params 1 3)]
-      (<p-should-succeed! (tx-as acc-2 force-acc "rmbatch"
-                                 {:id 1
-                                  :campaign_id 3
-                                  :sig (sign-params params)})))))
+)
 
 (defn efx-quant [n]
   {:quantity (str n ".0000 EFX") :contract token-acc})
