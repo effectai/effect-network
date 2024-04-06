@@ -300,9 +300,9 @@
 
   (let [rows (<p! (eos/get-table-rows prop-acc prop-acc "proposal"))
         r (->> rows (filter #(= (% "id") 0)) first)]
-    (is (= (get-in r ["vote_counts" 0 "value"]) 0))
-    (is (= (get-in r ["vote_counts" 1 "value"]) 24042))
-    (is (= (get-in r ["vote_counts" 2 "value"]) 37276)))
+    (is (= (get-in r ["vote_counts" 0 "second"]) 0))
+    (is (= (get-in r ["vote_counts" 1 "second"]) 24042))
+    (is (= (get-in r ["vote_counts" 2 "second"]) 37276)))
 
   (<p! (eos/wait-block (js/Promise.resolve 42) 2))
 
