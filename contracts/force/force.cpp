@@ -59,8 +59,6 @@ void force::editcampaign(uint32_t campaign_id,
   campaign_table camp_tbl(_self, _self.value);
   auto& camp = camp_tbl.get(campaign_id, "campaign does not exist");
 
-  editcampaign_params params = {10, campaign_id, content, reward, paused, qualis};
-
   vaccount::require_auth(std::vector<char>(), owner, std::nullopt);
 
   camp_tbl.modify(camp,
