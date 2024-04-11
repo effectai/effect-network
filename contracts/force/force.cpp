@@ -36,7 +36,7 @@ void force::mkcampaign(vaccount::vaddress owner,
                    [&](auto& c)
                    {
                      c.id = camp_id;
-                     c.tasks_done = 0;
+                     c.reservations_done = 0;
                      c.active_batch = 0;
                      c.num_batches = 0;
                      c.content = content;
@@ -121,7 +121,7 @@ void force::rmbatch(uint32_t id, uint32_t campaign_id) {
 
   vaccount::require_auth(std::vector<char>(), camp->owner, std::nullopt);
 
-  uint32_t batch_tasks_done = (camp->tasks_done - batch->start_task_idx);
+  uint32_t batch_tasks_done = (camp->reservations_done - batch->start_task_idx);
 
   if (batch->id > camp->active_batch) {
     // if the batch has not started, we should empty it, the row
@@ -200,7 +200,7 @@ void force::publishbatch(uint64_t batch_id, uint32_t num_tasks) {
                      // if this batch becomes the active batch of the
                      // campaign track it starting index
                      if (camp.active_batch == b.id) {
-                       b.start_task_idx = camp.tasks_done;
+                       b.start_task_idx = camp.reservations_done;
                      }
                    });
 
@@ -212,7 +212,7 @@ void force::publishbatch(uint64_t batch_id, uint32_t num_tasks) {
 
   if (batch_fee.quantity.amount > 0) {
     action(permission_level{_self, "xfer"_n},
-	   batch.balance.contract,
+           batch.balance.contract,
            "transfer"_n,
            std::make_tuple(_self,
                            settings.fee_contract,
@@ -236,7 +236,7 @@ void force::reservetask(uint32_t campaign_id,
   batch_table batch_tbl(_self, _self.value);
   auto& batch = batch_tbl.get(batch_pk, "no batches available");
 
-  eosio::check(campaign.tasks_done < batch.start_task_idx + batch.num_tasks,
+  eosio::check(campaign.reservations_done < batch.start_task_idx + batch.num_tasks,
                "no more tasks in campaign");
 
   // check qualifications
@@ -319,7 +319,7 @@ void force::reservetask(uint32_t campaign_id,
                "no more tasks for you");
 
   // reserve suitable task idx to the user
-  uint32_t task_idx = std::max(campaign.tasks_done, user_next_task_idx);
+  uint32_t task_idx = std::max(campaign.reservations_done, user_next_task_idx);
 
   submission_table submission_tbl(_self, _self.value);
 
@@ -387,12 +387,13 @@ void force::reservetask(uint32_t campaign_id,
     if (has_reps_done_row)
       repsdone_tbl.erase(repetitions_done);
 
-    bool batch_done = ((campaign.tasks_done + 1) >= (batch.start_task_idx + batch.num_tasks));
+    bool batch_done = ((campaign.reservations_done + 1) >=
+                       (batch.start_task_idx + batch.num_tasks));
     campaign_tbl.modify(campaign,
                         eosio::same_payer,
                         [&](auto& c)
                         {
-                          c.tasks_done += 1;
+                          c.reservations_done += 1;
                           if (batch_done) {
                             c.active_batch += 1;
                           }
@@ -408,7 +409,7 @@ void force::reservetask(uint32_t campaign_id,
                          eosio::same_payer,
                          [&](auto &b)
                          {
-                           b.start_task_idx = campaign.tasks_done;
+                           b.start_task_idx = campaign.reservations_done;
                          });
       }
     }
@@ -458,7 +459,7 @@ void force::submittask(uint32_t campaign_id,
                        uint32_t task_idx,
                        std::string data,
                        uint32_t account_id,
-		       eosio::name payer) {
+                       eosio::name payer) {
   uint64_t acccamp_pk = (uint64_t{account_id} << 32) | campaign_id;
   reservation_table reservation_tbl(_self, _self.value);
   auto by_acccamp = reservation_tbl.get_index<"acccamp"_n>();
@@ -487,6 +488,11 @@ void force::submittask(uint32_t campaign_id,
                            s.paid = false;
                            s.submitted_on = time_point_sec(now());
                          });
+
+  auto& campaign = campaign_tbl.get(campaign_id, "campaign not found");
+  campaign_tbl.modify(campaign,
+                      eosio::same_payer,
+                      [&](auto& c) { c.total_submissions += 1; });
 
   auto& batch = batch_tbl.get(res->batch_id);
 
@@ -522,9 +528,9 @@ void force::submittask(uint32_t campaign_id,
 }
 
 void force::transfer_handler(eosio::name from,
-			     eosio::name to,
-			     eosio::asset quantity,
-			     std::string memo) {
+                             eosio::name to,
+                             eosio::asset quantity,
+                             std::string memo) {
   if (to == get_self()) {
     eosio::extended_asset sym(quantity, get_first_receiver());
     uint64_t batch_id = std::stoull(memo);

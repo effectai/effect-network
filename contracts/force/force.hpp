@@ -163,7 +163,17 @@ private:
 
   struct [[eosio::table]] campaign {
     uint32_t id;
-    uint32_t tasks_done;
+    /**
+     * Counter for the reservations that have been created. This
+     * counter only goes up if all repetitions for a task have been
+     * reserved.
+     */
+    uint32_t reservations_done;
+    /**
+     * Counter for the total submissions that exist for this campaign.
+     * This counter goes up for every repetition that is submitted.
+     */
+    uint32_t total_submissions;
     uint32_t total_tasks;
     uint32_t active_batch;
     uint32_t num_batches;
@@ -176,8 +186,8 @@ private:
 
     uint64_t primary_key() const { return (uint64_t) id; }
 
-    EOSLIB_SERIALIZE(campaign, (id)(tasks_done)(total_tasks)(active_batch)(num_batches)(owner)
-                     (paused)(content)(max_task_time)(reward)(qualis))
+    EOSLIB_SERIALIZE(campaign, (id)(reservations_done)(total_submissions)(total_tasks)(active_batch)
+		     (num_batches)(owner)(paused)(content)(max_task_time)(reward)(qualis))
   };
 
   struct [[eosio::table]] batch {

@@ -508,7 +508,7 @@
                                              :payer acc-3
                                              :quali_assets []
                                              :sig nil}))))
-    (is (= (<p! (get-in-rows force-acc "campaign" [0 "tasks_done"])) 0))
+    (is (= (<p! (get-in-rows force-acc "campaign" [0 "reservations_done"])) 0))
     (let [rows (<p! (eos/get-table-rows force-acc force-acc "reservation"))]
       (is (= (count rows) 1))
       (is (= (get-in rows [0 "account_id"]) 1))))
@@ -531,7 +531,7 @@
                                              :payer acc-2
                                              :quali_assets [0]
                                              :sig nil})
-       (is (= (<p! (get-in-rows force-acc "campaign" [0 "tasks_done"])) 0))
+       (is (= (<p! (get-in-rows force-acc "campaign" [0 "reservations_done"])) 0))
        (let [rows (<p! (eos/get-table-rows force-acc force-acc "reservation"))]
          (is (= (count rows) 1))
          (is (= (get-in rows [0 "account_id"]) 2) ))))))
@@ -543,7 +543,7 @@
                                            :payer acc-3
                                            :quali_assets nil
                                            :sig nil}))
-    (is (= (<p! (get-in-rows force-acc "campaign" [1 "tasks_done"])) 1))
+    (is (= (<p! (get-in-rows force-acc "campaign" [1 "reservations_done"])) 1))
     (let [rows (<p! (eos/get-table-rows force-acc force-acc "reservation"))]
       (is (= (count rows) 2))
       (is (= (get-in rows [1 "account_id"]) 1)))
@@ -554,7 +554,7 @@
                                            :account_id 2
                                            :payer acc-2
                                            :sig nil}))
-    (is (= (<p! (get-in-rows force-acc "campaign" [1 "tasks_done"])) 2))))
+    (is (= (<p! (get-in-rows force-acc "campaign" [1 "reservations_done"])) 2))))
 
 
 
