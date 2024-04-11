@@ -11,7 +11,6 @@ all: $(WASM)
 %.abi %.wasm: %.cpp %.hpp $(%-shared.hpp)
 	$(EOS_CC) -o $@ $<
 
-.PHONY: serve-docs clean
 
 clean:
 	rm -f $(WASM) $(ABI)
@@ -21,3 +20,11 @@ serve-docs:
 
 build-docs:
 	jekyll b -s docs
+
+test-contracts:
+	npm run lumo e2e.force
+
+deploy-testnet:
+	bb deploy jungle4
+
+.PHONY: serve-docs clean test-contracts deploy-testnet
