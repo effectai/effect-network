@@ -186,7 +186,6 @@ private:
     content content;
     eosio::extended_asset balance;
     uint32_t repetitions;
-    uint32_t tasks_done;
     uint32_t num_tasks;
     uint32_t start_task_idx;
     eosio::extended_asset reward;
