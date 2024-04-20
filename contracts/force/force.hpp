@@ -112,7 +112,7 @@ public:
   [[eosio::action]]
   void submittask(uint32_t campaign_id,
                   uint32_t task_idx,
-                  std::string data,
+		  std::pair<char, std::vector<char>> data,
                   uint32_t account_id,
 		  eosio::name payer);
 
@@ -174,6 +174,9 @@ private:
      * This counter goes up for every repetition that is submitted.
      */
     uint32_t total_submissions;
+    /**
+     * Total tasks in this campaign.
+     */
     uint32_t total_tasks;
     uint32_t active_batch;
     uint32_t num_batches;
@@ -186,8 +189,9 @@ private:
 
     uint64_t primary_key() const { return (uint64_t) id; }
 
-    EOSLIB_SERIALIZE(campaign, (id)(reservations_done)(total_submissions)(total_tasks)(active_batch)
-		     (num_batches)(owner)(paused)(content)(max_task_time)(reward)(qualis))
+    EOSLIB_SERIALIZE(campaign, (id)(reservations_done)(total_submissions)(total_tasks)
+		     (active_batch)(num_batches)(owner)(paused)(content)(max_task_time)(reward)
+		     (qualis))
   };
 
   struct [[eosio::table]] batch {
@@ -257,7 +261,17 @@ private:
     std::optional<uint32_t> account_id;
     std::optional<content> content;
     uint64_t batch_id;
-    std::optional<std::string> data;
+    /**
+     * The first byte of `data` indicates the type of the submission.
+     *
+     * 0 = Flag
+     * 1 = Raw (normally a UTF-8 encoded string)
+     * 2 = Ipfs hash (30 bytes, without indicator)
+     * 3 = ?
+     *
+     * Details on the decoding scheme can be foun in the campaign JSON.
+     */
+    std::pair<char, std::vector<char>> data;
     bool paid;
     eosio::time_point_sec submitted_on;
 
@@ -265,7 +279,7 @@ private:
     uint64_t by_batch() const { return batch_id; }
 
     EOSLIB_SERIALIZE(submission, (id)(campaign_id)(task_idx)(account_id)(content)(batch_id)
-                     (data)(paid)(submitted_on))
+		     (data)(paid)(submitted_on))
   };
 
   inline void require_vaccount(uint32_t acc_id) {

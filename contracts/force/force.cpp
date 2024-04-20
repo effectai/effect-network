@@ -457,7 +457,7 @@ void force::payout(uint64_t payment_id) {
 
 void force::submittask(uint32_t campaign_id,
                        uint32_t task_idx,
-                       std::string data,
+                       std::pair<char, std::vector<char>> data,
                        uint32_t account_id,
                        eosio::name payer) {
   uint64_t acccamp_pk = (uint64_t{account_id} << 32) | campaign_id;
@@ -483,7 +483,7 @@ void force::submittask(uint32_t campaign_id,
                            s.campaign_id = campaign_id;
                            s.task_idx = task_idx;
                            s.account_id.emplace(account_id);
-                           s.data.emplace(data);
+                           s.data = data;
                            s.batch_id = res->batch_id;
                            s.paid = false;
                            s.submitted_on = time_point_sec(now());

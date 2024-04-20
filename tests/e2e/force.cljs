@@ -680,24 +680,20 @@
 (defn reserve-task-fn [campaign-id account account-id]
   (tx-as account force-acc "reservetask" {:campaign_id campaign-id
                                           :account_id account-id
-                                          :quali_assets nil
-                                          :payer account
-                                          :sig nil}))
+                                          :quali_assets nil}))
 
 (defn submit-task-fn [campaign-id task-idx account account-id]
   (tx-as account force-acc "submittask" {:campaign_id campaign-id
-                                         :data (str "test data " task-idx)
+                                         :data {:first 1 :second "001122"}
                                          :account_id account-id
-                                         :task_idx task-idx
-                                         :payer account
-                                         :sig nil}))
+                                         :task_idx task-idx}))
 
 (async-deftest submit-task
   (testing "can not submit for other user"
     (js/console.log
      (eos/tx-get-console
       (<p-should-fail-with!
-       (tx-as acc-3 force-acc "submittask" {:data "testdata"
+       (tx-as acc-3 force-acc "submittask" {:data {:first 1 :second ""}
                                             :campaign_id 0
                                             :task_idx 0
                                             :account_id 3
@@ -709,7 +705,7 @@
     (js/console.log
      (eos/tx-get-console
       (<p-should-succeed!
-       (tx-as acc-2 force-acc "submittask" {:data "testdata"
+       (tx-as acc-2 force-acc "submittask" {:data {:first 1 :second "01aa"}
                                             :campaign_id 0
                                             :task_idx 0
                                             :account_id 2
@@ -718,11 +714,12 @@
     (let [rows (<p! (eos/get-table-rows force-acc force-acc "submission"))]
       (is (= (count rows) 1))
       (is (= (get-in rows [0 "account_id"]) 2))
-      (is (= (get-in rows [0 "data"]) "testdata"))))
+      (is (= (get-in rows [0 "data" "first"]) 1))
+      (is (= (get-in rows [0 "data" "second"]) "01aa"))))
 
   (testing "can not double submit"
     (<p-should-fail-with!
-     (tx-as acc-2 force-acc "submittask" {:data "testdata 3"
+     (tx-as acc-2 force-acc "submittask" {:data {:first 1 :second "02bb"}
                                           :campaign_id 0
                                           :task_idx 0
                                           :account_id 2
