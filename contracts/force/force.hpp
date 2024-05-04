@@ -106,24 +106,22 @@ public:
   [[eosio::action]]
   void reservetask(uint32_t campaign_id,
                    uint32_t account_id,
-                   std::optional<std::vector<uint64_t>> quali_assets,
-                   eosio::name payer);
+                   std::optional<std::vector<uint64_t>> quali_assets);
 
   [[eosio::action]]
   void submittask(uint32_t campaign_id,
                   uint32_t task_idx,
-		  std::pair<char, std::vector<char>> data,
-                  uint32_t account_id,
-		  eosio::name payer);
+                  std::pair<char, std::vector<char>> data,
+                  uint32_t account_id);
 
   [[eosio::action]]
   void payout(uint64_t payment_id);
 
   [[eosio::on_notify("*::transfer")]]
   void transfer_handler(eosio::name from_id,
-			eosio::name to_id,
-			eosio::asset quantity,
-			std::string memo);
+                        eosio::name to_id,
+                        eosio::asset quantity,
+                        std::string memo);
 
   template <typename T>
   void cleanTable(name code, uint64_t account, const uint32_t batchSize){

@@ -224,8 +224,7 @@ void force::publishbatch(uint64_t batch_id, uint32_t num_tasks) {
 
 void force::reservetask(uint32_t campaign_id,
                         uint32_t account_id,
-                        std::optional<std::vector<uint64_t>> quali_assets,
-                        name payer) {
+                        std::optional<std::vector<uint64_t>> quali_assets) {
   campaign_table campaign_tbl(_self, _self.value);
   auto& campaign = campaign_tbl.get(campaign_id, "campaign not found");
 
@@ -244,6 +243,7 @@ void force::reservetask(uint32_t campaign_id,
   auto vacc = vaccount::get_vaccount(settings.vaccount_contract, account_id);
   bool is_eos = vaccount::is_eos(vacc->address);
   eosio::name asset_owner = is_eos ? vaccount::get_name(vacc->address) : _self;
+  eosio::name payer = asset_owner;
   auto acc_assets_tbl = atomicassets::get_assets(asset_owner);
   auto force_assets_tbl = atomicassets::get_assets(_self);
 
@@ -458,8 +458,7 @@ void force::payout(uint64_t payment_id) {
 void force::submittask(uint32_t campaign_id,
                        uint32_t task_idx,
                        std::pair<char, std::vector<char>> data,
-                       uint32_t account_id,
-                       eosio::name payer) {
+                       uint32_t account_id) {
   uint64_t acccamp_pk = (uint64_t{account_id} << 32) | campaign_id;
   reservation_table reservation_tbl(_self, _self.value);
   auto by_acccamp = reservation_tbl.get_index<"acccamp"_n>();
@@ -474,6 +473,11 @@ void force::submittask(uint32_t campaign_id,
   payment_table payment_tbl(_self, _self.value);
   batch_table batch_tbl(_self, _self.value);
   campaign_table campaign_tbl(_self, _self.value);
+
+  settings settings = get_settings();
+  auto vacc = vaccount::get_vaccount(settings.vaccount_contract, account_id);
+  eosio::check(vaccount::is_eos(vacc->address), "wrong vaccount type");
+  eosio::name payer = vaccount::get_name(vacc->address);
 
   reservation_tbl.erase(*res);
   submission_tbl.emplace(payer,
