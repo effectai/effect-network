@@ -230,13 +230,6 @@
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize)) (.push 13) (.pushUint32 acc-id))))
 
-(defn pack-reservetask-params [last-task-done camp-id]
-  (.asUint8Array
-   (doto (new (.-SerialBuffer Serialize))
-     (.push 6)
-     (.pushUint32 last-task-done)
-     (.pushUint32 camp-id))))
-
 (defn pack-submittask-params [sub-id data]
   (.asUint8Array
    (doto (new (.-SerialBuffer Serialize))
@@ -688,6 +681,23 @@
                                          :account_id account-id
                                          :task_idx task-idx}))
 
+(defn make-campaign-fn []
+  (tx-as acc-2 force-acc "mkcampaign"
+         {:owner ["name" acc-2]
+          :content {:field_0 0 :field_1 vacc/hash160-1}
+          :max_task_time 10
+          :reward {:quantity "1.0000 EFX" :contract token-acc}
+          :qualis []
+          :payer acc-2}))
+
+(defn make-batch-fn [campaign-id id reps]
+  (tx-as acc-2 force-acc "mkbatch"
+         {:id id
+          :campaign_id campaign-id
+          :content {:field_0 0 :field_1 vacc/hash160-1}
+          :repetitions reps
+          :payer acc-2}))
+
 (async-deftest submit-task
   (testing "can not submit for other user"
     (js/console.log
@@ -753,10 +763,82 @@
                                 :sig nil}))
     (<p-should-succeed! (v-transfer acc-4 3 50 (str (get-composite-key 2 2))))
     (<p-should-succeed! (publish-batch acc-4 3 (get-composite-key 2 2) 3))
-    (<p-should-succeed! (reserve-task-fn 2 acc-3 1) "acc3 reserve")))
+    (<p-should-succeed! (reserve-task-fn 2 acc-3 1) "acc3 reserve"))
+  )
+
+(async-deftest
+ reservetask-batch-overflow
+ ;; Set up new campaign ID=3, with 2 batches, of 2 tasks and 2 reps.
+ ;; We are going to test that the campaign rolls to Batch 2 without
+ ;; Batch 1 being completed.
+ ;;
+ ;;    B1          B2
+ ;; R1 05 -- X4 -- __ -- __
+ ;; R2 03 -- __ -- __ -- __
+ (<p! (make-campaign-fn))
+ (<p! (make-batch-fn 3 0 2))
+ (<p! (v-transfer acc-4 3 500 (str (get-composite-key 0 3))))
+ (<p! (publish-batch acc-2 2 (get-composite-key 0 3) 2))
+
+ (<p! (make-batch-fn 3 1 2))
+ (<p! (v-transfer acc-4 3 50 (str (get-composite-key 1 3))))
+ (<p! (publish-batch acc-2 2 (get-composite-key 1 3) 1))
+
+ (testing "can not reserve more than batch"
+   (<p-should-succeed! (reserve-task-fn 3 acc-5 4) "acc5 reserve")
+   (<p-should-succeed! (reserve-task-fn 3 acc-3 1) "acc3 reserve")
+   (<p-should-succeed! (reserve-task-fn 3 acc-4 3) "acc4 reserve"))
+
+ (testing "other user can overflow to new batch"
+   (<p-should-succeed! (submit-task-fn 3 1 acc-4 3) "acc4 submit")
+   (<p-should-succeed! (reserve-task-fn 3 acc-4 3) "acc4 reserve")
+   (let [rows (<p! (eos/get-table-rows force-acc force-acc "reservation"))]
+     (is (= (get (last rows) "batch_id") (str (get-composite-key 1 3)))
+         "wrong reservation batch"))
+   (let [rows (<p! (eos/get-table-rows force-acc force-acc "campaign"))]
+     (is (= (get (last rows) "active_batch") 0)) "wrong campaign batch"))
+
+ (testing "user can complete campaign"
+   (<p-should-succeed! (submit-task-fn 3 2 acc-4 3) "acc4 submit")
+   (<p-should-fail-with! (reserve-task-fn 3 acc-4 3) ""
+                         "next batch not available"))
+
+ (testing "first user increments campaign batch"
+   (<p-should-succeed! (submit-task-fn 3 0 acc-5 4) "acc5 submit")
+   (<p-should-succeed! (reserve-task-fn 3 acc-5 4) "acc5 reserve")
+   (let [rows (<p! (eos/get-table-rows force-acc force-acc "campaign"))]
+     (is (= (get (last rows) "active_batch") 1)) "wrong campaign batch"))
+
+  (testing "other user can claim last task"
+   (<p-should-succeed! (submit-task-fn 3 0 acc-3 1) "acc3 submit")
+   (<p-should-succeed! (reserve-task-fn 3 acc-3 1) "acc3 reserve")
+
+   (<p-should-succeed! (submit-task-fn 3 1 acc-5 4) "acc5 submit")
+   (<p-should-fail-with! (reserve-task-fn 3 acc-5 4) "" "no batches available")))
+
+(async-deftest
+ work-through-linear-campaign
+ ;; Set up new campaign ID=4, with 4 batches, of 1 task and 1 rep
+ (<p! (make-campaign-fn))
+ (doseq [i (range 4)]
+   (<p! (make-batch-fn 4 i 2))
+   (<p! (v-transfer acc-4 3 500 (str (get-composite-key i 4))))
+   (<p! (publish-batch acc-2 2 (get-composite-key i 4) 1)))
+ 
+ (testing "acc5 can work through 4 batches alone"
+   (doseq [i (range 4)]
+     (<p-should-succeed! (reserve-task-fn 4 acc-5 4) "acc5 reserve")
+     (<p-should-succeed! (submit-task-fn 4 i acc-5 4) "acc5 submit"))
+   (<p-should-fail-with! (reserve-task-fn 4 acc-5 4) "" "not available")
+
+   (let [rows (<p! (eos/get-table-rows force-acc force-acc "campaign"))]
+     (is (= (get (last rows) "active_batch") 0) "campaign batch is 0"))
+
+   (let [rows (<p! (eos/get-table-rows force-acc force-acc "submission" {:limit 100}))]
+     (is (= (get (last rows) "batch_id") (str (get-composite-key 3 4)))
+         "submission batch is correct"))))
 
 (async-deftest qualifications
-
   (testing "can set campaign qualification requirement"
     (<p-should-succeed! (tx-as acc-2 force-acc "editcampaign"
                                {:campaign_id 0
@@ -775,8 +857,7 @@
      (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
                                            :account_id 1
                                            :payer acc-3
-                                           :quali_assets []
-                                           :sig nil})
+                                           :quali_assets []})
      "" "wrong number of quali_assets"))
 
   (testing "can join campaign with NFT from collection"
@@ -785,8 +866,7 @@
        (tx-as acc-3 force-acc "reservetask" {:campaign_id 0
                                              :account_id 1
                                              :payer acc-3
-                                             :quali_assets [acc-3-asset-id]
-                                             :sig nil})))))
+                                             :quali_assets [acc-3-asset-id]})))))
 
 ;; (async-deftest payout
 ;;   (let [params-1 (pack-payout-params 0)

@@ -230,14 +230,6 @@ void force::reservetask(uint32_t campaign_id,
 
   eosio::check(!campaign.paused, "campaign is paused");
 
-  uint32_t batch_id = campaign.active_batch;
-  uint64_t batch_pk = (uint64_t{campaign_id} << 32) | batch_id;
-  batch_table batch_tbl(_self, _self.value);
-  auto& batch = batch_tbl.get(batch_pk, "no batches available");
-
-  eosio::check(campaign.reservations_done < batch.start_task_idx + batch.num_tasks,
-               "no more tasks in campaign");
-
   // check qualifications
   settings settings = get_settings();
   auto vacc = vaccount::get_vaccount(settings.vaccount_contract, account_id);
@@ -298,14 +290,17 @@ void force::reservetask(uint32_t campaign_id,
 
   // find the last task idx the user completed in the campaign
   acctaskidx_table acctaskidx_tbl(_self, _self.value);
-  auto user_has_last_task = (acctaskidx_tbl.find(acccamp_pk) != acctaskidx_tbl.end());
+  auto our_task_idx = acctaskidx_tbl.find(acccamp_pk);
+  auto user_has_last_task = (our_task_idx != acctaskidx_tbl.end());
 
+  // if this is the first task done by this user, insert the task index
   if (!user_has_last_task) {
     acctaskidx_tbl.emplace(payer,
                            [&](auto& i)
                            {
                              i.campaign_id = campaign_id;
                              i.account_id = account_id;
+			     i.batch_idx = campaign.active_batch;
                              i.value = 0;
                            });
   }
@@ -322,6 +317,38 @@ void force::reservetask(uint32_t campaign_id,
   uint32_t task_idx = std::max(campaign.reservations_done, user_next_task_idx);
 
   submission_table submission_tbl(_self, _self.value);
+
+  // fetch active batch information
+  uint32_t batch_id = (user_has_last_task && our_task_idx->batch_idx > campaign.active_batch) ?
+    our_task_idx->batch_idx : campaign.active_batch;
+
+  uint64_t batch_pk = (uint64_t{campaign_id} << 32) | batch_id;
+  batch_table batch_tbl(_self, _self.value);
+  auto& batch = batch_tbl.get(batch_pk, "no batches available");
+
+  eosio::check(campaign.reservations_done < batch.start_task_idx + batch.num_tasks,
+               "no more tasks in campaign");
+
+  // check if this task index lays in the next batch
+  if (task_idx >= (batch.start_task_idx + batch.num_tasks)) {
+    uint64_t next_batch_pk = (uint64_t{campaign_id} << 32) | (batch_id + 1);
+    auto next_batch = batch_tbl.find(next_batch_pk);
+    batch_pk = next_batch_pk;
+    eosio::check(next_batch != batch_tbl.end(), "next batch not available");
+
+    batch_tbl.modify(*next_batch,
+		     eosio::same_payer,
+		     [&](auto &b)
+		     {
+		       b.start_task_idx = task_idx;
+		     });
+    acctaskidx_tbl.modify(*our_task_idx,
+			  eosio::same_payer,
+			  [&](auto &i)
+			  {
+			    i.batch_idx = batch_id + 1;
+			  });
+  }
 
   // check if there is an earlier expired reservation to claim instead
   auto by_camp = reservation_tbl.get_index<"camp"_n>();

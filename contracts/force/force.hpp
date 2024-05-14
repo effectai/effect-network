@@ -208,6 +208,7 @@ private:
   struct [[eosio::table]] acctaskidx {
     uint32_t account_id;
     uint32_t campaign_id;
+    uint32_t batch_idx;
     uint32_t value;
     uint64_t primary_key() const { return (uint64_t{account_id} << 32) | campaign_id; }
   };
