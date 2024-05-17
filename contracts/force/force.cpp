@@ -300,7 +300,7 @@ void force::reservetask(uint32_t campaign_id,
                            {
                              i.campaign_id = campaign_id;
                              i.account_id = account_id;
-			     i.batch_idx = campaign.active_batch;
+                             i.batch_idx = campaign.active_batch;
                              i.value = 0;
                            });
   }
@@ -334,20 +334,21 @@ void force::reservetask(uint32_t campaign_id,
     uint64_t next_batch_pk = (uint64_t{campaign_id} << 32) | (batch_id + 1);
     auto next_batch = batch_tbl.find(next_batch_pk);
     batch_pk = next_batch_pk;
+    batch_id = batch_id + 1;
     eosio::check(next_batch != batch_tbl.end(), "next batch not available");
 
     batch_tbl.modify(*next_batch,
-		     eosio::same_payer,
-		     [&](auto &b)
-		     {
-		       b.start_task_idx = task_idx;
-		     });
+                     eosio::same_payer,
+                     [&](auto &b)
+                     {
+                       b.start_task_idx = task_idx;
+                     });
     acctaskidx_tbl.modify(*our_task_idx,
-			  eosio::same_payer,
-			  [&](auto &i)
-			  {
-			    i.batch_idx = batch_id + 1;
-			  });
+                          eosio::same_payer,
+                          [&](auto &i)
+                          {
+                            i.batch_idx = batch_id;
+                          });
   }
 
   // check if there is an earlier expired reservation to claim instead
@@ -375,7 +376,7 @@ void force::reservetask(uint32_t campaign_id,
                               r.id = bump_id;
                               r.task_idx = res.task_idx;
                               r.account_id = account_id;
-                              r.batch_id = batch_pk;
+                              r.batch_idx = batch_id;
                               r.reserved_on = time_point_sec(now());
                               r.campaign_id = campaign_id;
                             });
@@ -451,7 +452,7 @@ void force::reservetask(uint32_t campaign_id,
                             r.id = reservation_id;
                             r.task_idx = task_idx;
                             r.account_id.emplace(account_id);
-                            r.batch_id = batch_pk;
+                            r.batch_idx = batch_id;
                             r.reserved_on = time_point_sec(now());
                             r.campaign_id = campaign_id;
                           });
@@ -515,7 +516,7 @@ void force::submittask(uint32_t campaign_id,
                            s.task_idx = task_idx;
                            s.account_id.emplace(account_id);
                            s.data = data;
-                           s.batch_id = res->batch_id;
+                           s.batch_idx = res->batch_idx;
                            s.paid = false;
                            s.submitted_on = time_point_sec(now());
                          });
@@ -525,14 +526,15 @@ void force::submittask(uint32_t campaign_id,
                       eosio::same_payer,
                       [&](auto& c) { c.total_submissions += 1; });
 
-  auto& batch = batch_tbl.get(res->batch_id);
+  uint64_t batch_pk = (uint64_t{campaign_id} << 32) | res->batch_idx;
+  auto& batch = batch_tbl.get(batch_pk);
 
   require_vaccount(account_id);
 
   if (batch.reward.quantity.amount > 0) {
     uint64_t payment_id = payment_tbl.available_primary_key();
 
-    uint128_t payment_sk = (uint128_t{res->batch_id} << 64) | (uint64_t{account_id} << 32);
+    uint128_t payment_sk = (uint128_t{batch_pk} << 64) | (uint64_t{account_id} << 32);
     auto payment_idx = payment_tbl.get_index<"accbatch"_n>();
     auto payment = payment_idx.find(payment_sk);
 
@@ -542,7 +544,7 @@ void force::submittask(uint32_t campaign_id,
                           {
                             p.id = payment_id;
                             p.account_id = account_id;
-                            p.batch_id = res->batch_id;
+                            p.batch_id = res->batch_idx;
                             p.pending = batch.reward;
                             p.last_submission_time = time_point_sec(now());
                           });

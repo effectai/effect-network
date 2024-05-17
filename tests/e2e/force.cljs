@@ -793,7 +793,7 @@
    (<p-should-succeed! (submit-task-fn 3 1 acc-4 3) "acc4 submit")
    (<p-should-succeed! (reserve-task-fn 3 acc-4 3) "acc4 reserve")
    (let [rows (<p! (eos/get-table-rows force-acc force-acc "reservation"))]
-     (is (= (get (last rows) "batch_id") (str (get-composite-key 1 3)))
+     (is (= (get (last rows) "batch_idx") 1)
          "wrong reservation batch"))
    (let [rows (<p! (eos/get-table-rows force-acc force-acc "campaign"))]
      (is (= (get (last rows) "active_batch") 0)) "wrong campaign batch"))
@@ -835,7 +835,7 @@
      (is (= (get (last rows) "active_batch") 0) "campaign batch is 0"))
 
    (let [rows (<p! (eos/get-table-rows force-acc force-acc "submission" {:limit 100}))]
-     (is (= (get (last rows) "batch_id") (str (get-composite-key 3 4)))
+     (is (= (get (last rows) "batch_idx") 3)
          "submission batch is correct"))))
 
 (async-deftest qualifications

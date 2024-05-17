@@ -240,7 +240,7 @@ private:
     uint64_t id;
     uint32_t task_idx;
     std::optional<uint32_t> account_id;
-    uint64_t batch_id;
+    uint32_t batch_idx;
     eosio::time_point_sec reserved_on;
     uint32_t campaign_id;
 
@@ -258,7 +258,8 @@ private:
     uint32_t campaign_id;
     uint32_t task_idx;
     std::optional<uint32_t> account_id;
-    uint64_t batch_id;
+    uint32_t batch_idx;
+
     /**
      * The first byte of `data` indicates the type of the submission.
      *
@@ -273,9 +274,9 @@ private:
     eosio::time_point_sec submitted_on;
 
     uint64_t primary_key() const { return id; }
-    uint64_t by_batch() const { return batch_id; }
+    uint64_t by_batch() const { return (uint64_t{campaign_id} << 32) | batch_idx; }
 
-    EOSLIB_SERIALIZE(submission, (id)(campaign_id)(task_idx)(account_id)(batch_id)
+    EOSLIB_SERIALIZE(submission, (id)(campaign_id)(task_idx)(account_id)(batch_idx)
 		     (data)(paid)(submitted_on))
   };
 
