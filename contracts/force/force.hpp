@@ -258,17 +258,15 @@ private:
     uint32_t campaign_id;
     uint32_t task_idx;
     std::optional<uint32_t> account_id;
-    std::optional<content> content;
     uint64_t batch_id;
     /**
      * The first byte of `data` indicates the type of the submission.
      *
-     * 0 = Flag
-     * 1 = Raw (normally a UTF-8 encoded string)
-     * 2 = Ipfs hash (30 bytes, without indicator)
-     * 3 = ?
+     * 0 = Empty
+     * 1 = Raw (IPFS hash, or a UTF-8 encoded string, or different)
+     * 2+ = ?
      *
-     * Details on the decoding scheme can be foun in the campaign JSON.
+     * Details on the decoding scheme can be found in the campaign JSON.
      */
     std::pair<char, std::vector<char>> data;
     bool paid;
@@ -277,7 +275,7 @@ private:
     uint64_t primary_key() const { return id; }
     uint64_t by_batch() const { return batch_id; }
 
-    EOSLIB_SERIALIZE(submission, (id)(campaign_id)(task_idx)(account_id)(content)(batch_id)
+    EOSLIB_SERIALIZE(submission, (id)(campaign_id)(task_idx)(account_id)(batch_id)
 		     (data)(paid)(submitted_on))
   };
 
