@@ -54,7 +54,7 @@
     :dao       {:account "theeffectdao"
                 :path    "contracts/dao"
                 :hash    "22814f2c83433da8e929533e4b46bb3be95bc8826c4e4bcc62242f05b4cd2744"}
-    :force     {:account "force.efx"
+    :force     {:account "tasks.efx"
                 :path    "contracts/force"
                 :hash    "17e1dab4a77306e236b6f879bb059cd162e97b204e8e530daac8c7666717313b"}}})
 
