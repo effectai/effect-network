@@ -95,12 +95,15 @@
         :rows)))
 
 (defn get-last-cycle [net]
-  (let [prop-acc (-> deployment net :proposals :account)]
-    (-> (cleos net "get" "table" prop-acc prop-acc "cycle" "-l" "1" "-r")
-        :out
-        (json/decode true)
-        :rows
-        first)))
+  (let [prop-acc (-> deployment net :proposals :account)
+        cycles
+        (-> (cleos net "get" "table" prop-acc prop-acc "cycle" "-l" "20" "-r")
+            :out
+            (json/decode true)
+            :rows)]
+    (->> cycles
+         (filter #(= (:state %) 1))
+         first)))
 
 (defn get-proposal-config [net]
   (let [prop-acc (-> deployment net :proposals :account)]
