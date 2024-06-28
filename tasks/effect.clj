@@ -100,10 +100,17 @@
         (-> (cleos net "get" "table" prop-acc prop-acc "cycle" "-l" "20" "-r")
             :out
             (json/decode true)
-            :rows)]
-    (->> cycles
-         (filter #(= (:state %) 1))
-         first)))
+            :rows)
+        id (->> cycles
+                     (filter #(= (:state %) 1))
+                     first
+                     :id
+                     inc)]
+    (-> (cleos net "get" "table" prop-acc prop-acc "cycle" "-U" (str id) "-L" (str id))
+        :out
+        (json/decode true)
+        :rows
+        first)))
 
 (defn get-proposal-config [net]
   (let [prop-acc (-> deployment net :proposals :account)]
@@ -225,7 +232,10 @@
                               :name "open"
                               :data {:owner "x.efx" :symbol "4,EFX" :ram_payer "x.efx"}
                               :authorization [{:actor "x.efx" :permission "active"}]}
-                             (create-cycle-action net new-cycle-start)
+                             ;; we do not create a new cycle each
+                             ;; time, as it's done in batches now (see
+                             ;; `create-n-cycles`)
+                             ;; (create-cycle-action net new-cycle-start)
                              (transfer-efx-action "daoproposals" (* 0.3 funds-left) "feepool.efx")
                              (transfer-efx-action "daoproposals" (* 0.7 funds-left) "treasury.efx")
                              {:account       "daoproposals"
