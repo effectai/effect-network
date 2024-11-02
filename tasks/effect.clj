@@ -16,7 +16,7 @@
 
 (def rpcs {:jungle4 "https://jungle4.cryptolions.io:443"
            :mainnet "https://eos.greymass.com"})
-(def wallet-pass (slurp "jungle3-password.txt"))
+(def wallet-pass (slurp "jungle4-password.txt"))
 
 (declare do-cleos)
 
@@ -32,7 +32,7 @@
     :proposals {:account "efxproposals"
                 :path    "contracts/proposals"
                 :hash    nil}
-    :force     {:account "efxforce1112"
+    :force     {:account "effecttasks2"
                 :path    "contracts/force"
                 :hash    nil}
     :vaccount  {:account "efxaccount11"
@@ -54,7 +54,7 @@
     :dao       {:account "theeffectdao"
                 :path    "contracts/dao"
                 :hash    "22814f2c83433da8e929533e4b46bb3be95bc8826c4e4bcc62242f05b4cd2744"}
-    :force     {:account "force.efx"
+    :force     {:account "tasks.efx"
                 :path    "contracts/force"
                 :hash    "17e1dab4a77306e236b6f879bb059cd162e97b204e8e530daac8c7666717313b"}}})
 
@@ -95,8 +95,18 @@
         :rows)))
 
 (defn get-last-cycle [net]
-  (let [prop-acc (-> deployment net :proposals :account)]
-    (-> (cleos net "get" "table" prop-acc prop-acc "cycle" "-l" "1" "-r")
+  (let [prop-acc (-> deployment net :proposals :account)
+        cycles
+        (-> (cleos net "get" "table" prop-acc prop-acc "cycle" "-l" "20" "-r")
+            :out
+            (json/decode true)
+            :rows)
+        id (->> cycles
+                     (filter #(= (:state %) 1))
+                     first
+                     :id
+                     inc)]
+    (-> (cleos net "get" "table" prop-acc prop-acc "cycle" "-U" (str id) "-L" (str id))
         :out
         (json/decode true)
         :rows
@@ -129,8 +139,6 @@
         (assoc :expiration (.format date formatter))
         (assoc :actions    actions)
         json/encode)))
-
-
 
 (defn extract-quantity [quantity]
   (Float/parseFloat (->> quantity (re-seq #"(\d+\.\d+) EFX") first second)))
@@ -222,7 +230,10 @@
                               :name "open"
                               :data {:owner "x.efx" :symbol "4,EFX" :ram_payer "x.efx"}
                               :authorization [{:actor "x.efx" :permission "active"}]}
-                             (create-cycle-action net new-cycle-start)
+                             ;; we do not create a new cycle each
+                             ;; time, as it's done in batches now (see
+                             ;; `create-n-cycles`)
+                             ;; (create-cycle-action net new-cycle-start)
                              (transfer-efx-action "daoproposals" (* 0.3 funds-left) "feepool.efx")
                              (transfer-efx-action "daoproposals" (* 0.7 funds-left) "treasury.efx")
                              {:account       "daoproposals"
@@ -261,7 +272,7 @@
 
 (defn unlock []
   (shell "cleos" "wallet" "lock_all")
-  (shell "cleos" "wallet" "unlock" "-n" "jungle3"  "--password" wallet-pass))
+  (shell "cleos" "wallet" "unlock" "-n" "jungle4"  "--password" wallet-pass))
 
 (defn get-account [net acc]
   (json/decode (cleos net "get" "account" acc "--json") true))
@@ -477,13 +488,8 @@
       (do-cleos net "push" "action"
                 (-> deployment net :force :account)
                 "init"
-                (str "[" (-> deployment net :vaccount :account)  ", 0, 1800, 1800]")
-                "-p"
-                (-> deployment net :force :account))
-      (do-cleos net "push" "action"
-                (-> deployment net :force :account)
-                "migrate"
-                (str "[" (-> deployment net :force :account) ", " (-> deployment net :feepool :account) ", 0.1]")
+                (str "[" (-> deployment net :vaccount :account)  ", 11, 1800, 1800, "
+                     (-> deployment net :feepool :account) ", 0.1]")
                 "-p"
                 (-> deployment net :force :account))
       (do-cleos net "set" "account" "permission"
@@ -499,8 +505,8 @@
                 (-> deployment net :force :account))
       (do-cleos net "set" "action" "permission"
                 (-> deployment net :force :account)
-                (-> deployment net :vaccount :account)
-                "vtransfer"
+                (-> deployment net :token :account)
+                "transfer"
                 "xfer"
                 "-p"
                 (-> deployment net :force :account))
@@ -541,3 +547,20 @@
                    (str "'" tx "'")
                    proposer "-p" proposer))
       (catch Exception e (prn e)))))
+
+(defn fix-feepool []
+  (let [fee-amount (* 0.3 326000)
+        act
+        [(transfer-efx-action "daoproposals" fee-amount  "feepool.efx")
+         (transfer-efx-action "daoproposals" (* 0.7 326000) "treasury.efx")
+         {:account "feepool.efx"
+          :name "setbalance"
+          :data {:cycle_id 80 :amount (string/replace (str (format "%.4f" fee-amount)) #"\." "")}
+          :authorization [{:actor "feepool.efx" :permission "active"}]}
+         {:account "feepool.efx"
+          :name "setbalance"
+          :data {:cycle_id 81 :amount "0"}
+          :authorization [{:actor "feepool.efx" :permission "active"}]}]]
+        (create-tx-json
+         act
+         "fixfeepool.json")))

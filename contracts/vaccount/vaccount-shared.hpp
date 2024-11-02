@@ -65,4 +65,25 @@ namespace vaccount {
     "account"_n, account,
     indexed_by<"token"_n, const_mem_fun<account, eosio::checksum256, &account::by_token>>>
   account_table;
+
+  std::optional<account> get_vaccount(eosio::name vacc_account, uint32_t id) {
+    account_table acc_tbl(vacc_account, vacc_account.value);
+    auto acc = acc_tbl.find(id);
+    if (acc != acc_tbl.end())
+      return { *acc };
+    return std::nullopt;
+  }
+
+  bool is_eos(vaddress addr) {
+    auto addr_type = addr.index();
+    return addr_type == 1;
+  }
+
+  eosio::name get_name(vaddress addr) {
+    return std::get<eosio::name>(addr);
+  }
+
+  address get_addresss(vaddress addr) {
+    return std::get<address>(addr);
+  }
 }

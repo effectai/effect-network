@@ -1,6 +1,7 @@
-(use-modules (blockchain)
-             (gnu packages gcc)
-             (gnu packages node))
+(use-modules
+ (gnu packages gcc)
+ (gnu packages node)
+ (nongnu packages clojure))
 
 (packages->manifest
- (list (list gcc "lib") node eosio-cdt gnu-make))
+ (list (list gcc "lib") node  gnu-make babashka))

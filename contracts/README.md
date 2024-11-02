@@ -20,7 +20,8 @@ It's possible to use a docker container instead of installing
 **eosio.cdt** locally:
 
 ```bash
-EOS_CC="docker run --rm -it -v $(pwd):/app -w /app effectai/eosio-cdt:v1.5.0 eosio-cpp" ABI_CC="docker run --rm -it -v $(pwd):/app -w /app effectai/eosio-cdt:v1.5.0 eosio-abigen" make all
+export EOS_CC="sudo docker run --rm -v $(pwd):/build -w /build antelope/cdt:3.1.0 cdt-cpp"
+make all
 ```
 
 ## 🚚 Deploying
