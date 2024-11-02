@@ -16,7 +16,7 @@
 
 (def rpcs {:jungle4 "https://jungle4.cryptolions.io:443"
            :mainnet "https://eos.greymass.com"})
-(def wallet-pass (slurp "jungle3-password.txt"))
+(def wallet-pass (slurp "jungle4-password.txt"))
 
 (declare do-cleos)
 
@@ -139,8 +139,6 @@
         (assoc :expiration (.format date formatter))
         (assoc :actions    actions)
         json/encode)))
-
-
 
 (defn extract-quantity [quantity]
   (Float/parseFloat (->> quantity (re-seq #"(\d+\.\d+) EFX") first second)))
@@ -274,7 +272,7 @@
 
 (defn unlock []
   (shell "cleos" "wallet" "lock_all")
-  (shell "cleos" "wallet" "unlock" "-n" "jungle3"  "--password" wallet-pass))
+  (shell "cleos" "wallet" "unlock" "-n" "jungle4"  "--password" wallet-pass))
 
 (defn get-account [net acc]
   (json/decode (cleos net "get" "account" acc "--json") true))

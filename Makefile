@@ -11,7 +11,6 @@ all: $(WASM)
 %.abi %.wasm: %.cpp %.hpp $(%-shared.hpp)
 	$(EOS_CC) -o $@ $<
 
-
 clean:
 	rm -f $(WASM) $(ABI)
 
